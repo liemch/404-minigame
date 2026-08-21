@@ -41,6 +41,7 @@ export function createExpansionFrame(container, ctx, opts) {
     title = [["GAME", ""]],
     stats = [],
     buttonStyle = "stacked", // stacked | inline | compact
+    buttonsFirst = false, // true: cụm nút nằm BÊN TRÁI (Cyber Defense)
     buttonLabels = {},
     onPauseToggle = () => {},
     handleEscape = true,
@@ -111,7 +112,8 @@ export function createExpansionFrame(container, ctx, opts) {
   const btnHome = sysBtn("i-home", buttonLabels.home || "TRANG CHỦ", "Về trang chủ", () => ctx.requestHome());
   btns.append(btnPause, btnSound, btnSwitch, btnHome);
 
-  topbar.append(titleBox, statsBox, btns);
+  if (buttonsFirst) topbar.append(btns, titleBox, statsBox);
+  else topbar.append(titleBox, statsBox, btns);
 
   /* ---------- Playfield + overlay ---------- */
   const playfield = el("div", "exp-playfield");

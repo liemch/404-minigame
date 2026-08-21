@@ -386,9 +386,111 @@ def test_drift(c):
     console_clean(c, "drift open/close")
 
 
+# ============================= CYBER DEFENSE =============================
+
+def canvas_click(c, wx, wy):
+    """Click vào tọa độ THẾ GIỚI (1280×720) trên canvas cyber-defense."""
+    c.js(sr(
+        "(() => {"
+        "const cv = sr.querySelector('.cd-stage canvas');"
+        "const r = cv.getBoundingClientRect();"
+        f"const x = r.left + ({wx} / 1280) * r.width;"
+        f"const y = r.top + ({wy} / 720) * r.height;"
+        "cv.dispatchEvent(new PointerEvent('pointermove', {clientX: x, clientY: y, bubbles: true, composed: true}));"
+        "cv.dispatchEvent(new PointerEvent('pointerdown', {clientX: x, clientY: y, button: 0, bubbles: true, composed: true}));"
+        "return true; })()"
+    ))
+
+
+def test_defense(c):
+    print("\n== Cyber Defense ==")
+    go_home(c, fresh_storage=True)
+    c.js("window.__ARCADE_EXP5_TEST__ = true; true")
+    check("mở được card Cyber Defense", open_game(c, "Cyber Defense"))
+    check("intro hiện", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'"))
+    c.shot("defense-intro.png")
+
+    c.js(sr("sr.querySelector('.exp-cta').click(); true"))
+    time.sleep(0.8)
+    check("vào trận", c.js(sr("!sr.querySelector('.exp-screen')")))
+    check("build bar 5 slot (3 mở + 2 khóa)", c.js(sr("sr.querySelectorAll('.cd-slot').length")) == 5)
+    check("slot 4-5 khóa theo wave", c.js(sr("sr.querySelectorAll('.cd-slot.locked').length")) == 2)
+    e0 = c.js(sr("[...sr.querySelectorAll('.exp-stat')].find(s=>s.querySelector('.lbl')?.textContent==='NĂNG LƯỢNG')?.querySelector('.val')?.textContent"))
+    check("năng lượng khởi điểm 400", e0 == "400", f"= {e0}")
+
+    # Xây rapid (phím 1) trên pad (760,250)
+    key(c, "Digit1", "1")
+    time.sleep(0.2)
+    check("slot 1 armed", c.js(sr("sr.querySelector('.cd-slot.armed') !== null")))
+    canvas_click(c, 760, 250)
+    time.sleep(0.4)
+    st = wait_state(c, "__CD_STATE__", lambda s: s.get("towers", 0) >= 1, 6)
+    check("xây được tháp rapid", bool(st) and st.get("towers", 0) >= 1, f"towers={st and st.get('towers')}")
+    check("năng lượng trừ 100", bool(st) and st.get("energy") == 300, f"= {st and st.get('energy')}")
+
+    # Chọn tháp → panel + range; nâng cấp
+    canvas_click(c, 760, 250)
+    time.sleep(0.3)
+    check("panel tháp hiện", c.js(sr("!sr.querySelector('.cd-panel').hidden")))
+    check("panel có nút NÂNG CẤP", c.js(sr("sr.querySelector('.cd-upgrade')?.textContent || ''")).startswith("NÂNG CẤP"))
+    c.shot("defense-panel.png")
+    c.js(sr("sr.querySelector('.cd-upgrade').click(); true"))
+    time.sleep(0.4)
+    st = wait_state(c, "__CD_STATE__", lambda s: s.get("energy", 999) == 220, 5)
+    check("nâng cấp trừ đúng 80⚡", bool(st) and st.get("energy") == 220, f"= {st and st.get('energy')}")
+    lv = c.js(sr("sr.querySelector('.cd-lv b')?.textContent"))
+    check("panel hiện CẤP 2", lv == "2", f"= {lv}")
+
+    # Bán tháp → hoàn 70% của (100+80)=126
+    c.js(sr("sr.querySelector('.cd-sell').click(); true"))
+    time.sleep(0.4)
+    st = wait_state(c, "__CD_STATE__", lambda s: s.get("towers", 9) == 0, 5)
+    check("bán tháp (hoàn 126⚡ → 346)", bool(st) and st.get("energy") == 346, f"= {st and st.get('energy')}")
+
+    # Dựng phòng thủ nhanh quanh điểm hợp nhất rồi chờ qua wave
+    # (chế độ xây GIỮ NGUYÊN sau mỗi lần đặt khi còn đủ năng lượng)
+    key(c, "Digit1", "1")
+    canvas_click(c, 760, 250)
+    time.sleep(0.2)
+    canvas_click(c, 950, 430)
+    time.sleep(0.2)
+    key(c, "Digit2", "2")
+    canvas_click(c, 950, 180)
+    time.sleep(0.2)
+    st = wait_state(c, "__CD_STATE__", lambda s: s.get("towers", 0) >= 3, 5)
+    check("dựng 3 tháp phòng thủ", bool(st) and st.get("towers", 0) >= 3, f"towers={st and st.get('towers')}")
+
+    st = wait_state(c, "__CD_STATE__", lambda s: s.get("kills", 0) > 0, 40)
+    check("tháp hạ được bot (kills > 0)", bool(st) and st.get("kills", 0) > 0, f"kills={st and st.get('kills')}")
+    c.shot("defense-play.png")
+    st = wait_state(c, "__CD_STATE__", lambda s: s.get("wave", 0) >= 2, 60)
+    check("wave 1 sạch → sang wave 2", bool(st) and st.get("wave", 0) >= 2, f"wave={st and st.get('wave')}")
+
+    # Pause / resume
+    key(c, "Escape")
+    time.sleep(0.3)
+    check("Esc mở pause", c.js(sr("sr.querySelector('.exp-screen')?.dataset.screen === 'pause'")))
+    c.js(sr("[...sr.querySelectorAll('.exp-menu-btn')].find(b=>b.textContent==='TIẾP TỤC').click(); true"))
+    time.sleep(0.3)
+    check("resume", c.js(sr("!sr.querySelector('.exp-screen')")))
+    console_clean(c, "defense gameplay")
+
+    close_via_switch(c)
+    check("đóng game dọn sạch surface", c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0")))
+    for i in range(3):
+        open_game(c, "Cyber Defense")
+        wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'", 8)
+        roots = c.js(sr("sr.querySelectorAll('.exp-root').length"))
+        check(f"lần mở {i + 1}: đúng 1 exp-root", roots == 1, f"= {roots}")
+        close_via_switch(c)
+    check("surface sạch sau 3 lần", c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0")))
+    console_clean(c, "defense open/close")
+
+
 SECTIONS = {
     "portal": test_portal,
     "drift": test_drift,
+    "defense": test_defense,
 }
 
 

@@ -948,6 +948,181 @@ function driftArt(ctx) {
   ctx.fill();
 }
 
+/* ---------- Cyber Defense: bảng mạch + tháp + CORE ---------- */
+function defenseArt(ctx) {
+  const rand = seededRand(808);
+  ctx.fillStyle = "#071021";
+  ctx.fillRect(0, 0, W, H);
+
+  // trace mạch in
+  ctx.strokeStyle = "rgba(32,120,200,.18)";
+  ctx.lineWidth = 1.4;
+  for (let i = 0; i < 16; i++) {
+    let x = rand() * W;
+    let y = rand() * H;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    for (let k = 0; k < 2; k++) {
+      const len = 20 + rand() * 50;
+      if (rand() > 0.5) x += rand() > 0.5 ? len : -len;
+      else y += rand() > 0.5 ? len : -len;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.fillStyle = "rgba(32,120,200,.3)";
+    ctx.beginPath();
+    ctx.arc(x, y, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // tuyến đường
+  const path = new Path2D();
+  path.moveTo(-10, 60);
+  path.lineTo(90, 60);
+  path.lineTo(90, 130);
+  path.lineTo(190, 130);
+  path.lineTo(190, 80);
+  path.lineTo(258, 80);
+  ctx.strokeStyle = "rgba(47,123,255,.3)";
+  ctx.lineWidth = 30;
+  ctx.lineJoin = "round";
+  ctx.stroke(path);
+  ctx.strokeStyle = "#0d1b3a";
+  ctx.lineWidth = 24;
+  ctx.stroke(path);
+  ctx.strokeStyle = "#2f7bff";
+  ctx.lineWidth = 1.6;
+  ctx.stroke(path);
+
+  // mũi tên vào
+  ctx.fillStyle = "#ff4fd8";
+  for (let k = 0; k < 2; k++) {
+    ctx.beginPath();
+    ctx.moveTo(8 + k * 12, 52);
+    ctx.lineTo(20 + k * 12, 60);
+    ctx.lineTo(8 + k * 12, 68);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // pad + tháp
+  const pad = (x, y) => {
+    ctx.strokeStyle = "rgba(190,255,80,.55)";
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (Math.PI / 4) * i + Math.PI / 8;
+      const px = x + Math.cos(a) * 15;
+      const py = y + Math.sin(a) * 15;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  };
+  pad(50, 120);
+  pad(150, 55);
+  pad(230, 140);
+
+  const tower = (x, y, color) => {
+    ctx.fillStyle = "#0c142c";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (Math.PI / 4) * i + Math.PI / 8;
+      const px = x + Math.cos(a) * 14;
+      const py = y + Math.sin(a) * 14;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.fillRect(x - 2, y - 14, 10, 3);
+    ctx.beginPath();
+    ctx.arc(x, y - 8, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  tower(140, 105, "#20e3ff");
+  tower(60, 30, "#9a5cff");
+
+  // range circle nét đứt
+  ctx.strokeStyle = "rgba(32,227,255,.5)";
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath();
+  ctx.arc(140, 105, 42, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // bot với thanh máu
+  const bot = (x, y) => {
+    ctx.fillStyle = "#121830";
+    ctx.strokeStyle = "#44507f";
+    ctx.beginPath();
+    ctx.roundRect(x - 7, y - 6, 14, 12, 3);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#ff4f64";
+    ctx.fillRect(x - 3, y - 2, 6, 3);
+    ctx.fillStyle = "rgba(10,10,20,.8)";
+    ctx.fillRect(x - 8, y - 13, 16, 3);
+    ctx.fillStyle = "#ff3b4f";
+    ctx.fillRect(x - 8, y - 13, 10, 3);
+  };
+  bot(60, 60);
+  bot(110, 130);
+  bot(150, 130);
+
+  // tia đạn cyan
+  ctx.strokeStyle = "#20e3ff";
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(140, 96);
+  ctx.lineTo(118, 126);
+  ctx.stroke();
+
+  // CORE cube
+  ctx.save();
+  ctx.translate(272, 80);
+  ctx.strokeStyle = "rgba(32,227,255,.5)";
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i;
+    const px = Math.cos(a) * 26;
+    const py = Math.sin(a) * 23;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.stroke();
+  ctx.shadowColor = "#20e3ff";
+  ctx.shadowBlur = 12;
+  ctx.strokeStyle = "#20e3ff";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-11, -11, 22, 22);
+  ctx.strokeRect(-6, -15, 22, 22);
+  ctx.beginPath();
+  ctx.moveTo(-11, -11); ctx.lineTo(-6, -15);
+  ctx.moveTo(11, -11); ctx.lineTo(16, -15);
+  ctx.moveTo(11, 11); ctx.lineTo(16, 7);
+  ctx.moveTo(-11, 11); ctx.lineTo(-6, 7);
+  ctx.stroke();
+  ctx.restore();
+
+  // badge CORE %
+  ctx.fillStyle = "rgba(8,14,28,.92)";
+  ctx.strokeStyle = "#a8ff3e";
+  ctx.lineWidth = 1.4;
+  ctx.fillRect(244, 18, 56, 24);
+  ctx.strokeRect(244, 18, 56, 24);
+  ctx.fillStyle = "#a8ff3e";
+  ctx.font = "800 11px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("CORE 86%", 272, 34);
+}
+
 const PAINTERS = {
   runner: runnerArt,
   "bug-hunter": bugArt,
@@ -956,6 +1131,7 @@ const PAINTERS = {
   strike: strikeArt,
   "portal-puzzle": portalArt,
   "neon-drift": driftArt,
+  "cyber-defense": defenseArt,
   "void-runner": voidRunnerArt,
 };
 

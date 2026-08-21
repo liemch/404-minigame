@@ -137,6 +137,22 @@ export const GAMES = [
     fullBleed: true,
     ownResults: true,
   },
+  {
+    id: "cyber-defense",
+    title: "Cyber Defense",
+    accent: "violet",
+    kind: "2d",
+    goal: "Tower defense trên bảng mạch: xây và nâng cấp tháp trên các pad, chặn 8 wave bot trước khi chúng chạm tới lõi CORE.",
+    hint: { keys: [], text: "click chọn tháp → click pad để xây" },
+    controls: [
+      { keys: ["Click", "Chạm"], text: "chọn tháp / xây trên pad / nâng cấp / bán" },
+      { keys: ["1 2 3 4 5"], text: "chọn nhanh loại tháp" },
+      { keys: ["Esc"], text: "hủy chế độ xây / tạm dừng" },
+    ],
+    loader: () => import("../games/cyber-defense/index.js"),
+    fullBleed: true,
+    ownResults: true,
+  },
 ];
 
 const byId = new Map(GAMES.map((g) => [g.id, g]));
