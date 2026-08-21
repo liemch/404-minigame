@@ -9,6 +9,33 @@
 
 import { WORLD, PLAYER_R } from "./engine.js";
 import { seededRand } from "../../core/utils.js";
+import { loadSprites } from "./assets.js";
+
+/* Sprite cắt từ ảnh tham chiếu — nạp 1 lần ở mức module; render fallback
+   nét vẽ vector cũ cho tới khi từng ảnh decode xong. */
+const readyFns = new Set();
+let spritesReady = false;
+const IMGS = loadSprites(() => {
+  spritesReady = true;
+  for (const fn of readyFns) fn();
+  readyFns.clear();
+});
+
+/* Biến thể xoay màu (charger = shooter ngả magenta, boss phase 2 ngả hồng). */
+const tintCache = new Map();
+function tinted(key, img, filter) {
+  let cv = tintCache.get(key);
+  if (!cv) {
+    cv = document.createElement("canvas");
+    cv.width = img.width;
+    cv.height = img.height;
+    const c = cv.getContext("2d");
+    c.filter = filter;
+    c.drawImage(img, 0, 0);
+    tintCache.set(key, cv);
+  }
+  return cv;
+}
 
 export function createAstroRenderer(canvas, box) {
   const g = canvas.getContext("2d");
@@ -97,9 +124,27 @@ export function createAstroRenderer(canvas, box) {
 
   const rocks = new Map(); // seed → offscreen asteroid sprite
 
+  // khi asset decode xong: dựng lại sprite đá từ ảnh thật
+  if (!spritesReady) readyFns.add(() => rocks.clear());
+
   function rockSprite(a) {
     let spr = rocks.get(a.seed);
     if (spr) return spr;
+    const variants = [IMGS.rockA, IMGS.rockB, IMGS.rockC, IMGS.rockD].filter(Boolean);
+    if (variants.length === 4) {
+      // đá thật cắt từ ảnh: chọn biến thể theo seed, scale về bán kính hitbox
+      const im = variants[Math.abs(Math.floor(a.seed)) % 4];
+      const d = Math.ceil(a.r * 2.3);
+      spr = document.createElement("canvas");
+      spr.width = d;
+      spr.height = Math.ceil(d * (im.height / im.width));
+      const c = spr.getContext("2d");
+      c.imageSmoothingEnabled = true;
+      c.imageSmoothingQuality = "high";
+      c.drawImage(im, 0, 0, spr.width, spr.height);
+      rocks.set(a.seed, spr);
+      return spr;
+    }
     const s = Math.ceil(a.r * 3);
     spr = document.createElement("canvas");
     spr.width = s;
@@ -202,6 +247,32 @@ export function createAstroRenderer(canvas, box) {
   function drawPlayer(p, time) {
     if (!p.alive) return;
     if (p.inv > 0 && Math.floor(time * 14) % 2 === 0) return; // nhấp nháy i-frame
+    if (IMGS.player) {
+      // tiêm kích trắng-xanh cắt từ ảnh (lửa động cơ nướng sẵn) + nhịp glow đuôi
+      g.save();
+      g.translate(p.x, p.y);
+      const bank2 = Math.max(-0.32, Math.min(0.32, p.vx / 900));
+      g.rotate(bank2);
+      const w = PLAYER_R * 2 * 2.05;
+      const h = w * (IMGS.player.height / IMGS.player.width);
+      g.drawImage(IMGS.player, -w / 2, -h * 0.42, w, h);
+      // lửa đuôi nhấp nháy (phần động vẽ code hòa với sprite)
+      const fl = 0.55 + Math.sin(time * 30) * 0.25;
+      const fg = g.createRadialGradient(0, h * 0.42, 1, 0, h * 0.42, 13);
+      fg.addColorStop(0, `rgba(160,240,255,${0.5 * fl})`);
+      fg.addColorStop(1, "rgba(60,140,255,0)");
+      g.fillStyle = fg;
+      g.fillRect(-14, h * 0.42 - 14, 28, 30);
+      if (p.shield > 0) {
+        g.strokeStyle = `rgba(64,200,255,${0.18 + (p.shield / 100) * 0.22})`;
+        g.lineWidth = 2.2;
+        g.beginPath();
+        g.ellipse(0, -2, 27, 31, 0, 0, Math.PI * 2);
+        g.stroke();
+      }
+      g.restore();
+      return;
+    }
     g.save();
     g.translate(p.x, p.y);
     const bank = Math.max(-0.32, Math.min(0.32, p.vx / 900));
@@ -298,6 +369,56 @@ export function createAstroRenderer(canvas, box) {
   }
 
   function drawEnemy(e, time) {
+    if (IMGS.scout && IMGS.shooter) {
+      // địch cắt từ ảnh: scout xanh lá, shooter tím, charger = shooter ngả magenta
+      g.save();
+      g.translate(e.x, e.y);
+      if (e.type === "scout") {
+        g.rotate(Math.sin(e.t * 2.4 + e.sway) * 0.2);
+        const w = 42;
+        const h = w * (IMGS.scout.height / IMGS.scout.width);
+        g.drawImage(IMGS.scout, -w / 2, -h / 2, w, h);
+      } else if (e.type === "shooter") {
+        const w = 46;
+        const h = w * (IMGS.shooter.height / IMGS.shooter.width);
+        g.drawImage(IMGS.shooter, -w / 2, -h / 2, w, h);
+        // nòng đỏ nhấp nháy (động)
+        g.save();
+        g.shadowColor = "#ff4f64";
+        g.shadowBlur = 7;
+        g.fillStyle = "rgba(255,79,100,0.9)";
+        g.beginPath();
+        g.arc(0, h * 0.3, 3.4 + Math.sin(time * 6) * 0.8, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+      } else {
+        const warn = e.state === "aim";
+        g.rotate(e.state === "dash" ? Math.atan2(e.vy, e.vx) - Math.PI / 2 : 0);
+        const im = tinted("charger", IMGS.shooter, "hue-rotate(55deg) saturate(1.25)");
+        const w = 46;
+        const h = w * (im.height / im.width);
+        if (warn && Math.floor(time * 10) % 2 === 0) {
+          g.save();
+          g.shadowColor = "#ff4f64";
+          g.shadowBlur = 16;
+          g.drawImage(im, -w / 2, -h / 2, w, h);
+          g.restore();
+        } else {
+          g.drawImage(im, -w / 2, -h / 2, w, h);
+        }
+        if (warn) {
+          g.strokeStyle = "rgba(255,79,100,0.5)";
+          g.setLineDash([5, 6]);
+          g.beginPath();
+          g.moveTo(0, 18);
+          g.lineTo(0, 130);
+          g.stroke();
+          g.setLineDash([]);
+        }
+      }
+      g.restore();
+      return;
+    }
     g.save();
     g.translate(e.x, e.y);
     g.scale(1.22, 1.22);
@@ -417,6 +538,42 @@ export function createAstroRenderer(canvas, box) {
     g.translate(boss.x, boss.y);
     const r = boss.r * 1.32; // giáp vẽ to hơn hitbox cho bề thế như ảnh
     const p2 = boss.phase === 2;
+
+    if (IMGS.boss) {
+      // thiết giáp lục giác cắt từ ảnh; phase 2 ngả hồng + telegraph chớp đỏ
+      const im = p2 ? tinted("boss2", IMGS.boss, "hue-rotate(38deg) saturate(1.2) brightness(1.05)") : IMGS.boss;
+      const w = r * 3.35;
+      const h = w * (im.height / im.width);
+      g.save();
+      g.shadowColor = p2 ? "#ff2e96" : "#9a5cff";
+      g.shadowBlur = 30;
+      g.drawImage(im, -w / 2, -h * 0.5, w, h);
+      g.restore();
+      // mắt đỏ nhấp nháy khi telegraph (động)
+      if (boss.telegraph > 0) {
+        const eyeR = r * 0.3 + Math.sin(time * 22) * 3 + 4;
+        const eg = g.createRadialGradient(0, 0, 2, 0, 0, eyeR);
+        eg.addColorStop(0, "rgba(255,241,243,0.85)");
+        eg.addColorStop(0.5, "rgba(255,68,83,0.55)");
+        eg.addColorStop(1, "rgba(255,36,56,0)");
+        g.fillStyle = eg;
+        g.beginPath();
+        g.arc(0, 0, eyeR, 0, Math.PI * 2);
+        g.fill();
+      }
+      // vòng nét đứt quay quanh lõi (động)
+      g.save();
+      g.rotate(boss.sway);
+      g.strokeStyle = p2 ? "rgba(255,46,150,0.5)" : "rgba(154,92,255,0.45)";
+      g.setLineDash([11, 9]);
+      g.lineWidth = 2.4;
+      g.beginPath();
+      g.arc(0, 0, r * 0.72, 0, Math.PI * 2);
+      g.stroke();
+      g.restore();
+      g.restore();
+      return;
+    }
 
     // quầng
     g.save();
@@ -554,6 +711,25 @@ export function createAstroRenderer(canvas, box) {
   }
 
   function drawPickup(pk, time) {
+    const sprite = pk.kind === "shield" ? IMGS.pickShield : IMGS.pickBolt;
+    if (sprite) {
+      // huy hiệu tròn neon cắt từ ảnh + chấm sáng quay quanh (động)
+      g.save();
+      g.translate(pk.x + Math.sin(pk.phase) * 5, pk.y);
+      const tone2 = pk.kind === "shield" ? "#2ec7ff" : "#ff2e96";
+      const pulse2 = 1 + Math.sin(time * 5 + pk.phase) * 0.08;
+      g.scale(pulse2, pulse2);
+      const w = 48;
+      const h = w * (sprite.height / sprite.width);
+      g.drawImage(sprite, -w / 2, -h / 2, w, h);
+      g.fillStyle = `${tone2}aa`;
+      for (let i = 0; i < 3; i++) {
+        const a = time * 2.4 + (i * Math.PI * 2) / 3;
+        g.fillRect(Math.cos(a) * 25 - 1.6, Math.sin(a) * 25 - 1.6, 3.2, 3.2);
+      }
+      g.restore();
+      return;
+    }
     g.save();
     g.translate(pk.x + Math.sin(pk.phase) * 5, pk.y);
     const tone = pk.kind === "shield" ? "#2ec7ff" : "#ff2e96";

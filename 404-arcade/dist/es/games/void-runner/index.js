@@ -110,9 +110,17 @@ export function createGame() {
     return VR_QUALITY_SCALE[settings.quality] ?? 0.82;
   }
 
+  /** Bloom theo thang chất lượng: tắt ở low; auto tắt khi autoScale đã tụt đáy. */
+  function bloomWanted() {
+    if (settings.quality === "low") return false;
+    if (settings.quality === "auto") return autoScale > VR_QUALITY_SCALE.low + 0.001;
+    return true;
+  }
+
   function applyQuality() {
     if (!engine || !wrap) return;
     engine.resize(wrap.clientWidth, wrap.clientHeight, currentScale());
+    engine.setBloom?.(bloomWanted());
   }
 
   function applySettings(partial) {
@@ -314,6 +322,7 @@ export function createGame() {
     const playing = mode === "run" && !paused && !dying;
 
     world.update(dt, { playing, camPos: cam.pos });
+    world.setPlayerShadow(playing ? player.pos : null);
 
     if (mode === "idle") {
       // Nền sống cho start screen: đứng trên nóc nhìn dọc course về phía
@@ -563,8 +572,9 @@ export function createGame() {
       wrap.insertBefore(canvas, wrap.firstChild);
 
       try {
-        // far lớn (opt-in) để vẽ backdrop hoàng hôn rất xa ở start screen
-        engine = createEngine(canvas, { fogNear: 34, fogFar: 112, fogColor: VR_COLORS.fog, far: 400 });
+        // far lớn (opt-in) để vẽ backdrop hoàng hôn rất xa ở start screen.
+        // bloom: opt-in — bật/tắt runtime theo thang chất lượng (applyQuality).
+        engine = createEngine(canvas, { fogNear: 34, fogFar: 112, fogColor: VR_COLORS.fog, far: 400, bloom: true });
       } catch {
         engine = null;
       }

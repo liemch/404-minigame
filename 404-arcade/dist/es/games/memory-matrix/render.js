@@ -1,20 +1,44 @@
 /**
- * render.js — vẽ Memory Matrix 404 theo ảnh reference: nền navy có mạch
- * điện + cột pixel + hành tinh viền cyan góc trái dưới; thẻ bo góc viền
- * neon (úp: hoa văn mạch + chữ 404 tím, mở: viền cyan, match: viền lime
- * + huy hiệu tick); biểu tượng nguyên bản vẽ tay bằng canvas.
+ * render.js — vẽ Memory Matrix 404 bằng sprite cắt từ CHÍNH ảnh reference
+ * (assets.js): lưng thẻ hoa văn mạch + chữ 404 (3 tone viền), 5 biểu
+ * tượng chính (portal/robot/bolt/shield/star), hành tinh + cột pixel +
+ * mạch điện nền. Mỗi sprite có fallback vẽ vector cũ khi ảnh chưa decode;
+ * 7 biểu tượng còn lại vẫn vẽ canvas vì không có trong ảnh reference.
  */
 
 import { seededRand, MONO_FONT } from "../../core/utils.js";
+import { SPRITES } from "./assets.js";
 
 /* Bảng màu viền thẻ úp — lặp ổn định theo chỉ số thẻ như reference */
 const DOWN_TONES = ["#ff2ea6", "#9a5cff", "#ff2ea6", "#20e3ff", "#9a5cff", "#ff2ea6"];
+/* Sprite lưng thẻ tương ứng từng tone ở trên */
+const BACK_KEYS = ["backPink", "backViolet", "backPink", "backCyan", "backViolet", "backPink"];
+/* Icon có sprite cắt từ reference (các icon khác vẽ code) */
+const ICON_SPR = {
+  portal: "iconPortal",
+  robot: "iconRobot",
+  bolt: "iconBolt",
+  shield: "iconShield",
+  star: "iconStar",
+};
 
 export function createMatrixRenderer(canvas, box) {
   const g = canvas.getContext("2d");
   let dpr = 1;
   let W = 0;
   let H = 0;
+
+  /* nạp sprite từ data-URL; game vẫn chạy khi chưa decode xong */
+  const spr = {};
+  for (const [k, url] of Object.entries(SPRITES)) {
+    const im = new Image();
+    im.decoding = "async";
+    im.onload = () => {
+      spr[k] = im;
+      bgCanvas = null; // nền tĩnh dùng sprite → vẽ lại khi ảnh sẵn sàng
+    };
+    im.src = url;
+  }
 
   function fit() {
     const rect = box.getBoundingClientRect();
@@ -96,13 +120,21 @@ export function createMatrixRenderer(canvas, box) {
       c.fillStyle = rand() > 0.8 ? "rgba(32,227,255,.4)" : "rgba(140,150,220,.22)";
       c.fillRect(rand() * W, rand() * H, 2, 2);
     }
-    // cột pixel kiểu equalizer dọc mép trái
-    for (let i = 0; i < 12; i++) {
-      const bx = 14 + rand() * 74;
-      const bh = 14 + rand() * 90;
-      const by = 60 + rand() * (H - 140);
-      c.fillStyle = `rgba(${rand() > 0.5 ? "60,80,190" : "90,60,200"},${(0.16 + rand() * 0.22).toFixed(2)})`;
-      for (let y = 0; y < bh; y += 7) c.fillRect(bx, by + y, 5, 4);
+    if (spr.eqBars) {
+      // cột pixel equalizer cắt từ reference, dọc mép trái
+      const eh = Math.min(H * 0.42, 330);
+      const ew = eh * (235 / 330);
+      c.globalAlpha = 0.85;
+      c.drawImage(spr.eqBars, 4, H * 0.24, ew, eh);
+      c.globalAlpha = 1;
+    } else {
+      for (let i = 0; i < 12; i++) {
+        const bx = 14 + rand() * 74;
+        const bh = 14 + rand() * 90;
+        const by = 60 + rand() * (H - 140);
+        c.fillStyle = `rgba(${rand() > 0.5 ? "60,80,190" : "90,60,200"},${(0.16 + rand() * 0.22).toFixed(2)})`;
+        for (let y = 0; y < bh; y += 7) c.fillRect(bx, by + y, 5, 4);
+      }
     }
     // mạch điện mờ hai mép
     c.strokeStyle = "rgba(70,100,220,.14)";
@@ -124,39 +156,69 @@ export function createMatrixRenderer(canvas, box) {
       c.arc(x, y, 2, 0, Math.PI * 2);
       c.fill();
     }
-    // hành tinh viền cyan góc trái dưới
-    const pr = Math.max(150, H * 0.42);
-    const pg = c.createRadialGradient(-30, H + 40, pr * 0.3, -30, H + 40, pr);
-    pg.addColorStop(0, "rgba(16,26,70,.9)");
-    pg.addColorStop(0.82, "rgba(10,16,44,.85)");
-    pg.addColorStop(1, "rgba(32,150,255,.28)");
-    c.fillStyle = pg;
-    c.beginPath();
-    c.arc(-30, H + 40, pr, 0, Math.PI * 2);
-    c.fill();
-    c.strokeStyle = "rgba(60,190,255,.4)";
-    c.lineWidth = 2;
-    c.beginPath();
-    c.arc(-30, H + 40, pr, -Math.PI / 2, 0.1);
-    c.stroke();
-    // khung bracket cyan góc
-    c.strokeStyle = "rgba(32,227,255,.32)";
-    c.lineWidth = 2;
-    c.beginPath();
-    c.moveTo(10, 46);
-    c.lineTo(10, 12);
-    c.lineTo(46, 12);
-    c.stroke();
-    c.beginPath();
-    c.moveTo(10, H - 46);
-    c.lineTo(10, H - 12);
-    c.lineTo(46, H - 12);
-    c.stroke();
+    if (spr.planet) {
+      // hành tinh lưới cyan góc trái dưới cắt từ reference
+      const ph = Math.min(H * 0.6, 430);
+      const pw = ph * (270 / 350);
+      c.drawImage(spr.planet, 0, H - ph, pw, ph);
+    } else {
+      const pr = Math.max(150, H * 0.42);
+      const pg = c.createRadialGradient(-30, H + 40, pr * 0.3, -30, H + 40, pr);
+      pg.addColorStop(0, "rgba(16,26,70,.9)");
+      pg.addColorStop(0.82, "rgba(10,16,44,.85)");
+      pg.addColorStop(1, "rgba(32,150,255,.28)");
+      c.fillStyle = pg;
+      c.beginPath();
+      c.arc(-30, H + 40, pr, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = "rgba(60,190,255,.4)";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(-30, H + 40, pr, -Math.PI / 2, 0.1);
+      c.stroke();
+    }
+    if (spr.circuitTL) {
+      // mạch điện + kim cương cyan góc trên trái cắt từ reference
+      const cw2 = Math.min(W * 0.2, 250);
+      const ch2 = cw2 * (165 / 252);
+      c.drawImage(spr.circuitTL, 4, 6, cw2, ch2);
+      // lật dọc cho góc dưới trái
+      c.save();
+      c.translate(4, H - 6);
+      c.scale(1, -1);
+      c.drawImage(spr.circuitTL, 0, 0, cw2, ch2);
+      c.restore();
+    } else {
+      c.strokeStyle = "rgba(32,227,255,.32)";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(10, 46);
+      c.lineTo(10, 12);
+      c.lineTo(46, 12);
+      c.stroke();
+      c.beginPath();
+      c.moveTo(10, H - 46);
+      c.lineTo(10, H - 12);
+      c.lineTo(46, H - 12);
+      c.stroke();
+    }
   }
 
   /* ---------- biểu tượng ---------- */
 
   function drawIcon(id, tone, s) {
+    // 5 icon chính dùng sprite cắt từ ảnh reference (đã gồm vòng + glow)
+    const im = spr[ICON_SPR[id]];
+    if (im) {
+      const dw = s * 1.72;
+      const dh = (dw * im.height) / im.width;
+      g.save();
+      g.shadowColor = tone;
+      g.shadowBlur = s * 0.2;
+      g.drawImage(im, -dw / 2, -dh / 2, dw, dh);
+      g.restore();
+      return;
+    }
     g.save();
     g.shadowColor = tone;
     g.shadowBlur = s * 0.34;
@@ -445,36 +507,58 @@ export function createMatrixRenderer(canvas, box) {
         ? "#3b9dff"
         : DOWN_TONES[card.idx % DOWN_TONES.length];
 
-    // nền thẻ
-    const bg = g.createLinearGradient(0, -ch / 2, 0, ch / 2);
-    bg.addColorStop(0, "#141133");
-    bg.addColorStop(1, "#0c0a24");
-    g.fillStyle = bg;
-    g.beginPath();
-    g.roundRect(-cw / 2, -ch / 2, cw, ch, 12);
-    g.fill();
-
-    if (showUp) {
-      const s = Math.min(cw, ch) * 0.62;
-      const pulse = card.flash > 0 ? 1 + Math.sin(time * 16) * 0.04 : 1;
+    const backIm = !showUp ? spr[BACK_KEYS[card.idx % BACK_KEYS.length]] : null;
+    if (backIm) {
+      // lưng thẻ cắt từ reference (đã gồm viền + hoa văn mạch + chữ 404)
       g.save();
-      g.scale(pulse, pulse);
-      drawIcon(card.icon.id, card.icon.tone, s);
+      g.beginPath();
+      g.roundRect(-cw / 2, -ch / 2, cw, ch, 12);
+      g.clip();
+      g.drawImage(backIm, -cw / 2, -ch / 2, cw, ch);
+      g.restore();
+      // quầng neon ngoài viền theo tone
+      g.save();
+      g.shadowColor = tone;
+      g.shadowBlur = 12;
+      g.strokeStyle = tone;
+      g.globalAlpha = 0.5;
+      g.lineWidth = 2;
+      g.beginPath();
+      g.roundRect(-cw / 2 + 1, -ch / 2 + 1, cw - 2, ch - 2, 11);
+      g.stroke();
       g.restore();
     } else {
-      drawCardBack(cw, ch, card.idx);
-    }
+      // nền thẻ
+      const bg = g.createLinearGradient(0, -ch / 2, 0, ch / 2);
+      bg.addColorStop(0, "#141133");
+      bg.addColorStop(1, "#0c0a24");
+      g.fillStyle = bg;
+      g.beginPath();
+      g.roundRect(-cw / 2, -ch / 2, cw, ch, 12);
+      g.fill();
 
-    // viền neon + quầng
-    g.save();
-    g.shadowColor = tone;
-    g.shadowBlur = matched ? 16 : 11;
-    g.strokeStyle = tone;
-    g.lineWidth = 2.6;
-    g.beginPath();
-    g.roundRect(-cw / 2 + 1.3, -ch / 2 + 1.3, cw - 2.6, ch - 2.6, 11);
-    g.stroke();
-    g.restore();
+      if (showUp) {
+        const s = Math.min(cw, ch) * 0.62;
+        const pulse = card.flash > 0 ? 1 + Math.sin(time * 16) * 0.04 : 1;
+        g.save();
+        g.scale(pulse, pulse);
+        drawIcon(card.icon.id, card.icon.tone, s);
+        g.restore();
+      } else {
+        drawCardBack(cw, ch, card.idx);
+      }
+
+      // viền neon + quầng
+      g.save();
+      g.shadowColor = tone;
+      g.shadowBlur = matched ? 16 : 11;
+      g.strokeStyle = tone;
+      g.lineWidth = 2.6;
+      g.beginPath();
+      g.roundRect(-cw / 2 + 1.3, -ch / 2 + 1.3, cw - 2.6, ch - 2.6, 11);
+      g.stroke();
+      g.restore();
+    }
 
     // huy hiệu tick lime góc phải trên (thẻ đã match)
     if (matched) {

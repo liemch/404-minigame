@@ -8,11 +8,24 @@
 
 import { seededRand, MONO_FONT } from "../../core/utils.js";
 import { WORLD, GOAL, SPOT, ZONES, flightPos } from "./engine.js";
+import { SPRITES } from "./assets.js";
 
 const F = (w) => `800 ${w}px ${MONO_FONT}`;
 
 export function createGoalRenderer(canvas, box) {
   const g = canvas.getContext("2d");
+  /* Sprite cắt từ ảnh tham chiếu — decode async, mỗi hàm vẽ có fallback
+   * vector cũ khi ảnh chưa sẵn sàng. Nạp xong thì vẽ lại nền tĩnh. */
+  const spr = {};
+  for (const [key, url] of Object.entries(SPRITES)) {
+    const im = new Image();
+    im.onload = () => {
+      spr[key] = im;
+      bgCanvas = null;
+      netCanvas = null;
+    };
+    im.src = url;
+  }
   let dpr = 1;
   let scale = 1;
   let offX = 0;
@@ -43,6 +56,7 @@ export function createGoalRenderer(canvas, box) {
 
   /* ---------- nền tĩnh (skyline + khán đài + sân) ---------- */
   let bgCanvas = null;
+  let netCanvas = null; // pattern lưới hex pre-render từ sprite
 
   function paintBg() {
     bgCanvas = document.createElement("canvas");
@@ -59,21 +73,53 @@ export function createGoalRenderer(canvas, box) {
     c.fillStyle = sky;
     c.fillRect(-200, -200, WORLD.w + 400, 560);
 
-    // skyline neon phía xa
-    for (let i = 0; i < 42; i++) {
-      const bw = 26 + rand() * 60;
-      const bh = 60 + rand() * 190;
-      const x = -100 + i * ((WORLD.w + 200) / 42) + rand() * 20;
-      c.fillStyle = "rgba(16,12,44,.96)";
-      c.fillRect(x, 320 - bh, bw, bh);
-      const tone = rand() > 0.5 ? "rgba(255,46,166,.5)" : "rgba(32,227,255,.5)";
-      c.strokeStyle = tone;
-      c.lineWidth = 1.2;
-      c.strokeRect(x, 320 - bh, bw, bh);
-      for (let wy = 320 - bh + 8; wy < 310; wy += 12) {
-        if (rand() > 0.55) {
-          c.fillStyle = tone;
-          c.fillRect(x + 4, wy, bw - 8, 2);
+    // skyline neon phía xa (sprite cắt từ reference, tile gương)
+    if (spr.skylineMid) {
+      const im = spr.skylineMid;
+      const dh = 128;
+      const tileW = dh * (im.width / im.height);
+      for (let i = -1; -200 + i * tileW < WORLD.w + 200; i++) {
+        const x = -200 + i * tileW;
+        if (((i % 2) + 2) % 2) {
+          c.save();
+          c.translate(x + tileW, 112);
+          c.scale(-1, 1);
+          c.drawImage(im, -0.5, 0, tileW + 1, dh);
+          c.restore();
+        } else {
+          c.drawImage(im, x - 0.5, 112, tileW + 1, dh);
+        }
+      }
+      // dải đám đông tối phía sau khung thành
+      c.fillStyle = "#131030";
+      c.fillRect(-200, 240, WORLD.w + 400, 96);
+      for (let i = 0; i < 210; i++) {
+        const px = -100 + rand() * (WORLD.w + 200);
+        const py = 246 + rand() * 84;
+        c.fillStyle =
+          rand() > 0.92
+            ? "rgba(255,46,166,.7)"
+            : rand() > 0.84
+              ? "rgba(32,227,255,.7)"
+              : `rgba(${60 + rand() * 50},${60 + rand() * 55},${110 + rand() * 60},.6)`;
+        c.fillRect(px, py, 3.4, 3.4);
+      }
+    } else {
+      for (let i = 0; i < 42; i++) {
+        const bw = 26 + rand() * 60;
+        const bh = 60 + rand() * 190;
+        const x = -100 + i * ((WORLD.w + 200) / 42) + rand() * 20;
+        c.fillStyle = "rgba(16,12,44,.96)";
+        c.fillRect(x, 320 - bh, bw, bh);
+        const tone = rand() > 0.5 ? "rgba(255,46,166,.5)" : "rgba(32,227,255,.5)";
+        c.strokeStyle = tone;
+        c.lineWidth = 1.2;
+        c.strokeRect(x, 320 - bh, bw, bh);
+        for (let wy = 320 - bh + 8; wy < 310; wy += 12) {
+          if (rand() > 0.55) {
+            c.fillStyle = tone;
+            c.fillRect(x + 4, wy, bw - 8, 2);
+          }
         }
       }
     }
@@ -85,6 +131,17 @@ export function createGoalRenderer(canvas, box) {
     c.fillRect(-200, 250, WORLD.w + 400, 90);
 
     // khán đài hai bên với đám đông chấm
+    if (spr.standR) {
+      const im = spr.standR;
+      const dw = 380;
+      const dh = dw * (im.height / im.width);
+      c.drawImage(im, WORLD.w - dw, 120, dw, dh);
+      c.save();
+      c.translate(dw, 120);
+      c.scale(-1, 1);
+      c.drawImage(im, 0, 0, dw, dh);
+      c.restore();
+    } else
     for (const side of [-1, 1]) {
       c.save();
       const x0 = side === -1 ? -140 : WORLD.w - 500;
@@ -142,15 +199,15 @@ export function createGoalRenderer(canvas, box) {
 
     // mặt sân: gradient tối + lưới phối cảnh cyan
     const fg = c.createLinearGradient(0, 330, 0, WORLD.h);
-    fg.addColorStop(0, "#141243");
-    fg.addColorStop(0.5, "#100e38");
-    fg.addColorStop(1, "#0a0928");
+    fg.addColorStop(0, "#1b1e56");
+    fg.addColorStop(0.5, "#141345");
+    fg.addColorStop(1, "#0d0d33");
     c.fillStyle = fg;
     c.fillRect(-200, 330, WORLD.w + 400, WORLD.h - 330 + 200);
 
     const vpX = 800;
     const vpY = 205;
-    c.strokeStyle = "rgba(32,227,255,.2)";
+    c.strokeStyle = "rgba(32,227,255,.28)";
     c.lineWidth = 1.6;
     for (let i = -14; i <= 14; i++) {
       c.beginPath();
@@ -187,6 +244,38 @@ export function createGoalRenderer(canvas, box) {
     sg.addColorStop(1, "rgba(60,120,255,0)");
     c.fillStyle = sg;
     c.fillRect(SPOT.x - 240, SPOT.y - 240, 480, 480);
+    // vòng tròn cyan quanh chấm đá (như reference)
+    c.save();
+    c.strokeStyle = "rgba(61,239,255,.75)";
+    c.shadowColor = "#20e3ff";
+    c.shadowBlur = 14;
+    c.lineWidth = 5;
+    c.beginPath();
+    c.ellipse(SPOT.x, SPOT.y + 28, 168, 52, 0, 0, Math.PI * 2);
+    c.stroke();
+    c.lineWidth = 2.4;
+    c.beginPath();
+    c.ellipse(SPOT.x, SPOT.y + 28, 128, 38, 0, 0, Math.PI * 2);
+    c.stroke();
+    c.restore();
+    // vệt neon ngang hai cánh sân (như reference)
+    for (const [sx0, sx1] of [[-200, 430], [1170, WORLD.w + 200]]) {
+      for (let i = 0; i < 4; i++) {
+        const yy = 600 + i * 62 + (rand() - 0.5) * 22;
+        const tone = rand() > 0.55 ? "rgba(164,77,240,.55)" : "rgba(255,46,166,.4)";
+        c.strokeStyle = tone;
+        c.shadowColor = tone;
+        c.shadowBlur = 8;
+        c.lineWidth = 3 + rand() * 3;
+        c.beginPath();
+        const a = sx0 + rand() * 120;
+        const b = sx1 - rand() * 120;
+        c.moveTo(a, yy);
+        c.lineTo(b, yy);
+        c.stroke();
+      }
+    }
+    c.shadowBlur = 0;
   }
 
   /* ---------- khung thành + vòng mục tiêu ---------- */
@@ -198,31 +287,64 @@ export function createGoalRenderer(canvas, box) {
     const B = GOAL.ground;
     const depth = 46; // lùi vào trong của khung sau
 
-    // lưới lục giác
-    g.save();
-    g.beginPath();
-    g.rect(L, T, R - L, B - T);
-    g.clip();
-    g.strokeStyle = "rgba(90,140,220,.22)";
-    g.lineWidth = 1.3;
-    const hs = 26;
-    for (let row = 0; row < 16; row++) {
-      for (let col = 0; col < 32; col++) {
-        const hx = L + col * hs * 1.5;
-        const hy = T + row * hs * 0.88 + (col % 2 ? hs * 0.44 : 0);
-        g.beginPath();
-        for (let i = 0; i < 6; i++) {
-          const a = (Math.PI / 3) * i + Math.PI / 6;
-          const px = hx + Math.cos(a) * hs * 0.5;
-          const py = hy + Math.sin(a) * hs * 0.5;
-          if (i === 0) g.moveTo(px, py);
-          else g.lineTo(px, py);
-        }
-        g.closePath();
-        g.stroke();
+    // lưới lục giác (pattern cắt từ reference, tile gương tránh lộ mép)
+    if (spr.netTile) {
+      if (!netCanvas) {
+        const im = spr.netTile;
+        netCanvas = document.createElement("canvas");
+        netCanvas.width = im.width * 2;
+        netCanvas.height = im.height * 2;
+        const nc = netCanvas.getContext("2d");
+        nc.drawImage(im, 0, 0);
+        nc.save();
+        nc.translate(im.width * 2, 0);
+        nc.scale(-1, 1);
+        nc.drawImage(im, 0, 0);
+        nc.restore();
+        nc.save();
+        nc.translate(0, im.height * 2);
+        nc.scale(1, -1);
+        nc.drawImage(im, 0, 0);
+        nc.translate(im.width * 2, 0);
+        nc.scale(-1, 1);
+        nc.drawImage(im, 0, 0);
+        nc.restore();
       }
+      g.save();
+      g.beginPath();
+      g.rect(L, T, R - L, B - T);
+      g.clip();
+      g.globalAlpha = 0.96;
+      g.translate(L, T);
+      g.fillStyle = g.createPattern(netCanvas, "repeat");
+      g.fillRect(0, 0, R - L, B - T);
+      g.restore();
+    } else {
+      g.save();
+      g.beginPath();
+      g.rect(L, T, R - L, B - T);
+      g.clip();
+      g.strokeStyle = "rgba(90,140,220,.22)";
+      g.lineWidth = 1.3;
+      const hs = 26;
+      for (let row = 0; row < 16; row++) {
+        for (let col = 0; col < 32; col++) {
+          const hx = L + col * hs * 1.5;
+          const hy = T + row * hs * 0.88 + (col % 2 ? hs * 0.44 : 0);
+          g.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const a = (Math.PI / 3) * i + Math.PI / 6;
+            const px = hx + Math.cos(a) * hs * 0.5;
+            const py = hy + Math.sin(a) * hs * 0.5;
+            if (i === 0) g.moveTo(px, py);
+            else g.lineTo(px, py);
+          }
+          g.closePath();
+          g.stroke();
+        }
+      }
+      g.restore();
     }
-    g.restore();
 
     // khung sau (chiều sâu) + dây góc
     g.strokeStyle = "rgba(140,180,240,.4)";
@@ -258,6 +380,20 @@ export function createGoalRenderer(canvas, box) {
     g.lineTo(R, B);
     g.stroke();
 
+    // viền neon tím ngoài khung (như reference)
+    g.save();
+    g.strokeStyle = "rgba(164,77,240,.7)";
+    g.shadowColor = "#a44df0";
+    g.shadowBlur = 10;
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(L - 13, B);
+    g.lineTo(L - 13, T - 13);
+    g.lineTo(R + 13, T - 13);
+    g.lineTo(R + 13, B);
+    g.stroke();
+    g.restore();
+
     // 4 vòng mục tiêu góc
     const rings = [
       ["LH", "#ff2ea6"],
@@ -268,6 +404,25 @@ export function createGoalRenderer(canvas, box) {
     for (const [zone, tone] of rings) {
       const z = ZONES[zone];
       const pulse = 1 + Math.sin(time * 3 + z.x) * 0.045;
+      const padIm = tone === "#ff2ea6" ? spr.padMagenta : spr.padLime;
+      if (padIm) {
+        /* pad đích cắt từ reference — đĩa r≈55px, neo tâm (0.493, 0.492),
+         * scale để trùng bán kính vòng ngắm 46 world của gameplay */
+        const k = (46 / 55) * pulse;
+        g.save();
+        g.translate(z.x, z.y);
+        g.shadowColor = tone;
+        g.shadowBlur = 12;
+        g.drawImage(
+          padIm,
+          -padIm.width * 0.493 * k,
+          -padIm.height * 0.492 * k,
+          padIm.width * k,
+          padIm.height * k
+        );
+        g.restore();
+        continue;
+      }
       g.save();
       g.translate(z.x, z.y);
       g.scale(pulse, pulse);
@@ -324,6 +479,46 @@ export function createGoalRenderer(canvas, box) {
     } else {
       x += Math.sin(time * 1.7) * 14 + kp.lean * 60;
       rot = Math.sin(time * 1.7) * 0.05 + kp.lean * 0.14;
+    }
+
+    /* Khi bay người: dùng sprite thủ môn hologram cắt từ reference
+     * (lật gương cho hướng trái, xoay thêm khi chụp góc thấp). Lớp
+     * silhouette tối vẽ dưới sprite để thân che lưới như ảnh gốc. */
+    if (kp.diving && stretch > 0.22 && spr.keeper) {
+      const z = ZONES[kp.zone];
+      const left = z.x < idleX;
+      const low = z.y > 380;
+      g.save();
+      g.translate(x, y + 8);
+      if (left) g.scale(-1, 1);
+      if (low) g.rotate(0.5 * stretch);
+      const kk = 0.92 * (0.72 + 0.28 * stretch);
+      g.scale(kk, kk);
+      // silhouette thân + tay + đầu (tọa độ px sprite, neo tại điểm (395,73))
+      g.strokeStyle = "rgba(10,16,40,.9)";
+      g.fillStyle = "rgba(10,16,40,.9)";
+      g.lineCap = "round";
+      g.lineWidth = 56;
+      g.beginPath();
+      g.moveTo(-325, 167);
+      g.lineTo(-65, 17);
+      g.stroke();
+      g.lineWidth = 24;
+      g.beginPath();
+      g.moveTo(-65, 17);
+      g.lineTo(80, -28);
+      g.stroke();
+      g.beginPath();
+      g.arc(-5, -13, 30, 0, Math.PI * 2);
+      g.fill();
+      g.drawImage(spr.keeper, -395, -73);
+      // găng trắng đầu tay với
+      g.fillStyle = "#e8f2ff";
+      g.beginPath();
+      g.arc(88, -30, 12, 0, Math.PI * 2);
+      g.fill();
+      g.restore();
+      return;
     }
 
     const body = isOurs ? "#0e2438" : "#0d1030";
@@ -434,6 +629,17 @@ export function createGoalRenderer(canvas, box) {
     g.beginPath();
     g.ellipse(0, r * 1.16, r * 0.9, r * 0.24, 0, 0, Math.PI * 2);
     g.fill();
+    if (spr.ball) {
+      /* bóng 3D cắt từ reference (rim neon + glow nướng sẵn) — xoay bằng
+       * canvas transform theo tham số time như hoa văn code cũ */
+      g.rotate(time * 0.55);
+      const d = r * 2.06;
+      g.shadowColor = "rgba(140,235,255,.6)";
+      g.shadowBlur = r * 0.4;
+      g.drawImage(spr.ball, -d / 2, -d / 2, d, d);
+      g.restore();
+      return;
+    }
     // rim neon hai bên (magenta trái / cyan phải)
     for (const [tone, sx] of [["rgba(255,46,166,.75)", -1], ["rgba(32,227,255,.75)", 1]]) {
       g.strokeStyle = tone;

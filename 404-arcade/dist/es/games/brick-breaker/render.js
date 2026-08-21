@@ -8,6 +8,17 @@
 
 import { WORLD, BALL_R, PADDLE_Y, PADDLE_H, CELL } from "./engine.js";
 import { seededRand, MONO_FONT } from "../../core/utils.js";
+import { loadSprites } from "./assets.js";
+
+/* Sprite cắt từ ảnh tham chiếu — nạp 1 lần ở mức module; render fallback
+   nét vẽ vector cũ cho tới khi từng ảnh decode xong. */
+const readyFns = new Set();
+let spritesReady = false;
+const IMGS = loadSprites(() => {
+  spritesReady = true;
+  for (const fn of readyFns) fn();
+  readyFns.clear();
+});
 
 const COLORS = {
   frame: "#20e3ff",
@@ -47,6 +58,14 @@ export function createBrickRenderer(canvas, box) {
     brickCache.clear();
   }
 
+  // khi asset decode xong: vẽ lại sprite gạch + nền có texture thật
+  if (!spritesReady) {
+    readyFns.add(() => {
+      brickCache.clear();
+      bgCanvas = null;
+    });
+  }
+
   /* ---------- nền bảng mạch (vẽ 1 lần vào offscreen) ---------- */
   let bgCanvas = null;
 
@@ -61,6 +80,19 @@ export function createBrickRenderer(canvas, box) {
     grad.addColorStop(1, COLORS.bg0);
     c.fillStyle = grad;
     c.fillRect(0, 0, WORLD.w, WORLD.h);
+
+    // texture bảng mạch cắt từ ảnh tham chiếu, tile phủ nền (blend screen)
+    if (IMGS.bgTile) {
+      const pat = c.createPattern(IMGS.bgTile, "repeat");
+      c.save();
+      c.globalCompositeOperation = "screen";
+      c.globalAlpha = 0.68;
+      const k = 148 / IMGS.bgTile.width; // 1 tile ≈ 148 world px
+      c.scale(k, k);
+      c.fillStyle = pat;
+      c.fillRect(0, 0, WORLD.w / k, WORLD.h / k);
+      c.restore();
+    }
 
     // quầng sáng mờ cyan / tím như ảnh
     for (const [x, y, r, col] of [
@@ -135,6 +167,13 @@ export function createBrickRenderer(canvas, box) {
     return "rgba(90,100,130,0.35)";
   }
 
+  function brickAsset(type) {
+    if (type === CELL.NORMAL) return IMGS.brickNormal;
+    if (type === CELL.REINFORCED) return IMGS.brickRein;
+    if (type === CELL.EXPLOSIVE) return IMGS.brickBoom;
+    return IMGS.brickSteel;
+  }
+
   function paintBrickSprite(type, hp, w, h) {
     const cv = document.createElement("canvas");
     cv.width = Math.ceil((w + 12) * SS);
@@ -142,6 +181,39 @@ export function createBrickRenderer(canvas, box) {
     const c = cv.getContext("2d");
     c.scale(SS, SS);
     c.translate(6, 6);
+
+    // sprite thật cắt từ ảnh tham chiếu (fallback vector khi chưa decode)
+    const asset = brickAsset(type);
+    if (asset) {
+      c.save();
+      c.shadowColor = glowOf(type);
+      c.shadowBlur = 7;
+      c.drawImage(asset, 0, 0, w, h);
+      c.restore();
+      if (type === CELL.REINFORCED && hp < 2) {
+        // vết nứt khi khiên đã trúng 1 phát (phần động vẽ code)
+        const cx0 = w / 2;
+        const cy0 = h / 2;
+        c.strokeStyle = "rgba(12,4,34,0.7)";
+        c.lineWidth = 1.6;
+        c.beginPath();
+        c.moveTo(4, 4);
+        c.lineTo(cx0 - 4, cy0);
+        c.lineTo(6, h - 4);
+        c.moveTo(w - 5, 3);
+        c.lineTo(cx0 + 5, cy0 + 3);
+        c.lineTo(w - 8, h - 3);
+        c.stroke();
+        c.strokeStyle = "rgba(255,255,255,0.25)";
+        c.lineWidth = 0.8;
+        c.beginPath();
+        c.moveTo(5, 5);
+        c.lineTo(cx0 - 3, cy0 + 1);
+        c.stroke();
+      }
+      return cv;
+    }
+
     const [ca, cb] = brickColors(type);
 
     // quầng glow quanh gạch
@@ -411,19 +483,25 @@ export function createBrickRenderer(canvas, box) {
     c.fillStyle = tone;
     for (const [dx, dy] of [[-6, -26], [4, -38], [0, -20]]) c.fillRect(dx, dy, 2.4, 2.4);
     c.globalAlpha = 1;
-    // thân: wide/laser dạng viên nang, còn lại hình tròn
-    c.shadowColor = tone;
-    c.shadowBlur = 16;
-    c.fillStyle = "rgba(6,10,26,0.95)";
-    c.strokeStyle = tone;
-    c.lineWidth = 2.8;
-    c.beginPath();
-    if (p.type === "wide" || p.type === "laser") c.roundRect(-18, -12, 36, 24, 12);
-    else c.arc(0, 0, 16, 0, Math.PI * 2);
-    c.fill();
-    c.stroke();
-    c.shadowBlur = 0;
-    drawPowerGlyph(c, p.type);
+    // thân: sprite thật từ ảnh cho x2 / wide, còn lại vẽ vector như cũ
+    const sprite = p.type === "multi" ? IMGS.powX2 : p.type === "wide" ? IMGS.powWide : null;
+    if (sprite) {
+      if (p.type === "multi") c.drawImage(sprite, -22, -22, 44, 44);
+      else c.drawImage(sprite, -26, -16.5, 52, 33);
+    } else {
+      c.shadowColor = tone;
+      c.shadowBlur = 16;
+      c.fillStyle = "rgba(6,10,26,0.95)";
+      c.strokeStyle = tone;
+      c.lineWidth = 2.8;
+      c.beginPath();
+      if (p.type === "wide" || p.type === "laser") c.roundRect(-18, -12, 36, 24, 12);
+      else c.arc(0, 0, 16, 0, Math.PI * 2);
+      c.fill();
+      c.stroke();
+      c.shadowBlur = 0;
+      drawPowerGlyph(c, p.type);
+    }
     // chevron rơi phía dưới
     const cv = (time * 26) % 10;
     c.strokeStyle = tone;
@@ -564,25 +642,35 @@ export function createBrickRenderer(canvas, box) {
       g.globalAlpha = 1;
     }
 
-    // bóng
+    // bóng: sprite cầu sáng cắt từ ảnh (fallback gradient vector)
     for (const ball of m.balls) {
-      g.save();
-      g.shadowColor = "#7ce6ff";
-      g.shadowBlur = 22;
-      const bg2 = g.createRadialGradient(ball.x - 2.4, ball.y - 3, 1, ball.x, ball.y, BALL_R + 2);
-      bg2.addColorStop(0, "#ffffff");
-      bg2.addColorStop(0.5, COLORS.ball);
-      bg2.addColorStop(1, "#3fb2e6");
-      g.fillStyle = bg2;
-      g.beginPath();
-      g.arc(ball.x, ball.y, BALL_R + 1, 0, Math.PI * 2);
-      g.fill();
-      g.restore();
-      // chấm bóng láng
-      g.fillStyle = "rgba(255,255,255,0.9)";
-      g.beginPath();
-      g.arc(ball.x - BALL_R * 0.34, ball.y - BALL_R * 0.4, BALL_R * 0.3, 0, Math.PI * 2);
-      g.fill();
+      if (IMGS.ball) {
+        const dr = BALL_R * 3; // sprite gồm cả quầng glow
+        g.save();
+        g.translate(ball.x, ball.y);
+        // vệt sáng baked trong sprite lệch ~0.26rad — xoay ngược chiều bay
+        if (!ball.stuck && (ball.vx || ball.vy)) g.rotate(Math.atan2(-ball.vy, -ball.vx) - 0.26);
+        g.drawImage(IMGS.ball, -dr, -dr, dr * 2, dr * 2);
+        g.restore();
+      } else {
+        g.save();
+        g.shadowColor = "#7ce6ff";
+        g.shadowBlur = 22;
+        const bg2 = g.createRadialGradient(ball.x - 2.4, ball.y - 3, 1, ball.x, ball.y, BALL_R + 2);
+        bg2.addColorStop(0, "#ffffff");
+        bg2.addColorStop(0.5, COLORS.ball);
+        bg2.addColorStop(1, "#3fb2e6");
+        g.fillStyle = bg2;
+        g.beginPath();
+        g.arc(ball.x, ball.y, BALL_R + 1, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+        // chấm bóng láng
+        g.fillStyle = "rgba(255,255,255,0.9)";
+        g.beginPath();
+        g.arc(ball.x - BALL_R * 0.34, ball.y - BALL_R * 0.4, BALL_R * 0.3, 0, Math.PI * 2);
+        g.fill();
+      }
       // mũi tên phóng khi bóng dính paddle
       if (ball.stuck) {
         const bob = Math.sin(time * 5) * 4;
@@ -602,7 +690,7 @@ export function createBrickRenderer(canvas, box) {
       }
     }
 
-    // paddle: thân tối viền tím phát sáng + lõi cyan (theo ảnh)
+    // paddle: sprite thật cắt từ ảnh (fallback vector khi chưa decode)
     const p = m.paddle;
     const px = p.x - p.w / 2;
     const rr = PADDLE_H / 2 + 1;
@@ -612,57 +700,78 @@ export function createBrickRenderer(canvas, box) {
     under.addColorStop(1, "rgba(150,90,255,0)");
     g.fillStyle = under;
     g.fillRect(px - 30, PADDLE_Y - 6, p.w + 60, PADDLE_H + 34);
-    // thân
-    g.save();
-    g.shadowColor = COLORS.paddleRim;
-    g.shadowBlur = 20;
-    const pg = g.createLinearGradient(0, PADDLE_Y, 0, PADDLE_Y + PADDLE_H);
-    pg.addColorStop(0, COLORS.paddleBody0);
-    pg.addColorStop(1, COLORS.paddleBody1);
-    g.fillStyle = pg;
-    g.beginPath();
-    g.roundRect(px, PADDLE_Y, p.w, PADDLE_H, rr);
-    g.fill();
-    g.restore();
-    // viền tím sáng
-    g.strokeStyle = COLORS.paddleRim;
-    g.lineWidth = 2.4;
-    g.save();
-    g.shadowColor = COLORS.paddleRim;
-    g.shadowBlur = 10;
-    g.beginPath();
-    g.roundRect(px + 1, PADDLE_Y + 1, p.w - 2, PADDLE_H - 2, rr - 1);
-    g.stroke();
-    g.restore();
-    // highlight trên
-    g.strokeStyle = "rgba(230,214,255,0.5)";
-    g.lineWidth = 1.2;
-    g.beginPath();
-    g.moveTo(px + 10, PADDLE_Y + 3.4);
-    g.lineTo(px + p.w - 10, PADDLE_Y + 3.4);
-    g.stroke();
-    // lõi cyan giữa
-    g.save();
-    g.shadowColor = m.timers.laser > 0 ? "#ff2ee6" : COLORS.frame;
-    g.shadowBlur = 12;
-    g.fillStyle = m.timers.laser > 0 ? "#ff2ee6" : COLORS.frame;
-    g.beginPath();
-    g.roundRect(p.x - p.w * 0.21, PADDLE_Y + PADDLE_H / 2 - 3.2, p.w * 0.42, 6.4, 3.2);
-    g.fill();
-    g.fillStyle = "rgba(255,255,255,0.85)";
-    g.beginPath();
-    g.roundRect(p.x - p.w * 0.1, PADDLE_Y + PADDLE_H / 2 - 1.2, p.w * 0.2, 2.4, 1.2);
-    g.fill();
-    g.restore();
-    // vát mũi hai đầu
-    g.fillStyle = "rgba(210,180,255,0.9)";
-    for (const s of [-1, 1]) {
+    if (IMGS.paddle) {
+      const dh = PADDLE_H + 16; // sprite gồm cả viền neon dày hơn hitbox
+      const dw = p.w + 16;
+      g.save();
+      g.shadowColor = COLORS.paddleRim;
+      g.shadowBlur = 16;
+      g.drawImage(IMGS.paddle, p.x - dw / 2, PADDLE_Y + PADDLE_H / 2 - dh / 2, dw, dh);
+      g.restore();
+      if (m.timers.laser > 0) {
+        // lõi đổi màu hồng khi laser active (phần động vẽ code)
+        g.save();
+        g.shadowColor = "#ff2ee6";
+        g.shadowBlur = 12;
+        g.fillStyle = "#ff2ee6";
+        g.beginPath();
+        g.roundRect(p.x - p.w * 0.21, PADDLE_Y + PADDLE_H / 2 - 3.2, p.w * 0.42, 6.4, 3.2);
+        g.fill();
+        g.restore();
+      }
+    } else {
+      // thân
+      g.save();
+      g.shadowColor = COLORS.paddleRim;
+      g.shadowBlur = 20;
+      const pg = g.createLinearGradient(0, PADDLE_Y, 0, PADDLE_Y + PADDLE_H);
+      pg.addColorStop(0, COLORS.paddleBody0);
+      pg.addColorStop(1, COLORS.paddleBody1);
+      g.fillStyle = pg;
       g.beginPath();
-      g.moveTo(p.x + s * (p.w / 2 - 5), PADDLE_Y + 4);
-      g.lineTo(p.x + s * (p.w / 2 - 13), PADDLE_Y + PADDLE_H / 2);
-      g.lineTo(p.x + s * (p.w / 2 - 5), PADDLE_Y + PADDLE_H - 4);
-      g.closePath();
+      g.roundRect(px, PADDLE_Y, p.w, PADDLE_H, rr);
       g.fill();
+      g.restore();
+      // viền tím sáng
+      g.strokeStyle = COLORS.paddleRim;
+      g.lineWidth = 2.4;
+      g.save();
+      g.shadowColor = COLORS.paddleRim;
+      g.shadowBlur = 10;
+      g.beginPath();
+      g.roundRect(px + 1, PADDLE_Y + 1, p.w - 2, PADDLE_H - 2, rr - 1);
+      g.stroke();
+      g.restore();
+      // highlight trên
+      g.strokeStyle = "rgba(230,214,255,0.5)";
+      g.lineWidth = 1.2;
+      g.beginPath();
+      g.moveTo(px + 10, PADDLE_Y + 3.4);
+      g.lineTo(px + p.w - 10, PADDLE_Y + 3.4);
+      g.stroke();
+      // lõi cyan giữa
+      g.save();
+      g.shadowColor = m.timers.laser > 0 ? "#ff2ee6" : COLORS.frame;
+      g.shadowBlur = 12;
+      g.fillStyle = m.timers.laser > 0 ? "#ff2ee6" : COLORS.frame;
+      g.beginPath();
+      g.roundRect(p.x - p.w * 0.21, PADDLE_Y + PADDLE_H / 2 - 3.2, p.w * 0.42, 6.4, 3.2);
+      g.fill();
+      g.fillStyle = "rgba(255,255,255,0.85)";
+      g.beginPath();
+      g.roundRect(p.x - p.w * 0.1, PADDLE_Y + PADDLE_H / 2 - 1.2, p.w * 0.2, 2.4, 1.2);
+      g.fill();
+      g.restore();
+      // vát mũi hai đầu
+      g.fillStyle = "rgba(210,180,255,0.9)";
+      for (const s of [-1, 1]) {
+        g.beginPath();
+        g.moveTo(p.x + s * (p.w / 2 - 5), PADDLE_Y + 4);
+        g.lineTo(p.x + s * (p.w / 2 - 13), PADDLE_Y + PADDLE_H / 2);
+        g.lineTo(p.x + s * (p.w / 2 - 5), PADDLE_Y + PADDLE_H - 4);
+        g.closePath();
+        g.fill();
+      }
     }
     // súng laser hai đầu paddle khi active
     if (m.timers.laser > 0) {
@@ -676,12 +785,28 @@ export function createBrickRenderer(canvas, box) {
   return { fit, draw, get scale() { return scale; }, get dpr() { return dpr; } };
 }
 
-/** Icon chú giải sidebar (canvas nhỏ 30×22 kiểu gạch tương ứng). */
+/** Icon chú giải sidebar (30×22): dùng sprite thật, vẽ lại khi decode xong. */
 export function paintBrickLegend(canvas, kind) {
+  const repaint = () => paintLegendNow(canvas, kind);
+  repaint();
+  if (!spritesReady) readyFns.add(repaint);
+}
+
+function paintLegendNow(canvas, kind) {
   canvas.width = 60;
   canvas.height = 44;
   const c = canvas.getContext("2d");
   c.scale(2, 2);
+  const assetMap = {
+    normal: IMGS.brickNormal,
+    reinforced: IMGS.brickRein,
+    explosive: IMGS.brickBoom,
+    steel: IMGS.brickSteel,
+  };
+  if (assetMap[kind]) {
+    c.drawImage(assetMap[kind], 1, 1, 28, 20);
+    return;
+  }
   const map = {
     normal: [COLORS.normalA, COLORS.normalB],
     reinforced: [COLORS.reinA, COLORS.reinB],

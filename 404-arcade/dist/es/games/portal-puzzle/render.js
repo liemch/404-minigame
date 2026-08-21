@@ -1,13 +1,22 @@
 /**
- * render.js — vẽ board Portal Puzzle 404 bằng Canvas 2D theo ảnh
- * reference: phiến đá navy bevel lớn, tường slab slate có đinh tán,
- * robot trắng mắt cyan, thùng gỗ ván chéo 3D, công tắc tròn phát sáng
- * xanh/tím, cổng dịch chuyển ĐỨNG có khung kim loại nối nhau bằng nét
- * đứt, laser đỏ lõi trắng glow mạnh, ô thoát xanh lá rực, viền neon
- * cyan/hồng chạy quanh chân board.
+ * render.js — vẽ board Portal Puzzle 404 bằng Canvas 2D.
+ *
+ * Đồ họa chính dùng SPRITE cắt từ ảnh tham chiếu portal-puzzle-404.png
+ * (xem assets.js): sàn slab navy, tường slab có đinh tán, robot trắng
+ * mắt cyan, thùng gỗ 3D, công tắc tròn xanh/tím, cổng đứng cyan/tím,
+ * đầu phát laser, ô thoát xanh lá. Khi ảnh chưa kịp decode, mỗi painter
+ * tự fallback về nét vẽ vector cũ nên game luôn chạy được.
+ * Phần ĐỘNG (tia laser, nét đứt nối cổng, hạt sáng, hiệu ứng teleport,
+ * mũi tên gợi ý, glow trạng thái) vẫn vẽ code cho khớp gameplay.
  */
 
 import { DIRS, computeBeams, exitOpen, colorActive } from "./engine.js";
+import { loadImages, ready } from "./assets.js";
+
+const IMG = loadImages();
+const IMG_READY = Promise.allSettled(
+  Object.values(IMG).map((im) => (im.decode ? im.decode().catch(() => {}) : null))
+);
 
 const COL = {
   bgOut: "#04071a",
@@ -34,7 +43,12 @@ const COL = {
 /* ---------------- Các painter nguyên tử (theo ô, gốc 0,0, cạnh t) ---------------- */
 
 function drawFloor(g, x, y, t, alt) {
-  // mạch tối giữa các phiến đá
+  const im = alt ? IMG.floorA : IMG.floorB;
+  if (ready(im)) {
+    g.drawImage(im, x, y, t, t);
+    return;
+  }
+  // fallback vector
   g.fillStyle = COL.grout;
   g.fillRect(x, y, t, t);
   const gap = Math.max(1.5, t * 0.045);
@@ -44,41 +58,29 @@ function drawFloor(g, x, y, t, alt) {
   g.beginPath();
   g.roundRect(x + gap, y + gap, s, s, r);
   g.fill();
-  // gradient khối nhẹ (sáng góc trên trái)
-  const grad = g.createLinearGradient(x, y, x + t, y + t);
-  grad.addColorStop(0, "rgba(150,180,255,0.05)");
-  grad.addColorStop(0.5, "rgba(150,180,255,0)");
-  grad.addColorStop(1, "rgba(0,0,12,0.2)");
-  g.fillStyle = grad;
-  g.beginPath();
-  g.roundRect(x + gap, y + gap, s, s, r);
-  g.fill();
-  // highlight mảnh cạnh trên
   g.fillStyle = "rgba(160,190,255,0.07)";
   g.beginPath();
   g.roundRect(x + gap, y + gap, s, Math.max(2, t * 0.06), r);
   g.fill();
-  // bóng đổ cạnh dưới
   g.fillStyle = "rgba(0,0,14,0.26)";
   g.beginPath();
   g.roundRect(x + gap, y + gap + s - Math.max(2, t * 0.08), s, Math.max(2, t * 0.08), r * 0.7);
   g.fill();
 }
 
+/* Tường: slab đá vector có đinh tán — khớp phong cách rim slab của ảnh
+   tham chiếu hơn texture gạch nhỏ (board tham chiếu không có tường trong). */
 function drawWall(g, x, y, t) {
-  // nền tối
   g.fillStyle = COL.wallDark;
   g.fillRect(x, y, t, t);
   const gap = Math.max(1, t * 0.03);
   const s = t - gap * 2;
   const r = t * 0.12;
-  const lip = Math.max(3, t * 0.2); // mặt bên lộ phía dưới
-  // mặt bên (tối hơn, lộ dưới)
+  const lip = Math.max(3, t * 0.2);
   g.fillStyle = COL.wallFace;
   g.beginPath();
   g.roundRect(x + gap, y + gap + lip * 0.4, s, s - lip * 0.4, r);
   g.fill();
-  // mặt trên (slate sáng)
   const grad = g.createLinearGradient(x, y, x, y + t);
   grad.addColorStop(0, COL.wallTopHi);
   grad.addColorStop(1, COL.wallTop);
@@ -86,13 +88,11 @@ function drawWall(g, x, y, t) {
   g.beginPath();
   g.roundRect(x + gap, y + gap, s, s - lip, r);
   g.fill();
-  // viền sáng mảnh trên mặt
   g.strokeStyle = "rgba(190,210,255,0.22)";
   g.lineWidth = 1;
   g.beginPath();
   g.roundRect(x + gap + 1, y + gap + 1, s - 2, s - lip - 2, r * 0.8);
   g.stroke();
-  // đinh tán 4 góc mặt trên
   g.fillStyle = "rgba(12,18,44,0.75)";
   const o = Math.max(3, t * 0.15);
   const d = Math.max(1.6, t * 0.05);
@@ -107,55 +107,69 @@ function drawExit(g, x, y, t, open, time) {
   const cx = x + t / 2;
   const cy = y + t / 2;
   const pulse = open ? 0.75 + Math.sin(time * 3.2) * 0.25 : 0.45;
-  const color = open ? COL.green : "rgba(80,225,130,0.75)";
-  const m = t * 0.13;
-  g.save();
-  // pad nền xanh mờ
-  g.fillStyle = open ? `rgba(61,255,119,${0.1 + pulse * 0.08})` : "rgba(61,255,119,0.07)";
-  g.beginPath();
-  g.roundRect(x + m, y + m, t - m * 2, t - m * 2, t * 0.1);
-  g.fill();
-  g.shadowColor = COL.green;
-  g.shadowBlur = t * 0.45 * pulse;
-  // khung ngoài
-  g.strokeStyle = color;
-  g.lineWidth = Math.max(2.4, t * 0.075);
-  g.beginPath();
-  g.roundRect(x + m, y + m, t - m * 2, t - m * 2, t * 0.1);
-  g.stroke();
-  // kim cương lồng nhau
-  g.lineWidth = Math.max(2, t * 0.055);
-  g.beginPath();
-  g.moveTo(cx, y + m * 2.1);
-  g.lineTo(x + t - m * 2.1, cy);
-  g.lineTo(cx, y + t - m * 2.1);
-  g.lineTo(x + m * 2.1, cy);
-  g.closePath();
-  g.stroke();
-  // lõi kim cương đặc
-  g.fillStyle = color;
-  const d = t * 0.1;
-  g.beginPath();
-  g.moveTo(cx, cy - d * 1.4);
-  g.lineTo(cx + d * 1.4, cy);
-  g.lineTo(cx, cy + d * 1.4);
-  g.lineTo(cx - d * 1.4, cy);
-  g.closePath();
-  g.fill();
-  g.restore();
+  if (ready(IMG.exit)) {
+    // pad nền tối + sprite khung xanh
+    g.fillStyle = "rgba(8,16,10,0.55)";
+    g.beginPath();
+    g.roundRect(x + t * 0.08, y + t * 0.08, t * 0.84, t * 0.84, t * 0.1);
+    g.fill();
+    const w = t * 1.12;
+    const h = w * (119 / 145);
+    g.save();
+    g.globalAlpha = open ? 0.9 + pulse * 0.1 : 0.55;
+    if (open) {
+      g.shadowColor = COL.green;
+      g.shadowBlur = t * 0.3 * pulse;
+    }
+    g.drawImage(IMG.exit, cx - w / 2, cy - h / 2, w, h);
+    g.restore();
+  } else {
+    const color = open ? COL.green : "rgba(80,225,130,0.75)";
+    const m = t * 0.13;
+    g.save();
+    g.fillStyle = open ? `rgba(61,255,119,${0.1 + pulse * 0.08})` : "rgba(61,255,119,0.07)";
+    g.beginPath();
+    g.roundRect(x + m, y + m, t - m * 2, t - m * 2, t * 0.1);
+    g.fill();
+    g.shadowColor = COL.green;
+    g.shadowBlur = t * 0.45 * pulse;
+    g.strokeStyle = color;
+    g.lineWidth = Math.max(2.4, t * 0.075);
+    g.beginPath();
+    g.roundRect(x + m, y + m, t - m * 2, t - m * 2, t * 0.1);
+    g.stroke();
+    g.lineWidth = Math.max(2, t * 0.055);
+    g.beginPath();
+    g.moveTo(cx, y + m * 2.1);
+    g.lineTo(x + t - m * 2.1, cy);
+    g.lineTo(cx, y + t - m * 2.1);
+    g.lineTo(x + m * 2.1, cy);
+    g.closePath();
+    g.stroke();
+    g.restore();
+  }
   // tam giác chỉ xuống phía trên ô (chỉ khi mở)
   if (open) {
     const bob = Math.sin(time * 4) * t * 0.06;
     g.save();
-    g.shadowColor = COL.green;
-    g.shadowBlur = t * 0.25;
-    g.fillStyle = `rgba(61,255,119,${0.6 + Math.sin(time * 4) * 0.25})`;
-    g.beginPath();
-    g.moveTo(cx - t * 0.16, y - t * 0.34 + bob);
-    g.lineTo(cx + t * 0.16, y - t * 0.34 + bob);
-    g.lineTo(cx, y - t * 0.13 + bob);
-    g.closePath();
-    g.fill();
+    g.globalAlpha = 0.6 + Math.sin(time * 4) * 0.25;
+    if (ready(IMG.exitTri)) {
+      const w = t * 0.42;
+      const h = w * (36 / 52);
+      g.shadowColor = COL.green;
+      g.shadowBlur = t * 0.2;
+      g.drawImage(IMG.exitTri, cx - w / 2, y - t * 0.36 + bob, w, h);
+    } else {
+      g.shadowColor = COL.green;
+      g.shadowBlur = t * 0.25;
+      g.fillStyle = COL.green;
+      g.beginPath();
+      g.moveTo(cx - t * 0.16, y - t * 0.34 + bob);
+      g.lineTo(cx + t * 0.16, y - t * 0.34 + bob);
+      g.lineTo(cx, y - t * 0.13 + bob);
+      g.closePath();
+      g.fill();
+    }
     g.restore();
   }
 }
@@ -164,29 +178,40 @@ function drawSwitch(g, x, y, t, color, mode, active, time) {
   const cx = x + t / 2;
   const cy = y + t / 2;
   const c = color === "blue" ? COL.blue : COL.violet;
+  const im = color === "blue" ? IMG.switchBlue : IMG.switchViolet;
+  if (ready(im)) {
+    const w = t * 0.96;
+    const h = w * (70 / 83);
+    g.save();
+    if (active) {
+      g.shadowColor = c;
+      g.shadowBlur = t * 0.34;
+    } else {
+      g.globalAlpha = 0.82;
+    }
+    g.drawImage(im, cx - w / 2, cy - h / 2, w, h);
+    g.restore();
+    if (active) {
+      g.strokeStyle = c;
+      g.globalAlpha = 0.55 + Math.sin(time * 5) * 0.25;
+      g.lineWidth = 1.8;
+      g.beginPath();
+      g.ellipse(cx, cy, t * 0.4, t * 0.32, 0, 0, Math.PI * 2);
+      g.stroke();
+      g.globalAlpha = 1;
+    }
+    void mode;
+    return;
+  }
+  // fallback vector
   const r = t * 0.3;
-  // đế kim loại tối
   g.fillStyle = "#0a0f26";
   g.beginPath();
-  if (mode === "toggle") {
-    const rr = r * 1.3;
-    g.roundRect(cx - rr, cy - rr, rr * 2, rr * 2, rr * 0.32);
-  } else {
-    g.arc(cx, cy, r * 1.32, 0, Math.PI * 2);
-  }
+  g.arc(cx, cy, r * 1.32, 0, Math.PI * 2);
   g.fill();
   g.strokeStyle = "rgba(120,150,230,0.5)";
   g.lineWidth = 1.6;
   g.stroke();
-  // 4 vấu nhỏ trên đế
-  g.fillStyle = "rgba(120,150,230,0.35)";
-  for (let i = 0; i < 4; i++) {
-    const a = (Math.PI / 2) * i + Math.PI / 4;
-    g.beginPath();
-    g.arc(cx + Math.cos(a) * r * 1.12, cy + Math.sin(a) * r * 1.12, Math.max(1.2, t * 0.03), 0, Math.PI * 2);
-    g.fill();
-  }
-  // lõi phát sáng
   g.save();
   g.shadowColor = c;
   g.shadowBlur = active ? t * 0.6 : t * 0.22;
@@ -201,48 +226,46 @@ function drawSwitch(g, x, y, t, color, mode, active, time) {
   g.fill();
   g.globalAlpha = 1;
   g.restore();
-  if (active) {
-    g.strokeStyle = c;
-    g.globalAlpha = 0.55 + Math.sin(time * 5) * 0.25;
-    g.lineWidth = 1.8;
-    g.beginPath();
-    g.arc(cx, cy, r * 1.14, 0, Math.PI * 2);
-    g.stroke();
-    g.globalAlpha = 1;
-  }
 }
 
 function drawPortal(g, x, y, t, color, time) {
+  const c = color === "cyan" ? COL.cyan : COL.violet;
+  const im = color === "cyan" ? IMG.portalCyan : IMG.portalViolet;
+  if (ready(im)) {
+    const w = t * (color === "cyan" ? 1.04 : 0.95);
+    const h = w * (im.naturalHeight / im.naturalWidth);
+    const dx = x + (t - w) / 2;
+    const dy = y + t * 1.02 - h;
+    g.save();
+    g.shadowColor = c;
+    g.shadowBlur = t * (0.16 + Math.sin(time * 2.4) * 0.05);
+    g.drawImage(im, dx, dy, w, h);
+    g.restore();
+    // hạt sáng bay quanh vành (động)
+    const cx = x + t / 2;
+    const cy = dy + h * 0.42;
+    const pa = time * 3 + (color === "cyan" ? 0 : 2);
+    g.save();
+    g.fillStyle = c;
+    g.shadowColor = c;
+    g.shadowBlur = 6;
+    g.beginPath();
+    g.arc(cx + Math.cos(pa) * t * 0.26, cy + Math.sin(pa) * t * 0.36, Math.max(1.5, t * 0.028), 0, Math.PI * 2);
+    g.fill();
+    g.beginPath();
+    g.arc(cx + Math.cos(pa + 2.4) * t * 0.3, cy + Math.sin(pa + 2.4) * t * 0.3, Math.max(1.1, t * 0.02), 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+    return;
+  }
+  // fallback vector
   const cx = x + t / 2;
   const cy = y + t * 0.46;
-  const c = color === "cyan" ? COL.cyan : COL.violet;
   const cDark = color === "cyan" ? "#0a5566" : "#3a1a66";
   const rx = t * 0.24;
   const ry = t * 0.38;
   g.save();
-  // đế kim loại
-  g.fillStyle = "#0c1230";
-  g.beginPath();
-  g.roundRect(cx - t * 0.33, y + t * 0.8, t * 0.66, t * 0.13, t * 0.03);
-  g.fill();
-  g.strokeStyle = `rgba(120,150,230,0.4)`;
-  g.lineWidth = 1.2;
-  g.stroke();
-  g.fillStyle = c;
-  g.globalAlpha = 0.7;
-  g.fillRect(cx - t * 0.22, y + t * 0.845, t * 0.44, Math.max(1.5, t * 0.03));
-  g.globalAlpha = 1;
-
   g.translate(cx, cy);
-  // hào quang phía sau
-  const halo = g.createRadialGradient(0, 0, ry * 0.2, 0, 0, ry * 1.35);
-  halo.addColorStop(0, `${c}55`);
-  halo.addColorStop(1, `${c}00`);
-  g.fillStyle = halo;
-  g.beginPath();
-  g.ellipse(0, 0, rx * 2, ry * 1.35, 0, 0, Math.PI * 2);
-  g.fill();
-  // lòng cổng tối + xoáy màu
   const inner = g.createRadialGradient(0, 0, ry * 0.08, 0, 0, ry);
   inner.addColorStop(0, "#050814");
   inner.addColorStop(0.72, cDark);
@@ -251,7 +274,6 @@ function drawPortal(g, x, y, t, color, time) {
   g.beginPath();
   g.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
   g.fill();
-  // vòng ngoài phát sáng kép
   g.shadowColor = c;
   g.shadowBlur = t * 0.42;
   g.strokeStyle = c;
@@ -259,45 +281,25 @@ function drawPortal(g, x, y, t, color, time) {
   g.beginPath();
   g.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
   g.stroke();
-  g.shadowBlur = 0;
-  g.strokeStyle = "rgba(255,255,255,0.8)";
-  g.lineWidth = Math.max(1, t * 0.02);
-  g.beginPath();
-  g.ellipse(0, 0, rx * 0.82, ry * 0.85, 0, 0, Math.PI * 2);
-  g.stroke();
-  // xoáy bên trong
-  g.strokeStyle = "rgba(255,255,255,0.55)";
-  g.lineWidth = 1.4;
-  for (let i = 0; i < 2; i++) {
-    const a = time * 2.6 + i * Math.PI;
-    g.beginPath();
-    g.ellipse(0, 0, rx * 0.5, ry * 0.52, 0, a, a + Math.PI * 0.9);
-    g.stroke();
-  }
-  // hạt sáng bay quanh
-  const pa = time * 3 + (color === "cyan" ? 0 : 2);
-  g.fillStyle = c;
-  g.shadowColor = c;
-  g.shadowBlur = 6;
-  g.beginPath();
-  g.arc(Math.cos(pa) * rx * 1.05, Math.sin(pa) * ry * 1.02, Math.max(1.6, t * 0.032), 0, Math.PI * 2);
-  g.fill();
-  g.beginPath();
-  g.arc(Math.cos(pa + 2.4) * rx * 1.15, Math.sin(pa + 2.4) * ry * 0.9, Math.max(1.2, t * 0.022), 0, Math.PI * 2);
-  g.fill();
   g.restore();
 }
 
 function drawCrate(g, x, y, t) {
+  // bóng đổ (động theo kích thước ô)
+  g.fillStyle = "rgba(0,0,10,0.4)";
+  g.beginPath();
+  g.ellipse(x + t / 2, y + t * 0.92, t * 0.4, t * 0.07, 0, 0, Math.PI * 2);
+  g.fill();
+  if (ready(IMG.crate)) {
+    const w = t * 0.97;
+    const h = w * (95 / 88);
+    g.drawImage(IMG.crate, x + (t - w) / 2, y + t * 1.02 - h, w, h);
+    return;
+  }
+  // fallback vector
   const m = t * 0.1;
   const s = t - m * 2;
   const r = t * 0.05;
-  // bóng đổ
-  g.fillStyle = "rgba(0,0,10,0.4)";
-  g.beginPath();
-  g.ellipse(x + t / 2, y + t - m * 0.6, s * 0.5, t * 0.07, 0, 0, Math.PI * 2);
-  g.fill();
-  // thân gỗ với gradient
   const grad = g.createLinearGradient(x, y, x, y + t);
   grad.addColorStop(0, COL.woodLight);
   grad.addColorStop(0.25, COL.wood);
@@ -306,17 +308,6 @@ function drawCrate(g, x, y, t) {
   g.beginPath();
   g.roundRect(x + m, y + m, s, s, r);
   g.fill();
-  // vân gỗ ngang mờ
-  g.strokeStyle = "rgba(60,36,10,0.35)";
-  g.lineWidth = 1;
-  for (let i = 1; i <= 3; i++) {
-    const yy = y + m + (s * i) / 4;
-    g.beginPath();
-    g.moveTo(x + m + 2, yy);
-    g.lineTo(x + m + s - 2, yy);
-    g.stroke();
-  }
-  // ván chéo chữ X (sáng, có viền tối)
   const inset = m + Math.max(2.5, t * 0.055);
   const bw = Math.max(3, t * 0.12);
   g.strokeStyle = COL.woodDark;
@@ -336,38 +327,37 @@ function drawCrate(g, x, y, t) {
   g.moveTo(x + t - inset, y + inset);
   g.lineTo(x + inset, y + t - inset);
   g.stroke();
-  // khung viền ngoài
   g.strokeStyle = COL.woodDark;
   g.lineWidth = Math.max(2.4, t * 0.075);
   g.beginPath();
   g.roundRect(x + m + 1, y + m + 1, s - 2, s - 2, r);
   g.stroke();
-  g.strokeStyle = "rgba(230,180,120,0.5)";
-  g.lineWidth = 1;
-  g.beginPath();
-  g.roundRect(x + m + Math.max(3, t * 0.09), y + m + Math.max(3, t * 0.09), s - Math.max(6, t * 0.18), s - Math.max(6, t * 0.18), r * 0.6);
-  g.stroke();
-  // đinh 4 góc
-  g.fillStyle = "#2c1c08";
-  const o = m + Math.max(3, t * 0.075);
-  for (const [bx, by] of [[o, o], [t - o, o], [o, t - o], [t - o, t - o]]) {
-    g.beginPath();
-    g.arc(x + bx, y + by, Math.max(1.4, t * 0.035), 0, Math.PI * 2);
-    g.fill();
-  }
-  // bóng sáng đỉnh
-  g.fillStyle = "rgba(255,235,200,0.2)";
-  g.beginPath();
-  g.roundRect(x + m, y + m, s, Math.max(2, t * 0.06), r);
-  g.fill();
 }
 
 function drawEmitter(g, x, y, t, dir, on, time) {
   const cx = x + t / 2;
   const cy = y + t / 2;
+  if (ready(IMG.emitter)) {
+    const d = DIRS[dir];
+    const ang = Math.atan2(d.y, d.x) - Math.PI / 2; // sprite gốc: mũi hướng XUỐNG
+    g.save();
+    g.translate(cx, cy);
+    g.rotate(ang);
+    if (on) {
+      g.shadowColor = COL.red;
+      g.shadowBlur = t * (0.24 + Math.sin(time * 8) * 0.08);
+    } else {
+      g.globalAlpha = 0.72;
+    }
+    const w = t * 0.92;
+    const h = w * (67 / 72);
+    g.drawImage(IMG.emitter, -w / 2, -h / 2, w, h);
+    g.restore();
+    return;
+  }
+  // fallback vector
   const m = t * 0.14;
   const s = t - m * 2;
-  // thân khối kim loại đỏ sẫm
   const grad = g.createLinearGradient(x, y, x, y + t);
   grad.addColorStop(0, "#4a1620");
   grad.addColorStop(1, "#22090f");
@@ -377,49 +367,25 @@ function drawEmitter(g, x, y, t, dir, on, time) {
   g.fill();
   g.strokeStyle = on ? COL.red : "rgba(255,79,100,0.45)";
   g.lineWidth = Math.max(2, t * 0.05);
-  if (on) {
-    g.save();
-    g.shadowColor = COL.red;
-    g.shadowBlur = t * 0.28;
-    g.stroke();
-    g.restore();
-  } else {
-    g.stroke();
-  }
-  // sọc cảnh báo 2 bên
-  g.fillStyle = on ? "rgba(255,110,120,0.85)" : "rgba(255,110,120,0.35)";
-  g.fillRect(x + m + 2, y + m + 2, s - 4, Math.max(1.5, t * 0.045));
-  // vấu hướng bắn
+  g.stroke();
   const d = DIRS[dir];
   g.fillStyle = on ? COL.red : "rgba(255,79,100,0.4)";
   g.beginPath();
   g.roundRect(cx + d.x * t * 0.3 - t * 0.11, cy + d.y * t * 0.3 - t * 0.11, t * 0.22, t * 0.22, t * 0.04);
   g.fill();
-  // thấu kính phát sáng
-  g.save();
-  if (on) {
-    g.shadowColor = COL.red;
-    g.shadowBlur = t * (0.4 + Math.sin(time * 8) * 0.12);
-  }
   const lens = g.createRadialGradient(cx, cy, t * 0.02, cx, cy, t * 0.17);
   lens.addColorStop(0, on ? "#fff2f4" : "#8f4450");
-  lens.addColorStop(0.55, on ? "#ff8391" : "#5d2733");
   lens.addColorStop(1, on ? "#c01f30" : "#3a141c");
   g.fillStyle = lens;
   g.beginPath();
   g.arc(cx, cy, t * 0.17, 0, Math.PI * 2);
   g.fill();
-  g.restore();
 }
 
 function drawRobot(g, x, y, t, facing, time, dying) {
   const cx = x + t / 2;
   const bob = Math.sin(time * 3.4) * t * 0.03;
-  const cy = y + t * 0.47 + bob;
-  const w = t * 0.72;
-  const h = t * 0.62;
-  g.save();
-  // bóng + quầng cyan dưới chân
+  // bóng + quầng cyan dưới chân (động)
   g.fillStyle = "rgba(0,0,12,0.45)";
   g.beginPath();
   g.ellipse(cx, y + t * 0.88, t * 0.3, t * 0.09, 0, 0, Math.PI * 2);
@@ -428,23 +394,21 @@ function drawRobot(g, x, y, t, facing, time, dying) {
   g.beginPath();
   g.ellipse(cx, y + t * 0.88, t * 0.36, t * 0.12, 0, 0, Math.PI * 2);
   g.fill();
-  // chân
-  g.fillStyle = "#aeb9d8";
-  g.beginPath();
-  g.roundRect(cx - w * 0.34, cy + h * 0.32, w * 0.24, t * 0.18, t * 0.05);
-  g.fill();
-  g.beginPath();
-  g.roundRect(cx + w * 0.1, cy + h * 0.32, w * 0.24, t * 0.18, t * 0.05);
-  g.fill();
-  // tai / vai
-  g.fillStyle = "#c3cde8";
-  g.beginPath();
-  g.roundRect(cx - w * 0.64, cy - h * 0.2, w * 0.16, h * 0.4, t * 0.05);
-  g.fill();
-  g.beginPath();
-  g.roundRect(cx + w * 0.48, cy - h * 0.2, w * 0.16, h * 0.4, t * 0.05);
-  g.fill();
-  // thân trắng với gradient
+  if (ready(IMG.robot)) {
+    const w = t * 0.86;
+    const h = w * (98 / 82);
+    g.save();
+    if (dying) g.globalAlpha = 0.6;
+    g.drawImage(IMG.robot, cx - w / 2, y + t * 0.94 - h + bob, w, h);
+    g.restore();
+    void facing;
+    return;
+  }
+  // fallback vector
+  const cy = y + t * 0.47 + bob;
+  const w = t * 0.72;
+  const h = t * 0.62;
+  g.save();
   const grad = g.createLinearGradient(cx, cy - h / 2, cx, cy + h / 2);
   grad.addColorStop(0, "#ffffff");
   grad.addColorStop(0.7, dying ? "#ffb3ba" : COL.robot);
@@ -453,50 +417,24 @@ function drawRobot(g, x, y, t, facing, time, dying) {
   g.beginPath();
   g.roundRect(cx - w / 2, cy - h / 2, w, h, t * 0.16);
   g.fill();
-  g.strokeStyle = "rgba(90,110,160,0.4)";
-  g.lineWidth = 1;
-  g.stroke();
-  // anten
-  g.strokeStyle = "#c3cde8";
-  g.lineWidth = Math.max(1.5, t * 0.035);
-  g.beginPath();
-  g.moveTo(cx, cy - h / 2);
-  g.lineTo(cx, cy - h / 2 - t * 0.1);
-  g.stroke();
-  g.fillStyle = COL.cyan;
-  g.save();
-  g.shadowColor = COL.cyan;
-  g.shadowBlur = t * 0.14;
-  g.beginPath();
-  g.arc(cx, cy - h / 2 - t * 0.12, Math.max(1.6, t * 0.04), 0, Math.PI * 2);
-  g.fill();
-  g.restore();
-  // visor
   const fx = (facing?.x || 0) * t * 0.05;
   const fy = (facing?.y || 0) * t * 0.04;
   g.fillStyle = "#0a1224";
   g.beginPath();
   g.roundRect(cx - w * 0.36 + fx, cy - h * 0.32 + fy, w * 0.72, h * 0.46, t * 0.1);
   g.fill();
-  // mắt cyan tròn phát sáng
   g.save();
   g.shadowColor = COL.cyan;
   g.shadowBlur = t * 0.2;
   g.fillStyle = COL.cyan;
-  const blink = Math.sin(time * 1.7) > 0.97 ? 0.3 : 1;
   const er = t * 0.055;
   g.beginPath();
-  g.ellipse(cx - w * 0.17 + fx, cy - h * 0.09 + fy, er, er * blink, 0, 0, Math.PI * 2);
+  g.ellipse(cx - w * 0.17 + fx, cy - h * 0.09 + fy, er, er, 0, 0, Math.PI * 2);
   g.fill();
   g.beginPath();
-  g.ellipse(cx + w * 0.17 + fx, cy - h * 0.09 + fy, er, er * blink, 0, 0, Math.PI * 2);
+  g.ellipse(cx + w * 0.17 + fx, cy - h * 0.09 + fy, er, er, 0, 0, Math.PI * 2);
   g.fill();
-  // miệng nhỏ
-  g.fillRect(cx - w * 0.08 + fx, cy + h * 0.02 + fy, w * 0.16, Math.max(1.2, t * 0.025));
   g.restore();
-  // ngực đèn nhỏ
-  g.fillStyle = "rgba(90,110,160,0.5)";
-  g.fillRect(cx - w * 0.1, cy + h * 0.26, w * 0.2, Math.max(1.2, t * 0.03));
   g.restore();
 }
 
@@ -507,6 +445,7 @@ export function createBoardRenderer(canvas, container) {
   let dpr = 1;
   let cw = 0;
   let ch = 0;
+  let lastArgs = null;
 
   function fit() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -525,7 +464,13 @@ export function createBoardRenderer(canvas, container) {
     return { t, ox, oy };
   }
 
+  // khung tĩnh (intro) vẽ trước khi ảnh decode xong → vẽ lại 1 lần khi sẵn sàng
+  IMG_READY.then(() => {
+    if (lastArgs && canvas.isConnected) draw(...lastArgs);
+  });
+
   function draw(level, snap, fx, time) {
+    lastArgs = [level, snap, fx, time];
     if (cw === 0) fit();
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, cw, ch);
@@ -567,11 +512,35 @@ export function createBoardRenderer(canvas, container) {
     g.roundRect(ox - 14, oy - 14, bw + 28, bh + 28, 18);
     g.fill();
     g.restore();
-    g.strokeStyle = "rgba(90,110,180,0.7)";
-    g.lineWidth = 2;
-    g.beginPath();
-    g.roundRect(ox - 14, oy - 14, bw + 28, bh + 28, 18);
-    g.stroke();
+
+    // rim slab quanh board (texture từ ảnh) — như phiến đá viền trong reference
+    if (ready(IMG.wallStrip)) {
+      const sh = Math.max(8, t * 0.3);
+      const sw = sh * (132 / 55);
+      g.save();
+      g.beginPath();
+      g.roundRect(ox - sh - 2, oy - sh - 2, bw + sh * 2 + 4, bh + sh * 2 + 4, 14);
+      g.clip();
+      for (let sx2 = ox - sh - 2; sx2 < ox + bw + sh; sx2 += sw) {
+        g.drawImage(IMG.wallStrip, sx2, oy - sh - 2, sw, sh);
+        g.drawImage(IMG.wallStrip, sx2, oy + bh + 2, sw, sh);
+      }
+      // hai cạnh đứng (xoay 90°)
+      g.translate(ox - 2, oy - 2);
+      g.rotate(Math.PI / 2);
+      for (let k = -sh; k < bh + sh; k += sw) g.drawImage(IMG.wallStrip, k, 0, sw, sh);
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.translate(ox + bw + 2 + sh, oy - 2);
+      g.rotate(Math.PI / 2);
+      for (let k = -sh; k < bh + sh; k += sw) g.drawImage(IMG.wallStrip, k, 0, sw, sh);
+      g.restore();
+    } else {
+      g.strokeStyle = "rgba(90,110,180,0.7)";
+      g.lineWidth = 2;
+      g.beginPath();
+      g.roundRect(ox - 14, oy - 14, bw + 28, bh + 28, 18);
+      g.stroke();
+    }
     g.strokeStyle = "rgba(40,55,110,0.9)";
     g.lineWidth = 1.2;
     g.beginPath();
@@ -679,7 +648,6 @@ export function createBoardRenderer(canvas, container) {
           const flick = 0.78 + Math.sin(time * 26) * 0.12;
           g.save();
           g.lineCap = "round";
-          // quầng ngoài rộng
           g.strokeStyle = `rgba(255,42,63,${0.16 * flick})`;
           g.lineWidth = t * 0.5;
           g.beginPath();
@@ -692,7 +660,6 @@ export function createBoardRenderer(canvas, container) {
           g.moveTo(x0, y0);
           g.lineTo(x1, y1);
           g.stroke();
-          // thân tia
           g.shadowColor = COL.red;
           g.shadowBlur = t * 0.3;
           g.strokeStyle = `rgba(255,64,84,${0.92 * flick})`;
@@ -702,21 +669,17 @@ export function createBoardRenderer(canvas, container) {
           g.lineTo(x1, y1);
           g.stroke();
           g.shadowBlur = 0;
-          // lõi trắng
           g.strokeStyle = `rgba(255,244,246,${0.95 * flick})`;
           g.lineWidth = Math.max(1.6, t * 0.045);
           g.beginPath();
           g.moveTo(x0, y0);
           g.lineTo(x1, y1);
           g.stroke();
-          // hạt sáng chạy dọc tia
-          const dist = Math.hypot(x1 - x0, y1 - y0);
           const k = ((time * 1.6) % 1);
           g.fillStyle = "rgba(255,255,255,0.9)";
           g.beginPath();
           g.arc(x0 + (x1 - x0) * k, y0 + (y1 - y0) * k, Math.max(1.8, t * 0.045), 0, Math.PI * 2);
           g.fill();
-          void dist;
           g.restore();
         }
       }
@@ -786,6 +749,17 @@ export function createBoardRenderer(canvas, container) {
 
 /* ---------------- Icon chú giải sidebar (canvas nhỏ) ---------------- */
 
+const LEGEND_SPRITE = {
+  player: "robot",
+  crate: "crate",
+  "switch-blue": "switchBlue",
+  "switch-violet": "switchViolet",
+  "portal-cyan": "portalCyan",
+  "portal-violet": "portalViolet",
+  laser: "emitter",
+  exit: "exit",
+};
+
 export function paintLegendIcon(canvas, kind) {
   const size = 26;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -794,6 +768,22 @@ export function paintLegendIcon(canvas, kind) {
   const g = canvas.getContext("2d");
   g.scale(dpr, dpr);
   const t = size;
+  const im = IMG[LEGEND_SPRITE[kind]];
+  if (ready(im)) {
+    // fit-contain sprite vào canvas
+    const k = Math.min(size / im.naturalWidth, size / im.naturalHeight);
+    const w = im.naturalWidth * k;
+    const h = im.naturalHeight * k;
+    g.drawImage(im, (size - w) / 2, (size - h) / 2, w, h);
+    return;
+  }
+  // sprite chưa decode xong: vẽ fallback vector rồi vẽ lại khi sẵn sàng
+  if (!canvas.__ppRetry) {
+    canvas.__ppRetry = true;
+    IMG_READY.then(() => {
+      if (canvas.isConnected) paintLegendIcon(canvas, kind);
+    });
+  }
   switch (kind) {
     case "player":
       drawRobot(g, 0, 0, t, { x: 0, y: 0 }, 1.2, false);

@@ -42,6 +42,25 @@ const C = {
 
 /* ============================ Texture ============================ */
 
+/**
+ * Vị trí crate [x, z, stack, hazard] — hoisted lên module để vừa đặt
+ * mesh vừa bake bóng tiếp xúc (AO) vào texture sàn ngay dưới mỗi crate.
+ */
+const CRATE_SPOTS = [
+  // Sân trung tâm: 2 hàng × 4
+  [-10, -5, 1, 0], [-4, -5, 2, 1], [4, -5, 1, 0], [10, -5, 1, 0],
+  [-10, 5, 1, 0], [-4, 5, 1, 0], [4, 5, 1, 1], [10, 5, 2, 0],
+  // Hành lang trái
+  [-24, -10, 1, 0], [-19, -13, 1, 1], [-26, -2, 2, 0], [-20, 3, 1, 0], [-24, 9, 1, 0], [-19, 13, 1, 0],
+  // Hành lang phải
+  [24, -10, 1, 1], [19, -13, 1, 0], [26, -2, 1, 0], [20, 3, 2, 0], [24, 9, 1, 0], [19, 13, 1, 1],
+  // Góc gần khu cao / điểm xuất phát
+  [-13, -17, 1, 0], [13, -17, 2, 0], [-25, -17, 1, 0], [25, -17, 1, 0],
+  [-13, 16, 1, 0], [13, 16, 1, 0],
+  // Hai bên lối vào sân từ spawn
+  [-7, 11.5, 1, 0], [7, 11.5, 1, 1],
+];
+
 function floorTexture(engine) {
   const cv = document.createElement("canvas");
   cv.width = 2048;
@@ -53,8 +72,8 @@ function floorTexture(engine) {
   const px = (x) => (x + 30) * kx;
   const pz = (z) => (z + 20) * kz;
 
-  // Nền bê-tông ghi xanh
-  ctx.fillStyle = "#4a5166";
+  // Nền bê-tông ghi xanh (trầm hơn một nấc — khớp tông navy reference)
+  ctx.fillStyle = "#454d63";
   ctx.fillRect(0, 0, cv.width, cv.height);
 
   // Ô panel 2m với sắc thái lệch nhẹ
@@ -62,7 +81,7 @@ function floorTexture(engine) {
     for (let gx = 0; gx < 30; gx++) {
       const v = rand();
       if (v > 0.6) {
-        ctx.fillStyle = `rgba(228,236,255,${(v - 0.6) * 0.14})`;
+        ctx.fillStyle = `rgba(228,236,255,${(v - 0.6) * 0.11})`;
         ctx.fillRect(gx * 2 * kx, gz * 2 * kz, 2 * kx, 2 * kz);
       } else if (v < 0.2) {
         ctx.fillStyle = `rgba(8,12,26,${(0.2 - v) * 0.6})`;
@@ -81,6 +100,44 @@ function floorTexture(engine) {
     g.addColorStop(1, "rgba(10,14,30,0)");
     ctx.fillStyle = g;
     ctx.fillRect(sx - r, sz - r, r * 2, r * 2);
+  }
+
+  // Hạt grain bê-tông mịn (nhìn gần không bị phẳng)
+  for (let i = 0; i < 9000; i++) {
+    const v = rand();
+    ctx.fillStyle = v > 0.5
+      ? `rgba(226,236,255,${0.02 + (v - 0.5) * 0.1})`
+      : `rgba(6,9,22,${0.03 + (0.5 - v) * 0.14})`;
+    ctx.fillRect(rand() * cv.width, rand() * cv.height, 1 + rand() * 2, 1 + rand() * 2);
+  }
+
+  // Vết nứt mảnh chạy chéo qua vài panel
+  ctx.strokeStyle = "rgba(8,11,24,0.5)";
+  ctx.lineWidth = 1.4;
+  for (let i = 0; i < 16; i++) {
+    let cx = rand() * cv.width;
+    let cz = rand() * cv.height;
+    ctx.beginPath();
+    ctx.moveTo(cx, cz);
+    const segs = 3 + Math.floor(rand() * 4);
+    for (let s = 0; s < segs; s++) {
+      cx += (rand() - 0.5) * 90;
+      cz += (rand() - 0.5) * 90;
+      ctx.lineTo(cx, cz);
+    }
+    ctx.stroke();
+  }
+
+  // Bevel panel 2m: mép trên/trái sáng nhẹ, dưới/phải tối (khối nổi)
+  for (let gz = 0; gz < 20; gz++) {
+    for (let gx = 0; gx < 30; gx++) {
+      const x0 = gx * 2 * kx;
+      const z0 = gz * 2 * kz;
+      ctx.fillStyle = "rgba(226,236,255,0.05)";
+      ctx.fillRect(x0 + 2, z0 + 2, 2 * kx - 4, 3);
+      ctx.fillStyle = "rgba(6,9,22,0.16)";
+      ctx.fillRect(x0 + 2, z0 + 2 * kz - 5, 2 * kx - 4, 3);
+    }
   }
 
   // Mối ghép panel 2m (mảnh) + mối lớn 10m (hơi đậm hơn)
@@ -102,7 +159,7 @@ function floorTexture(engine) {
   }
 
   // Sân trung tâm tối hơn một chút (đọc rõ ranh giới)
-  ctx.fillStyle = "rgba(12,15,32,0.3)";
+  ctx.fillStyle = "rgba(12,15,32,0.2)";
   ctx.fillRect(px(-13), pz(-9), 26 * kx, 18 * kz);
 
   // Đường mạch neon cyan uốn khúc (như ảnh gameplay)
@@ -139,6 +196,54 @@ function floorTexture(engine) {
   circuit([[-7, -11], [-4, -11], [-4, -13.8]], "rgba(139,92,255,0.85)", 7, 20);
   circuit([[7, -11], [4, -11], [4, -13.8]], "rgba(139,92,255,0.85)", 7, 20);
 
+  /* --- Bóng tiếp xúc (AO) bake sẵn: vật thể tĩnh "dính" xuống sàn --- */
+  // Bóng mềm hình hộp dưới crate/trụ (radial gradient scale theo w×d)
+  const aoSpot = (x, z, w, d, a = 0.38) => {
+    ctx.save();
+    ctx.translate(px(x), pz(z));
+    ctx.scale((w / 2) * kx, (d / 2) * kz);
+    const g = ctx.createRadialGradient(0, 0, 0.18, 0, 0, 1);
+    g.addColorStop(0, `rgba(3,5,14,${a})`);
+    g.addColorStop(0.62, `rgba(3,5,14,${a * 0.5})`);
+    g.addColorStop(1, "rgba(3,5,14,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(-1, -1, 2, 2);
+    ctx.restore();
+  };
+  // Dải AO dọc chân tường: rect [xa..xb, za..zb], gradient từ (sx,sz)
+  // (đậm nhất, sát tường) tới (ex,ez) (tan hết) — tọa độ mét.
+  const aoBand = (xa, za, xb, zb, sx, sz, ex, ez, a = 0.3) => {
+    const g = ctx.createLinearGradient(px(sx), pz(sz), px(ex), pz(ez));
+    g.addColorStop(0, `rgba(3,5,14,${a})`);
+    g.addColorStop(1, "rgba(3,5,14,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(px(xa), pz(za), (xb - xa) * kx, (zb - za) * kz);
+  };
+  // Chân 4 tường bao
+  aoBand(-30, -20, 30, -18.4, 0, -20, 0, -18.4, 0.34); // bắc
+  aoBand(-30, 18.4, 30, 20, 0, 20, 0, 18.4, 0.3);      // nam
+  aoBand(-30, -20, -28.4, 20, -30, 0, -28.4, 0, 0.32); // tây
+  aoBand(28.4, -20, 30, 20, 30, 0, 28.4, 0, 0.32);     // đông
+  // Tường ngăn hành lang (x = ±15, z = ±8.5, dài 9m)
+  for (const side of [-1, 1]) {
+    for (const zc of [-8.5, 8.5]) {
+      aoSpot(side * 15, zc, 3.4, 10.6, 0.3);
+    }
+  }
+  // Chân bục khu cao (mặt nam) + lan can cầu thang
+  aoBand(-8, -14, 8, -12.5, 0, -14, 0, -12.5, 0.34);
+  aoSpot(-2.15, -12.5, 1.3, 3.6, 0.3);
+  aoSpot(2.15, -12.5, 1.3, 3.6, 0.3);
+  // Trụ năng lượng trung tâm
+  aoSpot(0, 0, 2.6, 2.6, 0.42);
+  // Trụ cổng 404 + cột tím khu cao (phần sát mép sàn)
+  aoSpot(-8, -19.4, 2.4, 2, 0.3);
+  aoSpot(8, -19.4, 2.4, 2, 0.3);
+  // Crate: bóng theo đúng vị trí đặt mesh
+  for (const [cx, cz] of CRATE_SPOTS) {
+    aoSpot(cx, cz, 3.1, 3.1, 0.4);
+  }
+
   // Sọc cảnh báo vàng trước các cổng spawn hai bên
   ctx.save();
   ctx.fillStyle = "rgba(255,210,63,0.65)";
@@ -165,8 +270,8 @@ function floorTexture(engine) {
 
 function wallTexture(engine) {
   const cv = document.createElement("canvas");
-  cv.width = 1024;
-  cv.height = 256;
+  cv.width = 2048;
+  cv.height = 512;
   const ctx = cv.getContext("2d");
   const rand = seededRand(31);
 
@@ -178,123 +283,254 @@ function wallTexture(engine) {
   ctx.fillStyle = "#333b57";
   ctx.fillRect(0, 0, cv.width, cv.height);
 
-  // 8 cột panel với sắc thái lệch + bevel
-  const cw = cv.width / 8;
-  for (let i = 0; i < 8; i++) {
+  // 10 cột panel với sắc thái lệch + bevel 2 phía
+  const N = 10;
+  const cw = cv.width / N;
+  for (let i = 0; i < N; i++) {
     const v = rand();
     if (v > 0.5) {
       ctx.fillStyle = `rgba(226,236,255,${(v - 0.5) * 0.12})`;
-      ctx.fillRect(i * cw, 0, cw, cv.height);
     } else {
       ctx.fillStyle = `rgba(10,14,30,${(0.5 - v) * 0.3})`;
-      ctx.fillRect(i * cw, 0, cw, cv.height);
     }
-    // Bevel sáng mép trái panel
+    ctx.fillRect(i * cw, 0, cw, cv.height);
+    // Bevel: mép trái sáng, mép phải tối (panel nổi khối)
     ctx.fillStyle = "rgba(226,236,255,0.1)";
-    ctx.fillRect(i * cw + 2, 6, 3, cv.height - 12);
+    ctx.fillRect(i * cw + 4, 12, 5, cv.height - 24);
+    ctx.fillStyle = "rgba(8,10,24,0.35)";
+    ctx.fillRect((i + 1) * cw - 9, 12, 5, cv.height - 24);
   }
 
-  // Mối ghép dọc
+  // Mối ghép dọc + rãnh ngang giữa tường (chia panel trên/dưới)
   ctx.strokeStyle = "rgba(8,10,24,0.8)";
-  ctx.lineWidth = 4;
-  for (let i = 0; i <= 8; i++) {
+  ctx.lineWidth = 7;
+  for (let i = 0; i <= N; i++) {
     ctx.beginPath(); ctx.moveTo(i * cw, 0); ctx.lineTo(i * cw, cv.height); ctx.stroke();
   }
-  // Băng ngang dưới (ốp chân tường tối)
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(0, 218); ctx.lineTo(cv.width, 218); ctx.stroke();
+  ctx.fillStyle = "rgba(226,236,255,0.06)";
+  ctx.fillRect(0, 221, cv.width, 3);
+
+  // Ống dẫn (conduit) chạy ngang + ngàm giữ — lớp greeble công nghiệp
+  ctx.fillStyle = "rgba(20,26,48,0.95)";
+  ctx.fillRect(0, 236, cv.width, 13);
+  ctx.fillStyle = "rgba(226,236,255,0.1)";
+  ctx.fillRect(0, 237, cv.width, 3);
+  ctx.fillStyle = "rgba(9,12,26,0.95)";
+  for (let x = 34; x < cv.width; x += 128) ctx.fillRect(x, 232, 12, 21);
+
+  // Băng ngang dưới (ốp chân tường tối) + mép sáng
   ctx.fillStyle = "rgba(14,18,36,0.85)";
-  ctx.fillRect(0, cv.height - 52, cv.width, 52);
+  ctx.fillRect(0, cv.height - 104, cv.width, 104);
   ctx.fillStyle = "rgba(226,236,255,0.07)";
-  ctx.fillRect(0, cv.height - 52, cv.width, 4);
-  // Băng sáng đỉnh tường
-  ctx.fillStyle = "rgba(226,236,255,0.12)";
-  ctx.fillRect(0, 0, cv.width, 10);
-  // Khe thoát khí + đinh tán
-  ctx.fillStyle = "rgba(10,13,28,0.9)";
-  for (let i = 0; i < 8; i++) {
-    if (rand() > 0.5) {
-      const x = i * cw + cw / 2 - 26;
-      for (let s = 0; s < 4; s++) ctx.fillRect(x, 58 + s * 12, 52, 5);
+  ctx.fillRect(0, cv.height - 104, cv.width, 7);
+  // Sọc cảnh báo chéo mờ trên ốp chân tường (vài đoạn ngẫu nhiên)
+  ctx.save();
+  ctx.fillStyle = "rgba(255,210,63,0.14)";
+  for (let i = 0; i < N; i++) {
+    if (rand() > 0.62) {
+      const bx = i * cw + 26;
+      for (let s = 0; s < 6; s++) {
+        ctx.save();
+        ctx.translate(bx + s * 30, cv.height - 58);
+        ctx.rotate(-0.6);
+        ctx.fillRect(0, -22, 12, 56);
+        ctx.restore();
+      }
     }
   }
-  ctx.fillStyle = "rgba(8,10,22,0.9)";
-  for (let i = 0; i < 8; i++) {
-    ctx.fillRect(i * cw + 10, 16, 5, 5);
-    ctx.fillRect((i + 1) * cw - 15, 16, 5, 5);
-    ctx.fillRect(i * cw + 10, cv.height - 70, 5, 5);
-    ctx.fillRect((i + 1) * cw - 15, cv.height - 70, 5, 5);
+  ctx.restore();
+
+  // Băng sáng đỉnh tường
+  ctx.fillStyle = "rgba(226,236,255,0.12)";
+  ctx.fillRect(0, 0, cv.width, 18);
+  ctx.fillStyle = "rgba(8,10,24,0.4)";
+  ctx.fillRect(0, 18, cv.width, 4);
+
+  // Khe thoát khí (nan chớp có bóng) trên panel ngẫu nhiên
+  for (let i = 0; i < N; i++) {
+    if (rand() > 0.5) {
+      const x = i * cw + cw / 2 - 56;
+      for (let s = 0; s < 5; s++) {
+        ctx.fillStyle = "rgba(10,13,28,0.9)";
+        ctx.fillRect(x, 108 + s * 22, 112, 9);
+        ctx.fillStyle = "rgba(226,236,255,0.08)";
+        ctx.fillRect(x, 117 + s * 22, 112, 2);
+      }
+    } else if (rand() > 0.4) {
+      // Panel không có khe gió: hộp điều khiển nhỏ + đèn LED
+      const x = i * cw + cw / 2 - 30;
+      ctx.fillStyle = "rgba(16,21,42,0.95)";
+      ctx.fillRect(x, 118, 60, 46);
+      ctx.fillStyle = "rgba(226,236,255,0.08)";
+      ctx.fillRect(x, 118, 60, 3);
+      ctx.fillStyle = rand() > 0.5 ? "rgba(64,228,255,0.85)" : "rgba(255,70,85,0.85)";
+      ctx.fillRect(x + 8, 130, 8, 8);
+      ctx.fillStyle = "rgba(226,236,255,0.25)";
+      ctx.fillRect(x + 24, 132, 28, 4);
+    }
   }
+
+  // Đinh tán 4 góc mỗi panel (2 hàng trên/dưới)
+  for (let i = 0; i < N; i++) {
+    for (const [rx, ry] of [
+      [i * cw + 20, 34], [(i + 1) * cw - 28, 34],
+      [i * cw + 20, cv.height - 132], [(i + 1) * cw - 28, cv.height - 132],
+      [i * cw + 20, 196], [(i + 1) * cw - 28, 196],
+    ]) {
+      ctx.fillStyle = "rgba(8,10,22,0.9)";
+      ctx.fillRect(rx, ry, 9, 9);
+      ctx.fillStyle = "rgba(226,236,255,0.18)";
+      ctx.fillRect(rx + 1, ry + 1, 3, 3);
+    }
+  }
+
+  // Vệt bẩn chảy dọc từ mép trên panel (grime streaks)
+  for (let i = 0; i < 26; i++) {
+    const x = rand() * cv.width;
+    const len = 60 + rand() * 200;
+    const w = 6 + rand() * 22;
+    const g = ctx.createLinearGradient(0, 22, 0, 22 + len);
+    g.addColorStop(0, `rgba(8,11,24,${0.12 + rand() * 0.12})`);
+    g.addColorStop(1, "rgba(8,11,24,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(x, 22, w, len);
+  }
+
+  // Hạt noise kim loại mịn
+  for (let i = 0; i < 3200; i++) {
+    const v = rand();
+    ctx.fillStyle = v > 0.5
+      ? `rgba(226,236,255,${0.02 + (v - 0.5) * 0.08})`
+      : `rgba(6,9,22,${0.03 + (0.5 - v) * 0.12})`;
+    ctx.fillRect(rand() * cv.width, rand() * cv.height, 1 + rand() * 2, 1 + rand() * 2);
+  }
+
   return engine.makeTexture(cv);
 }
 
 function crateTexture(engine, hazard = false) {
   const cv = document.createElement("canvas");
-  cv.width = 256;
-  cv.height = 256;
+  cv.width = 512;
+  cv.height = 512;
   const ctx = cv.getContext("2d");
+  const rand = seededRand(hazard ? 77 : 55);
 
   // Box của engine có UV lật dọc so với canvas → lật lại để vẽ như thường
-  ctx.translate(0, 256);
+  ctx.translate(0, 512);
   ctx.scale(1, -1);
 
   // Thân crate ghi xanh có bevel
   ctx.fillStyle = "#353e60";
-  ctx.fillRect(0, 0, 256, 256);
-  const g = ctx.createLinearGradient(0, 0, 0, 256);
+  ctx.fillRect(0, 0, 512, 512);
+  const g = ctx.createLinearGradient(0, 0, 0, 512);
   g.addColorStop(0, "rgba(226,236,255,0.12)");
   g.addColorStop(0.5, "rgba(226,236,255,0)");
   g.addColorStop(1, "rgba(8,10,24,0.35)");
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 256, 256);
+  ctx.fillRect(0, 0, 512, 512);
 
-  // Panel giữa lõm tối
+  // Vệt brushed-metal ngang (kim loại chải xước nhẹ)
+  for (let i = 0; i < 90; i++) {
+    const y = rand() * 512;
+    const v = rand();
+    ctx.fillStyle = v > 0.5
+      ? `rgba(226,236,255,${0.02 + (v - 0.5) * 0.06})`
+      : `rgba(8,10,24,${0.03 + (0.5 - v) * 0.1})`;
+    ctx.fillRect(rand() * 380, y, 130 + rand() * 260, 1.6);
+  }
+
+  // Panel giữa lõm tối + bóng lõm phía trong
   ctx.fillStyle = "rgba(13,17,36,0.75)";
-  ctx.fillRect(36, 36, 184, 184);
+  ctx.fillRect(72, 72, 368, 368);
   ctx.fillStyle = "rgba(226,236,255,0.08)";
-  ctx.fillRect(36, 36, 184, 5);
+  ctx.fillRect(72, 72, 368, 10);
+  ctx.fillStyle = "rgba(4,6,16,0.4)";
+  ctx.fillRect(72, 430, 368, 10);
+  // Rãnh chữ thập chia panel giữa
+  ctx.fillStyle = "rgba(8,10,24,0.5)";
+  ctx.fillRect(252, 82, 8, 348);
+  ctx.fillRect(82, 252, 348, 8);
 
-  // Viền neon cyan phát sáng (mép crate như ảnh)
+  // Viền neon cyan phát sáng (mép crate như ảnh — mảnh, bloom sẽ tự tỏa)
   ctx.save();
-  ctx.strokeStyle = "rgba(80,232,255,0.98)";
-  ctx.lineWidth = 10;
+  ctx.strokeStyle = "rgba(80,232,255,0.92)";
+  ctx.lineWidth = 12;
   ctx.shadowColor = "#2fe2ff";
   ctx.shadowBlur = 22;
-  ctx.strokeRect(10, 10, 236, 236);
+  ctx.strokeRect(16, 16, 480, 480);
   ctx.restore();
   ctx.strokeStyle = "rgba(64,228,255,0.3)";
-  ctx.lineWidth = 3;
-  ctx.strokeRect(30, 30, 196, 196);
+  ctx.lineWidth = 6;
+  ctx.strokeRect(60, 60, 392, 392);
 
-  // Bu-lông 4 góc
-  ctx.fillStyle = "rgba(8,10,22,0.95)";
-  for (const [bx, by] of [[20, 20], [228, 20], [20, 228], [228, 228]]) {
-    ctx.beginPath(); ctx.arc(bx + 4, by + 4, 5, 0, Math.PI * 2); ctx.fill();
+  // Bu-lông 4 góc (có highlight)
+  for (const [bx, by] of [[44, 44], [460, 44], [44, 460], [460, 460]]) {
+    ctx.fillStyle = "rgba(8,10,22,0.95)";
+    ctx.beginPath(); ctx.arc(bx + 4, by + 4, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(226,236,255,0.3)";
+    ctx.beginPath(); ctx.arc(bx + 1, by + 1, 4, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Vết xước sáng ngẫu nhiên + mòn góc
+  ctx.strokeStyle = "rgba(210,224,250,0.16)";
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 14; i++) {
+    const sx = rand() * 512;
+    const sy = rand() * 512;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + (rand() - 0.5) * 120, sy + (rand() - 0.5) * 60);
+    ctx.stroke();
   }
 
   if (hazard) {
     // Tam giác cảnh báo vàng (asset sheet vật cản)
     ctx.save();
     ctx.shadowColor = "#ffd23f";
-    ctx.shadowBlur = 14;
+    ctx.shadowBlur = 28;
     ctx.fillStyle = "rgba(255,214,74,0.95)";
     ctx.beginPath();
-    ctx.moveTo(128, 66);
-    ctx.lineTo(186, 172);
-    ctx.lineTo(70, 172);
+    ctx.moveTo(256, 132);
+    ctx.lineTo(372, 344);
+    ctx.lineTo(140, 344);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
     ctx.fillStyle = "#1a2038";
-    ctx.font = "800 62px monospace";
+    ctx.font = "800 124px monospace";
     ctx.textAlign = "center";
-    ctx.fillText("!", 128, 160);
+    ctx.fillText("!", 256, 320);
+    // Sọc vàng-đen cảnh báo dưới đáy panel
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(90, 380, 332, 40);
+    ctx.clip();
+    for (let s = 0; s < 14; s++) {
+      ctx.fillStyle = s % 2 === 0 ? "rgba(255,210,63,0.8)" : "rgba(12,15,30,0.9)";
+      ctx.save();
+      ctx.translate(90 + s * 26, 380);
+      ctx.transform(1, 0, -0.5, 1, 0, 0);
+      ctx.fillRect(0, 0, 26, 40);
+      ctx.restore();
+    }
+    ctx.restore();
   } else {
-    // Vạch mã hiệu + chấm cyan
+    // Vạch mã hiệu + chấm cyan + nhãn hàng
     ctx.fillStyle = "rgba(226,236,255,0.25)";
-    ctx.fillRect(62, 112, 132, 16);
+    ctx.fillRect(124, 224, 264, 32);
     ctx.fillStyle = "rgba(64,228,255,0.8)";
-    ctx.fillRect(62, 140, 52, 8);
+    ctx.fillRect(124, 280, 104, 16);
     ctx.fillStyle = "rgba(139,92,255,0.8)";
-    ctx.fillRect(124, 140, 26, 8);
+    ctx.fillRect(248, 280, 52, 16);
+    ctx.fillStyle = "rgba(226,236,255,0.4)";
+    ctx.font = "700 30px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("CR-404", 256, 190);
+    // Hàng lỗ tản nhiệt nhỏ dưới panel
+    ctx.fillStyle = "rgba(8,10,24,0.8)";
+    for (let s = 0; s < 8; s++) ctx.fillRect(140 + s * 30, 366, 18, 8);
   }
   return engine.makeTexture(cv);
 }
@@ -398,14 +634,15 @@ function tunnelTexture(engine) {
 
 function blobTexture(engine) {
   const cv = document.createElement("canvas");
-  cv.width = 64;
-  cv.height = 64;
+  cv.width = 128;
+  cv.height = 128;
   const ctx = cv.getContext("2d");
-  const g = ctx.createRadialGradient(32, 32, 4, 32, 32, 30);
-  g.addColorStop(0, "rgba(0,0,0,0.55)");
+  const g = ctx.createRadialGradient(64, 64, 6, 64, 64, 62);
+  g.addColorStop(0, "rgba(0,0,0,0.6)");
+  g.addColorStop(0.55, "rgba(0,0,0,0.34)");
   g.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 64, 64);
+  ctx.fillRect(0, 0, 128, 128);
   return engine.makeTexture(cv);
 }
 
@@ -652,24 +889,16 @@ export function createWorld(engine) {
       box(x, 0.7 + i * 1.4, z, 2, 1.4, 2, "#ffffff", {
         tex: hazard && i === stack - 1 ? texCrateHazard : texCrate,
       });
-      // Viền phát sáng mép trên
-      box(x, 1.415 + i * 1.4, z, 2.06, 0.05, 2.06, C.cyan, { emissive: 0.7 });
+      // Viền phát sáng mép trên (bloom sẽ tỏa thêm — giữ mảnh)
+      box(x, 1.415 + i * 1.4, z, 2.06, 0.05, 2.06, C.cyan, { emissive: 0.55 });
     }
     addCollider(x, z, 2, 2, 0, 1.4 * stack);
   };
 
-  // Sân trung tâm: 2 hàng × 4 (một vài chồng đôi)
-  crate(-10, -5); crate(-4, -5, 2, true); crate(4, -5); crate(10, -5);
-  crate(-10, 5); crate(-4, 5); crate(4, 5, 1, true); crate(10, 5, 2);
-  // Hành lang trái
-  crate(-24, -10); crate(-19, -13, 1, true); crate(-26, -2, 2); crate(-20, 3); crate(-24, 9); crate(-19, 13);
-  // Hành lang phải
-  crate(24, -10, 1, true); crate(19, -13); crate(26, -2); crate(20, 3, 2); crate(24, 9); crate(19, 13, 1, true);
-  // Các góc gần khu cao / điểm xuất phát
-  crate(-13, -17); crate(13, -17, 2); crate(-25, -17); crate(25, -17);
-  crate(-13, 16); crate(13, 16);
-  // Khung nhìn từ spawn: crate hai bên lối vào sân
-  crate(-7, 11.5); crate(7, 11.5, 1, true);
+  // Vị trí lấy từ CRATE_SPOTS (đồng bộ với bóng AO bake trên texture sàn)
+  for (const [cx, cz, stack, hz] of CRATE_SPOTS) {
+    crate(cx, cz, stack, !!hz);
+  }
 
   /* ---- Cổng spawn bot (8, hai bên — tunnel tối + khung tím) ---- */
   const botGates = [];

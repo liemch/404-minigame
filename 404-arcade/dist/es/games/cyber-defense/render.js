@@ -1,14 +1,26 @@
 /**
- * render.js — vẽ Cyber Defense theo ảnh reference: bảng mạch PCB navy
- * với trace sáng + chip + via, tuyến đường tối viền xanh phát sáng đều
- * hai bên + chevron chạy, pad bát giác lime dấu "+", 5 kiểu tháp nhiều
- * lớp (nòng đôi / cuộn tesla / pháo nổ...) có chevron cấp, 4 kiểu bot
- * robot mắt đỏ với thanh máu, CORE khối lập phương cyan trong khung lục
- * giác lớn + badge %, đạn/tia/nổ/xung có glow.
+ * render.js — vẽ Cyber Defense.
+ *
+ * Đồ họa chính dùng SPRITE cắt từ ảnh tham chiếu cyber-defense.png
+ * (assets.js): texture PCB nền, 3 tháp field (tia nhanh / giảm tốc /
+ * nổ vùng) + icon build bar, bot địch, pad xây bát giác lime, lõi CORE.
+ * Khi ảnh chưa decode xong, mỗi painter fallback về nét vẽ vector cũ.
+ * Phần ĐỘNG (đạn, tia, nổ, chevron chạy, range circle, thanh máu, badge
+ * CORE %, chữ nổi) vẫn vẽ code; tháp sniper/nova (mở khóa muộn, không có
+ * trong ảnh tham chiếu) giữ nguyên vector.
  */
 
 import { seededRand } from "../../core/utils.js";
 import { WORLD_W, WORLD_H, CORE, PADS, PAD_R, TOWERS, pointAt } from "./data.js";
+import { loadImages, ready } from "./assets.js";
+
+const IMG = loadImages();
+let assetsReady = false;
+const IMG_READY = Promise.allSettled(
+  Object.values(IMG).map((im) => (im.decode ? im.decode().catch(() => {}) : null))
+).then(() => {
+  assetsReady = true;
+});
 
 const BG = "#061024";
 const TRACE = "rgba(38, 130, 215, 0.2)";
@@ -17,6 +29,7 @@ const PATH_EDGE = "#3f8cff";
 
 export function createDefenseRenderer(g, paths) {
   let staticLayer = null;
+  let staticWithAssets = false;
   const fx = []; // hiệu ứng tạm: {kind, x, y, t, ttl, ...}
   const floats = []; // chữ nổi +9⚡
 
@@ -29,9 +42,20 @@ export function createDefenseRenderer(g, paths) {
     staticLayer.height = WORLD_H * S;
     const s = staticLayer.getContext("2d");
     s.scale(S, S);
+    staticWithAssets = assetsReady;
 
     s.fillStyle = BG;
     s.fillRect(0, 0, WORLD_W, WORLD_H);
+    if (ready(IMG.pcb)) {
+      // texture bo mạch cắt từ ảnh — tile phủ toàn world
+      const tw = 300;
+      const th = tw * (210 / 240);
+      for (let y = 0; y < WORLD_H; y += th) {
+        for (let x = 0; x < WORLD_W; x += tw) {
+          s.drawImage(IMG.pcb, x, y, tw, th);
+        }
+      }
+    }
     // vùng sáng nhẹ giữa bo mạch
     const glow = s.createRadialGradient(WORLD_W / 2, WORLD_H / 2, 100, WORLD_W / 2, WORLD_H / 2, 800);
     glow.addColorStop(0, "rgba(30,80,170,0.1)");
@@ -39,10 +63,12 @@ export function createDefenseRenderer(g, paths) {
     s.fillStyle = glow;
     s.fillRect(0, 0, WORLD_W, WORLD_H);
 
-    // trace mạch in: đường gấp khúc + chấm hàn (seeded)
+    // trace mạch in: đường gấp khúc + chấm hàn (seeded) — thưa hơn khi đã
+    // có texture PCB, đậm hơn khi fallback vector
     const rand = seededRand(2077);
+    const traceCount = ready(IMG.pcb) ? 30 : 95;
     s.lineWidth = 1.6;
-    for (let i = 0; i < 95; i++) {
+    for (let i = 0; i < traceCount; i++) {
       let x = rand() * WORLD_W;
       let y = rand() * WORLD_H;
       const bright = rand() > 0.8;
@@ -66,22 +92,24 @@ export function createDefenseRenderer(g, paths) {
       s.arc(x, y, 4.6, 0, Math.PI * 2);
       s.stroke();
     }
-    // vi mạch chữ nhật + chân pin
-    for (let i = 0; i < 12; i++) {
-      const w = 42 + rand() * 66;
-      const h = 28 + rand() * 40;
-      const x = rand() * (WORLD_W - w);
-      const y = rand() * (WORLD_H - h);
-      s.strokeStyle = "rgba(38,130,215,0.15)";
-      s.lineWidth = 1.2;
-      s.strokeRect(x, y, w, h);
-      s.fillStyle = "rgba(38,130,215,0.05)";
-      s.fillRect(x, y, w, h);
-      s.fillStyle = "rgba(38,130,215,0.18)";
-      const pins = Math.floor(w / 14);
-      for (let p = 0; p < pins; p++) {
-        s.fillRect(x + 5 + p * 14, y - 4, 5, 4);
-        s.fillRect(x + 5 + p * 14, y + h, 5, 4);
+    if (!ready(IMG.pcb)) {
+      // vi mạch chữ nhật + chân pin (chỉ cần cho fallback)
+      for (let i = 0; i < 12; i++) {
+        const w = 42 + rand() * 66;
+        const h = 28 + rand() * 40;
+        const x = rand() * (WORLD_W - w);
+        const y = rand() * (WORLD_H - h);
+        s.strokeStyle = "rgba(38,130,215,0.15)";
+        s.lineWidth = 1.2;
+        s.strokeRect(x, y, w, h);
+        s.fillStyle = "rgba(38,130,215,0.05)";
+        s.fillRect(x, y, w, h);
+        s.fillStyle = "rgba(38,130,215,0.18)";
+        const pins = Math.floor(w / 14);
+        for (let p = 0; p < pins; p++) {
+          s.fillRect(x + 5 + p * 14, y - 4, 5, 4);
+          s.fillRect(x + 5 + p * 14, y + h, 5, 4);
+        }
       }
     }
 
@@ -142,6 +170,12 @@ export function createDefenseRenderer(g, paths) {
 
     // pad bát giác lime với dấu +
     for (const p of PADS) {
+      if (ready(IMG.pad)) {
+        const w = 78;
+        const h = w * (82 / 88);
+        s.drawImage(IMG.pad, p.x - w / 2, p.y - h / 2, w, h);
+        continue;
+      }
       s.save();
       s.translate(p.x, p.y);
       const oct = (r) => {
@@ -262,6 +296,28 @@ export function createDefenseRenderer(g, paths) {
     g.beginPath();
     g.ellipse(0, 8, 24, 11, 0, 0, Math.PI * 2);
     g.fill();
+
+    // SPRITE tháp từ ảnh tham chiếu (3 loại chính); sniper/nova giữ vector
+    const towerSprite = { rapid: IMG.towerRapid, slow: IMG.towerSlow, blast: IMG.towerBlast }[t.type];
+    if (ready(towerSprite)) {
+      const w = 68;
+      const h = w * (towerSprite.naturalHeight / towerSprite.naturalWidth);
+      g.drawImage(towerSprite, -w / 2, 30 - h, w, h);
+      // chevron cấp (động) dưới chân bệ
+      g.strokeStyle = def.color;
+      g.lineWidth = 2.2;
+      g.lineCap = "round";
+      for (let l = 1; l <= t.level; l++) {
+        const y = 30 - l * 5;
+        g.beginPath();
+        g.moveTo(-25, y + 3);
+        g.lineTo(-19, y - 1.5);
+        g.lineTo(-13, y + 3);
+        g.stroke();
+      }
+      g.restore();
+      return;
+    }
 
     // bệ bát giác 2 tầng
     const baseGrad = g.createLinearGradient(0, -24, 0, 24);
@@ -435,7 +491,15 @@ export function createDefenseRenderer(g, paths) {
       g.restore();
     };
 
-    if (e.type === "tank") {
+    // SPRITE bot từ ảnh tham chiếu (fallback vector bên dưới)
+    const botSprite =
+      e.type === "fast" ? IMG.botFast : e.type === "tank" ? IMG.botEye : IMG.botBasic;
+    if (ready(botSprite)) {
+      const w = e.r * 2.6;
+      const h = w * (botSprite.naturalHeight / botSprite.naturalWidth);
+      if (e.type === "fast") g.rotate(Math.sin(time * 9 + e.id) * 0.08);
+      g.drawImage(botSprite, -w / 2, -h * 0.58, w, h);
+    } else if (e.type === "tank") {
       // xích 2 bên
       g.fillStyle = "#080d1e";
       g.beginPath();
@@ -566,6 +630,67 @@ export function createDefenseRenderer(g, paths) {
     g.beginPath();
     g.arc(0, 0, 95, 0, Math.PI * 2);
     g.fill();
+
+    if (ready(IMG.core)) {
+      // SPRITE lõi CORE từ ảnh tham chiếu + hiệu ứng động vẽ code đè lên
+      const w = 176;
+      const h = w * (196 / 240);
+      const pulse = 1 + Math.sin(time * 2.2) * 0.015;
+      g.save();
+      g.scale(pulse, pulse);
+      if (hurt <= 0.4) {
+        // core yếu: nhuộm đỏ nhẹ
+        g.drawImage(IMG.core, -w / 2, -h / 2, w, h);
+        g.globalCompositeOperation = "source-atop";
+        g.fillStyle = "rgba(255,60,80,0.22)";
+        g.fillRect(-w / 2, -h / 2, w, h);
+        g.globalCompositeOperation = "source-over";
+      } else {
+        g.drawImage(IMG.core, -w / 2, -h / 2, w, h);
+      }
+      g.restore();
+      // vòng lục giác quay (động)
+      const hexR = (r, rot) => {
+        g.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = (Math.PI / 3) * i + rot;
+          const px = Math.cos(a) * r;
+          const py = Math.sin(a) * r * 0.9;
+          if (i === 0) g.moveTo(px, py);
+          else g.lineTo(px, py);
+        }
+        g.closePath();
+      };
+      g.strokeStyle = hurt > 0.4 ? "rgba(32,227,255,0.35)" : "rgba(255,79,100,0.4)";
+      g.lineWidth = 1.6;
+      for (const r of [46, 56]) {
+        hexR(r, time * (r === 46 ? 0.25 : -0.18));
+        g.stroke();
+      }
+      // badge CORE % (động)
+      const pct2 = Math.round((sim.core / sim.coreMax) * 100);
+      g.translate(0, -88);
+      g.save();
+      g.shadowColor = pct2 > 40 ? "#a8ff3e" : "#ff4f64";
+      g.shadowBlur = 10;
+      g.fillStyle = "rgba(8,14,28,0.94)";
+      g.strokeStyle = pct2 > 40 ? "#a8ff3e" : "#ff4f64";
+      g.lineWidth = 1.8;
+      g.beginPath();
+      g.roundRect(-40, -17, 80, 34, 5);
+      g.fill();
+      g.stroke();
+      g.restore();
+      g.fillStyle = "#8fa3c8";
+      g.font = "700 10px 'JetBrains Mono', monospace";
+      g.textAlign = "center";
+      g.fillText("CORE", 0, -4);
+      g.fillStyle = pct2 > 40 ? "#a8ff3e" : "#ff4f64";
+      g.font = "800 15px 'JetBrains Mono', monospace";
+      g.fillText(`${pct2}%`, 0, 12);
+      g.restore();
+      return;
+    }
 
     // khung lục giác kim loại tĩnh (2 lớp như ảnh)
     const hex = (r, squish = 0.92, rot = 0) => {
@@ -823,7 +948,8 @@ export function createDefenseRenderer(g, paths) {
   /* ---------------- khung hình ---------------- */
 
   function draw(sim, ui, time) {
-    if (!staticLayer) buildStatic();
+    // dựng lại lớp tĩnh 1 lần khi sprite decode xong (frame đầu có thể là vector)
+    if (!staticLayer || (assetsReady && !staticWithAssets)) buildStatic();
     g.clearRect(0, 0, WORLD_W, WORLD_H);
     g.drawImage(staticLayer, 0, 0, WORLD_W, WORLD_H);
     drawChevrons(time);
@@ -865,6 +991,22 @@ export function paintTowerIcon(canvas, type) {
   const g = canvas.getContext("2d");
   g.scale(dpr, dpr);
   const def = TOWERS[type];
+  // icon sprite cắt từ build bar của ảnh tham chiếu (3 tháp chính)
+  const iconSprite = { rapid: IMG.iconRapid, slow: IMG.iconSlow, blast: IMG.iconBlast }[type];
+  if (ready(iconSprite)) {
+    const k = Math.min(size / iconSprite.naturalWidth, size / iconSprite.naturalHeight);
+    const w = iconSprite.naturalWidth * k;
+    const h = iconSprite.naturalHeight * k;
+    g.drawImage(iconSprite, (size - w) / 2, (size - h) / 2, w, h);
+    return;
+  }
+  if (iconSprite && !canvas.__cdRetry) {
+    // sprite chưa decode xong — vẽ vector tạm rồi vẽ lại khi sẵn sàng
+    canvas.__cdRetry = true;
+    IMG_READY.then(() => {
+      if (canvas.isConnected) paintTowerIcon(canvas, type);
+    });
+  }
   g.translate(size / 2, size / 2 + 4);
   // bệ
   const baseGrad = g.createLinearGradient(0, -16, 0, 16);

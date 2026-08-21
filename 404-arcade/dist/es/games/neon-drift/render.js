@@ -1,14 +1,23 @@
 /**
- * render.js — vẽ thế giới Neon Drift 404 theo ảnh reference: thành phố
- * neon tối với các khối nhà đầy cửa sổ sáng, mặt đường asphalt có kết
- * cấu với 2 mép phát sáng hồng/cyan nhiều lớp, vạch giữa trắng đứt,
- * chevron đôi hồng/cyan chỉ hướng, cổng CHECKPOINT trụ ca-rô + banner
- * lime, pickup lục giác năng lượng, xe người chơi neon với vệt drift
- * rực hồng, xe cản vàng biển cảnh báo, minimap góc trái.
+ * render.js — vẽ thế giới Neon Drift 404.
+ *
+ * Đồ họa chính dùng SPRITE cắt từ ảnh tham chiếu neon-drift-404.png
+ * (assets.js): xe người chơi neon, xe cản vàng, pickup lục giác, trụ +
+ * banner + rào ca-rô của cổng CHECKPOINT, mảng nhà neon ốp vào decor,
+ * asphalt làm pattern mặt đường. Khi ảnh chưa decode xong, mỗi painter
+ * fallback về nét vẽ vector cũ. Phần ĐỘNG (vệt drift, lửa nitro, tia
+ * lửa, vạch giữa chạy, minimap, mép neon đường) vẫn vẽ code.
  */
 
 import { seededRand } from "../../core/utils.js";
 import { TRACK_WIDTH, HALF_W } from "./track.js";
+import { loadImages, ready } from "./assets.js";
+
+const IMG = loadImages();
+let assetsReady = false;
+Promise.allSettled(Object.values(IMG).map((im) => (im.decode ? im.decode().catch(() => {}) : null))).then(() => {
+  assetsReady = true;
+});
 
 const ROAD = "#15121f";
 const ROAD_EDGE_PINK = "#ff2ee6";
@@ -44,6 +53,7 @@ export function createDriftRenderer(canvas, container, track) {
 
   let staticOX = 0;
   let staticOY = 0;
+  let staticWithAssets = false;
 
   function buildStatic() {
     const b = track.decorBounds || { x0: 0, y0: 0, x1: track.bbox.maxX + 90, y1: track.bbox.maxY + 90 };
@@ -57,20 +67,46 @@ export function createDriftRenderer(canvas, container, track) {
     const s = staticLayer.getContext("2d");
     s.scale(STATIC_SCALE, STATIC_SCALE);
     s.translate(-staticOX, -staticOY);
+    staticWithAssets = assetsReady;
 
-    // decor thành phố: khối nhà tối + viền neon glow + lưới cửa sổ sáng
+    // decor thành phố: ốp texture nhà neon cắt từ ảnh tham chiếu
+    const useBldg = ready(IMG.bldgA) && ready(IMG.bldgB) && ready(IMG.bldgC);
     const wrand = seededRand(1313);
     for (const b of track.decor) {
       // bóng khối
       s.fillStyle = "rgba(0,0,0,0.5)";
       s.fillRect(b.x + 5, b.y + 6, b.w, b.h);
-      // thân nhà
+      if (useBldg) {
+        const pick = [IMG.bldgA, IMG.bldgB, IMG.bldgC][Math.floor(wrand() * 3)];
+        // cover-fit: crop texture giữ tỉ lệ, không méo cửa sổ
+        const k = Math.max(b.w / pick.naturalWidth, b.h / pick.naturalHeight);
+        const sw2 = b.w / k;
+        const sh2 = b.h / k;
+        s.drawImage(pick, (pick.naturalWidth - sw2) / 2, (pick.naturalHeight - sh2) / 2, sw2, sh2, b.x, b.y, b.w, b.h);
+        // viền neon mảnh theo màu lô đất cho hòa palette
+        s.strokeStyle = b.color;
+        s.globalAlpha = 0.4;
+        s.lineWidth = 1.6;
+        s.strokeRect(b.x, b.y, b.w, b.h);
+        s.globalAlpha = 1;
+        if (wrand() > 0.55) {
+          s.strokeStyle = b.color;
+          s.globalAlpha = 0.9;
+          s.lineWidth = 3;
+          s.beginPath();
+          s.moveTo(b.x + 4, b.y - 4);
+          s.lineTo(b.x + b.w * (0.4 + wrand() * 0.5), b.y - 4);
+          s.stroke();
+          s.globalAlpha = 1;
+        }
+        continue;
+      }
+      // fallback vector: thân nhà + viền neon + lưới cửa sổ
       const grad = s.createLinearGradient(b.x, b.y, b.x, b.y + b.h);
       grad.addColorStop(0, "#100d24");
       grad.addColorStop(1, "#0a081a");
       s.fillStyle = grad;
       s.fillRect(b.x, b.y, b.w, b.h);
-      // viền neon 2 lớp
       s.strokeStyle = b.color;
       s.globalAlpha = 0.16;
       s.lineWidth = 6;
@@ -79,7 +115,6 @@ export function createDriftRenderer(canvas, container, track) {
       s.lineWidth = 1.8;
       s.strokeRect(b.x, b.y, b.w, b.h);
       s.globalAlpha = 1;
-      // lưới cửa sổ nhỏ phát sáng
       const cell = 15;
       const cols = Math.max(1, Math.floor((b.w - 12) / cell));
       const rows = Math.max(1, Math.floor((b.h - 12) / cell));
@@ -88,7 +123,7 @@ export function createDriftRenderer(canvas, container, track) {
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const roll = wrand();
-          if (roll < 0.42) continue; // cửa tắt đèn
+          if (roll < 0.42) continue;
           const lit = roll > 0.86;
           s.fillStyle = b.color;
           s.globalAlpha = lit ? 0.95 : 0.32;
@@ -96,17 +131,6 @@ export function createDriftRenderer(canvas, container, track) {
         }
       }
       s.globalAlpha = 1;
-      // vạch neon ngang trên nóc vài nhà
-      if (wrand() > 0.55) {
-        s.strokeStyle = b.color;
-        s.globalAlpha = 0.9;
-        s.lineWidth = 3;
-        s.beginPath();
-        s.moveTo(b.x + 4, b.y - 4);
-        s.lineTo(b.x + b.w * (0.4 + wrand() * 0.5), b.y - 4);
-        s.stroke();
-        s.globalAlpha = 1;
-      }
     }
 
     // gờ tối dưới mặt đường (tạo khối)
@@ -115,10 +139,20 @@ export function createDriftRenderer(canvas, container, track) {
     s.strokeStyle = "rgba(0,0,0,0.55)";
     s.lineWidth = TRACK_WIDTH + 18;
     s.stroke(track.paths.road);
-    // mặt đường asphalt
+    // mặt đường asphalt (texture từ ảnh nếu có)
     s.strokeStyle = ROAD;
     s.lineWidth = TRACK_WIDTH;
     s.stroke(track.paths.road);
+    if (ready(IMG.road)) {
+      const pat = s.createPattern(IMG.road, "repeat");
+      if (pat) {
+        s.strokeStyle = pat;
+        s.globalAlpha = 0.9;
+        s.lineWidth = TRACK_WIDTH;
+        s.stroke(track.paths.road);
+        s.globalAlpha = 1;
+      }
+    }
     // kết cấu: dải sáng mờ giữa đường + gờ tối gần mép
     s.strokeStyle = "rgba(255,255,255,0.045)";
     s.lineWidth = TRACK_WIDTH - 34;
@@ -198,6 +232,7 @@ export function createDriftRenderer(canvas, container, track) {
     const ry = p[1] - n[1] * (HALF_W + 10);
     const color = state === "next" ? LIME : state === "done" ? "rgba(120,140,190,0.5)" : "#9a5cff";
     const glow = state === "next" ? 0.9 + Math.sin(time * 5) * 0.1 : 0.55;
+    const useSprites = ready(IMG.pillarL) && ready(IMG.pillarR) && ready(IMG.fence);
 
     // vạch ngang đường
     g.strokeStyle = color;
@@ -211,46 +246,74 @@ export function createDriftRenderer(canvas, container, track) {
     g.setLineDash([]);
     g.globalAlpha = 1;
 
-    // hai trụ cổng ca-rô
-    for (const [px, py] of [[lx, ly], [rx, ry]]) {
-      // bóng
-      g.fillStyle = "rgba(0,0,0,0.5)";
-      g.beginPath();
-      g.ellipse(px, py + 8, 14, 6, 0, 0, Math.PI * 2);
-      g.fill();
-      // thân trụ
-      g.fillStyle = "#12102a";
-      g.fillRect(px - 11, py - 34, 22, 44);
-      // hoa văn ca-rô
-      const on = state === "next" ? "rgba(168,255,62,0.9)" : state === "done" ? "rgba(120,140,190,0.45)" : "rgba(154,92,255,0.75)";
-      for (let ry2 = 0; ry2 < 5; ry2++) {
-        for (let rx2 = 0; rx2 < 2; rx2++) {
-          if ((rx2 + ry2) % 2 === 0) continue;
-          g.fillStyle = on;
-          g.fillRect(px - 10 + rx2 * 10, py - 33 + ry2 * 8.6, 9.5, 8);
+    if (useSprites) {
+      // rào ca-rô chạy dọc vạch cổng (sprite tile theo chiều dài)
+      const gateLen = Math.hypot(rx - lx, ry - ly);
+      const fh = 24;
+      const fw = fh * (137 / 56);
+      g.save();
+      g.translate(lx, ly);
+      g.rotate(Math.atan2(ry - ly, rx - lx));
+      g.globalAlpha = state === "next" ? 0.95 : state === "done" ? 0.3 : 0.55;
+      for (let d = 8; d < gateLen - 8; d += fw) {
+        g.drawImage(IMG.fence, d, -fh + 4, Math.min(fw, gateLen - 8 - d), fh);
+      }
+      g.restore();
+      // hai trụ neon (sprite đứng, chân đặt tại mép đường)
+      for (const [px, py, im] of [[lx, ly, IMG.pillarL], [rx, ry, IMG.pillarR]]) {
+        g.fillStyle = "rgba(0,0,0,0.5)";
+        g.beginPath();
+        g.ellipse(px, py + 6, 15, 6, 0, 0, Math.PI * 2);
+        g.fill();
+        const h = 86;
+        const w = h * (im.naturalWidth / im.naturalHeight);
+        g.save();
+        g.globalAlpha = state === "next" ? 1 : state === "done" ? 0.35 : 0.7;
+        if (state === "next") {
+          g.shadowColor = LIME;
+          g.shadowBlur = 10 * glow;
         }
+        g.drawImage(im, px - w / 2, py + 10 - h, w, h);
+        g.restore();
+        // đèn đỉnh trụ (động)
+        g.save();
+        g.shadowColor = state === "next" ? LIME : "#9a5cff";
+        g.shadowBlur = 10;
+        g.fillStyle = state === "next" ? LIME : "#9a5cff";
+        g.beginPath();
+        g.arc(px, py + 8 - h, 3.2, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
       }
-      // viền glow
-      g.save();
-      if (state === "next") {
-        g.shadowColor = LIME;
-        g.shadowBlur = 12 * glow;
+    } else {
+      // fallback vector: trụ ca-rô
+      for (const [px, py] of [[lx, ly], [rx, ry]]) {
+        g.fillStyle = "rgba(0,0,0,0.5)";
+        g.beginPath();
+        g.ellipse(px, py + 8, 14, 6, 0, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = "#12102a";
+        g.fillRect(px - 11, py - 34, 22, 44);
+        const on = state === "next" ? "rgba(168,255,62,0.9)" : state === "done" ? "rgba(120,140,190,0.45)" : "rgba(154,92,255,0.75)";
+        for (let ry2 = 0; ry2 < 5; ry2++) {
+          for (let rx2 = 0; rx2 < 2; rx2++) {
+            if ((rx2 + ry2) % 2 === 0) continue;
+            g.fillStyle = on;
+            g.fillRect(px - 10 + rx2 * 10, py - 33 + ry2 * 8.6, 9.5, 8);
+          }
+        }
+        g.save();
+        if (state === "next") {
+          g.shadowColor = LIME;
+          g.shadowBlur = 12 * glow;
+        }
+        g.strokeStyle = color;
+        g.globalAlpha = glow;
+        g.lineWidth = 2;
+        g.strokeRect(px - 11, py - 34, 22, 44);
+        g.restore();
+        g.globalAlpha = 1;
       }
-      g.strokeStyle = color;
-      g.globalAlpha = glow;
-      g.lineWidth = 2;
-      g.strokeRect(px - 11, py - 34, 22, 44);
-      g.restore();
-      g.globalAlpha = 1;
-      // đèn đỉnh trụ
-      g.save();
-      g.shadowColor = state === "next" ? LIME : "#9a5cff";
-      g.shadowBlur = 10;
-      g.fillStyle = state === "next" ? LIME : "#9a5cff";
-      g.beginPath();
-      g.arc(px, py - 38, 3.4, 0, Math.PI * 2);
-      g.fill();
-      g.restore();
     }
 
     // banner CHECKPOINT (luôn nằm ngang để dễ đọc, như ảnh reference)
@@ -258,10 +321,20 @@ export function createDriftRenderer(canvas, container, track) {
       const mx = (lx + rx) / 2;
       const my = (ly + ry) / 2;
       const label = cp.order === 8 ? "FINISH" : "CHECKPOINT";
+      if (label === "CHECKPOINT" && ready(IMG.banner)) {
+        const bw2 = 158;
+        const bh2 = bw2 * (91 / 229);
+        g.save();
+        g.translate(mx, my - 86);
+        g.shadowColor = LIME;
+        g.shadowBlur = 14 * glow;
+        g.drawImage(IMG.banner, -bw2 / 2, -bh2 / 2, bw2, bh2);
+        g.restore();
+        return;
+      }
       const bw = label.length * 12 + 34;
       g.save();
       g.translate(mx, my - 60);
-      // hai chân nối xuống trụ
       g.strokeStyle = "rgba(168,255,62,0.5)";
       g.lineWidth = 1.8;
       g.beginPath();
@@ -270,7 +343,6 @@ export function createDriftRenderer(canvas, container, track) {
       g.moveTo(rx - mx, 60 - 34);
       g.lineTo(bw / 2 - 8, 13);
       g.stroke();
-      // khung banner
       g.save();
       g.shadowColor = LIME;
       g.shadowBlur = 18 * glow;
@@ -282,7 +354,6 @@ export function createDriftRenderer(canvas, container, track) {
       g.lineWidth = 2.4;
       g.stroke();
       g.restore();
-      // hoa văn ca-rô 2 đầu banner
       g.fillStyle = "rgba(168,255,62,0.8)";
       for (let k = 0; k < 2; k++) {
         for (let r = 0; r < 3; r++) {
@@ -306,6 +377,17 @@ export function createDriftRenderer(canvas, container, track) {
     if (p.taken) return;
     const bob = Math.sin(time * 3 + p.pulse) * 3;
     const r = 17 + Math.sin(time * 4 + p.pulse) * 1.5;
+    if (ready(IMG.pickup)) {
+      const w = r * 2.9;
+      const h = w * (95 / 92);
+      g.save();
+      g.translate(p.x, p.y + bob);
+      g.shadowColor = LIME;
+      g.shadowBlur = 8 + Math.sin(time * 4 + p.pulse) * 4;
+      g.drawImage(IMG.pickup, -w / 2, -h / 2, w, h);
+      g.restore();
+      return;
+    }
     g.save();
     g.translate(p.x, p.y + bob);
     const hex = (rr) => {
@@ -366,6 +448,12 @@ export function createDriftRenderer(canvas, container, track) {
     g.beginPath();
     g.ellipse(0, 4, 22, 13, 0, 0, Math.PI * 2);
     g.fill();
+    if (ready(IMG.traffic)) {
+      const s = 74;
+      g.drawImage(IMG.traffic, -s / 2, -s / 2, s, s);
+      g.restore();
+      return;
+    }
     // bánh xe
     g.fillStyle = "#0a0a12";
     g.fillRect(-14, -12.5, 9, 4);
@@ -443,6 +531,34 @@ export function createDriftRenderer(canvas, container, track) {
     g.ellipse(0, 0, 23, 14, 0, 0, Math.PI * 2);
     g.fill();
     g.restore();
+    if (ready(IMG.car)) {
+      const s = 96;
+      g.drawImage(IMG.car, -s / 2 + 2, -s / 2, s, s);
+      // lửa nitro (động, vẽ code ở đuôi xe)
+      if (car.nitroActive) {
+        const f = 14 + Math.sin(time * 40) * 5;
+        g.save();
+        g.shadowColor = "#20e3ff";
+        g.shadowBlur = 14;
+        g.fillStyle = "rgba(32,227,255,0.9)";
+        g.beginPath();
+        g.moveTo(-26, -4.5);
+        g.lineTo(-26 - f, 0);
+        g.lineTo(-26, 4.5);
+        g.closePath();
+        g.fill();
+        g.fillStyle = "rgba(255,255,255,0.95)";
+        g.beginPath();
+        g.moveTo(-26, -2.2);
+        g.lineTo(-26 - f * 0.55, 0);
+        g.lineTo(-26, 2.2);
+        g.closePath();
+        g.fill();
+        g.restore();
+      }
+      g.restore();
+      return;
+    }
     // bánh xe
     g.fillStyle = "#05060c";
     g.fillRect(-15, -13, 10, 4.5);
@@ -594,7 +710,8 @@ export function createDriftRenderer(canvas, container, track) {
   function draw(state, time) {
     const { car, cam, traffic, trails, sparks, nextCp, shake } = state;
     if (W === 0) fit();
-    if (!staticLayer) buildStatic();
+    // dựng lại lớp tĩnh 1 lần khi sprite decode xong (frame đầu có thể là vector)
+    if (!staticLayer || (assetsReady && !staticWithAssets)) buildStatic();
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     // nền
     const bg = g.createLinearGradient(0, 0, 0, H);

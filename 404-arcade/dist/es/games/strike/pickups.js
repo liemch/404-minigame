@@ -46,11 +46,25 @@ export function createPickups(sceneRoot, world, audio, fx) {
     return g;
   }
 
+  /** Bóng blob mờ trên sàn ngay dưới vật phẩm (vật phẩm nhấp nhô phía trên). */
+  function buildShadow(x, z) {
+    const s = meshNode("plane", {
+      pos: [x, 0.025, z],
+      rot: [-Math.PI / 2, 0, 0],
+      scale: [1.25, 1.25, 1],
+      color: [1, 1, 1],
+      opacity: 0.55,
+      tex: world.texBlob,
+    });
+    addChild(sceneRoot, s);
+    return s;
+  }
+
   for (const [x, z] of world.pickupSpots.health) {
-    items.push({ type: "health", node: buildCrate("health"), x, z, active: true, timer: 0, phase: Math.random() * 6 });
+    items.push({ type: "health", node: buildCrate("health"), shadow: buildShadow(x, z), x, z, active: true, timer: 0, phase: Math.random() * 6 });
   }
   for (const [x, z] of world.pickupSpots.ammo) {
-    items.push({ type: "ammo", node: buildCrate("ammo"), x, z, active: true, timer: 0, phase: Math.random() * 6 });
+    items.push({ type: "ammo", node: buildCrate("ammo"), shadow: buildShadow(x, z), x, z, active: true, timer: 0, phase: Math.random() * 6 });
   }
 
   function reset() {
@@ -58,6 +72,7 @@ export function createPickups(sceneRoot, world, audio, fx) {
       it.active = true;
       it.timer = 0;
       it.node.visible = true;
+      it.shadow.visible = true;
     }
   }
 
@@ -70,15 +85,20 @@ export function createPickups(sceneRoot, world, audio, fx) {
         if (it.timer <= 0) {
           it.active = true;
           it.node.visible = true;
+          it.shadow.visible = true;
           fx.burst([it.x, 0.8, it.z], it.type === "health" ? "#9a5cff" : "#ffd23f", 6);
         }
         continue;
       }
       it.phase += dt * 2;
+      const bob = Math.sin(it.phase);
       it.node.pos[0] = it.x;
       it.node.pos[2] = it.z;
-      it.node.pos[1] = 0.85 + Math.sin(it.phase) * 0.12;
+      it.node.pos[1] = 0.85 + bob * 0.12;
       it.node.rot[1] += dt * 1.6;
+      // Bóng co giãn/mờ dần theo độ cao nhấp nhô
+      it.shadow.scale[0] = it.shadow.scale[1] = 1.25 - bob * 0.14;
+      it.shadow.mesh.opacity = 0.55 - bob * 0.12;
 
       if (playerPos) {
         const d = Math.hypot(playerPos[0] - it.x, playerPos[2] - it.z);
@@ -86,6 +106,7 @@ export function createPickups(sceneRoot, world, audio, fx) {
           it.active = false;
           it.timer = RESPAWN;
           it.node.visible = false;
+          it.shadow.visible = false;
           audio.play("pickup");
           fx.burst([it.x, 1, it.z], it.type === "health" ? "#b07bff" : "#ffd23f", 10);
           picked.push(it.type);

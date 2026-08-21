@@ -8,9 +8,20 @@
  */
 
 import { TILE, DIRS, guardPose } from "./engine.js";
+import { SPRITES } from "./assets.js";
 
 export function createStealthRenderer(canvas, box) {
   const g = canvas.getContext("2d");
+  /* Sprite cắt từ ảnh tham chiếu — decode async; khi chưa sẵn sàng các
+   * hàm vẽ fallback về nét vector cũ. */
+  const spr = {};
+  for (const [key, url] of Object.entries(SPRITES)) {
+    const im = new Image();
+    im.onload = () => {
+      spr[key] = im;
+    };
+    im.src = url;
+  }
   let dpr = 1;
   let W = 0;
   let H = 0;
@@ -64,6 +75,17 @@ export function createStealthRenderer(canvas, box) {
       g.beginPath();
       g.arc(0, 0, s * 1.5, 0, Math.PI * 2);
       g.stroke();
+    }
+    if (spr.guard) {
+      /* robot tuần tra cắt từ reference (mặt quay xuống) — xoay theo
+       * hướng nhìn bằng canvas transform */
+      const [fx2, fy2] = DIRS[dir];
+      g.rotate(Math.atan2(fy2, fx2) - Math.PI / 2);
+      const dw = ts * 1.42;
+      const dh = dw * (spr.guard.height / spr.guard.width);
+      g.drawImage(spr.guard, -dw * 0.5, -dh * 0.52, dw, dh);
+      g.restore();
+      return;
     }
     // bánh xích
     g.fillStyle = "#1a1026";
@@ -150,6 +172,15 @@ export function createStealthRenderer(canvas, box) {
     glow.addColorStop(1, "rgba(32,227,255,0)");
     g.fillStyle = glow;
     g.fillRect(-s * 2.2, -s * 2.2, s * 4.4, s * 4.4);
+    if (spr.player) {
+      // robot cyan cắt từ reference (glow nướng sẵn trong mask tròn)
+      const dw = ts * 1.16;
+      const dh = dw * (spr.player.height / spr.player.width);
+      g.drawImage(spr.player, -dw / 2, -dh * 0.52, dw, dh);
+      void time;
+      g.restore();
+      return;
+    }
     // chân
     g.fillStyle = "#101830";
     g.fillRect(-s * 0.5, s * 0.4, s * 0.36, s * 0.5);
@@ -251,9 +282,9 @@ export function createStealthRenderer(canvas, box) {
       for (let x = 0; x < level.w; x++) {
         const t = level.tiles[y][x];
         if (t === TILE.WALL) continue;
-        g.fillStyle = t === TILE.SHADOW ? "#0d1122" : "#1d2440";
+        g.fillStyle = t === TILE.SHADOW ? "#0e1226" : "#212947";
         g.fillRect(px(x), py(y), ts, ts);
-        g.strokeStyle = "rgba(90,110,170,.13)";
+        g.strokeStyle = "rgba(96,116,178,.16)";
         g.lineWidth = 1;
         g.strokeRect(px(x) + 0.5, py(y) + 0.5, ts - 1, ts - 1);
         if (t === TILE.SHADOW) {
@@ -310,14 +341,38 @@ export function createStealthRenderer(canvas, box) {
       for (let x = 0; x < level.w; x++) {
         const t = level.tiles[y][x];
         if (t === TILE.WALL) {
-          g.fillStyle = "#141a33";
-          g.fillRect(px(x), py(y), ts, ts);
-          g.fillStyle = "#3c4668";
-          g.fillRect(px(x) + 1, py(y) + 1, ts - 2, ts - 2);
-          g.fillStyle = "#545f86";
-          g.fillRect(px(x) + 1, py(y) + 1, ts - 2, ts * 0.3);
+          if (spr.wallH) {
+            /* tường ống kim loại cắt từ reference — nối theo hướng có
+             * tường lân cận trong bản đồ */
+            const wallAt = (xx, yy) =>
+              xx >= 0 && yy >= 0 && xx < level.w && yy < level.h && level.tiles[yy][xx] === TILE.WALL;
+            g.fillStyle = "#10152b";
+            g.fillRect(px(x), py(y), ts, ts);
+            const hasH = wallAt(x - 1, y) || wallAt(x + 1, y);
+            const hasV = wallAt(x, y - 1) || wallAt(x, y + 1);
+            const th = ts * 0.68;
+            const im = spr.wallH;
+            const half = im.width / 2; // dùng nửa trái (đoạn ống đồng nhất) cho mọi ô
+            if (hasH || !hasV) {
+              g.drawImage(im, 0, 0, half, im.height, px(x) - 0.3, py(y) + (ts - th) / 2, ts + 0.6, th);
+            }
+            if (hasV) {
+              g.save();
+              g.translate(px(x) + ts / 2, py(y) + ts / 2);
+              g.rotate(Math.PI / 2);
+              g.drawImage(im, 0, 0, half, im.height, -ts / 2 - 0.3, -th / 2, ts + 0.6, th);
+              g.restore();
+            }
+          } else {
+            g.fillStyle = "#141a33";
+            g.fillRect(px(x), py(y), ts, ts);
+            g.fillStyle = "#3c4668";
+            g.fillRect(px(x) + 1, py(y) + 1, ts - 2, ts - 2);
+            g.fillStyle = "#545f86";
+            g.fillRect(px(x) + 1, py(y) + 1, ts - 2, ts * 0.3);
+          }
         } else if (t === TILE.COVER) {
-          g.fillStyle = "#1d2440";
+          g.fillStyle = "#212947";
           g.fillRect(px(x), py(y), ts, ts);
           g.fillStyle = "#33406a";
           g.beginPath();
@@ -343,6 +398,22 @@ export function createStealthRenderer(canvas, box) {
       g.save();
       const dx = px(d.x);
       const dy = py(d.y);
+      if (spr.doorV && !opened) {
+        /* thiết bị cửa cắt từ reference (thanh năng lượng dọc) — xoay
+         * ngang khi cửa chắn hành lang dọc (tường trên/dưới) */
+        const wallAt = (xx, yy) =>
+          xx < 0 || yy < 0 || xx >= level.w || yy >= level.h || level.tiles[yy][xx] === TILE.WALL;
+        const vertGap = wallAt(d.x - 1, d.y) || wallAt(d.x + 1, d.y);
+        g.translate(dx + ts / 2, dy + ts / 2);
+        if (!vertGap) g.rotate(Math.PI / 2);
+        const dh = ts * 1.12;
+        const dw = dh * (spr.doorV.width / spr.doorV.height);
+        g.shadowColor = "#ffd23f";
+        g.shadowBlur = 9;
+        g.drawImage(spr.doorV, -dw / 2, -dh / 2, dw, dh);
+        g.restore();
+        continue;
+      }
       if (!opened) {
         g.shadowColor = "#ffd23f";
         g.shadowBlur = 8;
@@ -378,6 +449,14 @@ export function createStealthRenderer(canvas, box) {
       g.translate(cx(k.x), cy(k.y) + bob);
       g.shadowColor = "#4df77f";
       g.shadowBlur = 9;
+      if (spr.keycard) {
+        // thẻ xanh cắt từ reference (glow nướng sẵn)
+        const dw = ts * 0.78;
+        const dh = dw * (spr.keycard.height / spr.keycard.width);
+        g.drawImage(spr.keycard, -dw / 2, -dh / 2, dw, dh);
+        g.restore();
+        return;
+      }
       g.fillStyle = "#0d2415";
       g.strokeStyle = "#4df77f";
       g.lineWidth = 1.8;
@@ -398,6 +477,14 @@ export function createStealthRenderer(canvas, box) {
       const used = st.termMask & (1 << i);
       g.save();
       g.translate(cx(t.x), cy(t.y));
+      if (spr.terminal && !used) {
+        // trạm báo động cắt từ reference (đỏ khi chưa vô hiệu hóa)
+        const dh = ts * 0.86;
+        const dw = dh * (spr.terminal.width / spr.terminal.height);
+        g.drawImage(spr.terminal, -dw / 2, -dh / 2, dw, dh);
+        g.restore();
+        return;
+      }
       g.fillStyle = "#241019";
       g.strokeStyle = used ? "rgba(80,240,120,.7)" : "#ff3b52";
       g.lineWidth = 1.8;
@@ -424,6 +511,15 @@ export function createStealthRenderer(canvas, box) {
         g.shadowColor = "#4df77f";
         g.shadowBlur = 12 + Math.sin(time * 4) * 4;
       }
+      if (spr.exitDoor) {
+        /* cửa thoát neon xanh cắt từ reference — mờ đi khi chưa đủ keycard */
+        const dh = ts * 1.04;
+        const dw = dh * (spr.exitDoor.width / spr.exitDoor.height);
+        if (!opened) g.globalAlpha = 0.5;
+        g.drawImage(spr.exitDoor, -dw / 2, -dh / 2, dw, dh);
+        g.globalAlpha = 1;
+        g.restore();
+      } else {
       g.strokeStyle = tone;
       g.lineWidth = 2.6;
       g.strokeRect(-ts * 0.36, -ts * 0.42, ts * 0.72, ts * 0.84);
@@ -451,6 +547,7 @@ export function createStealthRenderer(canvas, box) {
       g.lineTo(s * 1.2, s * 1.1);
       g.stroke();
       g.restore();
+      }
     }
 
     // camera

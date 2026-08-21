@@ -1,10 +1,26 @@
 /**
- * render.js — vẽ highway 4 lane phối cảnh của Rhythm Hack theo ảnh
- * reference: lane hẹp trên rộng dưới, màu cyan/tím/hồng/lime, note là
- * thanh phát sáng trượt xuống, vạch hit + đế nhận sáng khi nhấn, chữ
- * judgement PERFECT/GREAT/GOOD/MISS pop giữa màn, hạt sáng khi hit,
- * nhịp nền pulse theo beat. Kèm painter trái tim pixel (SYSTEM REPAIR).
+ * render.js — vẽ highway 4 lane phối cảnh của Rhythm Hack.
+ *
+ * Đồ họa chính dùng SPRITE cắt từ ảnh tham chiếu rhythm-hack.png
+ * (assets.js): note pill neon 4 màu, receptor flare (cột sáng + vòng
+ * nhận + hạt pixel) vẽ cộng sáng (lighter), texture mạch nền, trái tim
+ * pixel SYSTEM REPAIR. Chưa decode xong thì fallback nét vẽ vector cũ.
+ * Phần ĐỘNG (judgement pop, hạt hit, pulse beat, đếm ngược, vòng miss)
+ * vẫn vẽ code; mặt highway/lane giữ vector vì là gradient hội tụ động.
  */
+
+import { loadImages, ready } from "./assets.js";
+
+const IMG = loadImages();
+const NOTE_SPRITES = ["noteCyan", "noteViolet", "notePink", "noteLime"];
+const FLARE_SPRITES = ["flareCyan", "flareViolet", "flarePink", "flareLime"];
+// tâm vòng nhận trong từng sprite flare (tỉ lệ x, y theo kích thước sprite)
+const FLARE_ANCHOR = [
+  [0.43, 0.857],
+  [0.49, 0.78],
+  [0.49, 0.78],
+  [0.5, 0.857],
+];
 
 export const LANE_COLORS = ["#20e3ff", "#9a5cff", "#ff2e96", "#a8ff3e"];
 const APPROACH = 1.6; // giây từ mép trên tới vạch hit
@@ -19,6 +35,7 @@ export function createHighwayRenderer(canvas, container) {
   const bursts = []; // hạt khi hit
   const pressT = [0, 0, 0, 0]; // thời điểm nhấn lane
   const missT = [0, 0, 0, 0];
+  let bgPattern = null; // pattern texture mạch nền (tạo 1 lần khi ảnh sẵn sàng)
 
   // vân mạch trang trí 2 bên nền (tọa độ tỉ lệ 0..1, seeded)
   const decor = (() => {
@@ -120,19 +137,28 @@ export function createHighwayRenderer(canvas, container) {
       g.fillRect(0, 0, W, H);
     }
 
-    // vân mạch mờ 2 bên nền (như ảnh)
-    g.strokeStyle = "rgba(60,120,220,0.13)";
-    g.fillStyle = "rgba(60,120,220,0.2)";
-    g.lineWidth = 1.2;
-    for (const pts of decor) {
-      g.beginPath();
-      g.moveTo(pts[0][0] * W, pts[0][1] * H);
-      for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0] * W, pts[i][1] * H);
-      g.stroke();
-      const last = pts[pts.length - 1];
-      g.beginPath();
-      g.arc(last[0] * W, last[1] * H, 2, 0, Math.PI * 2);
-      g.fill();
+    // vân mạch nền: texture cắt từ ảnh tham chiếu, fallback nét vẽ cũ
+    if (ready(IMG.bgTile)) {
+      if (!bgPattern) bgPattern = g.createPattern(IMG.bgTile, "repeat");
+      g.save();
+      g.globalAlpha = 0.85;
+      g.fillStyle = bgPattern;
+      g.fillRect(0, 0, W, H);
+      g.restore();
+    } else {
+      g.strokeStyle = "rgba(60,120,220,0.13)";
+      g.fillStyle = "rgba(60,120,220,0.2)";
+      g.lineWidth = 1.2;
+      for (const pts of decor) {
+        g.beginPath();
+        g.moveTo(pts[0][0] * W, pts[0][1] * H);
+        for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0] * W, pts[i][1] * H);
+        g.stroke();
+        const last = pts[pts.length - 1];
+        g.beginPath();
+        g.arc(last[0] * W, last[1] * H, 2, 0, Math.PI * 2);
+        g.fill();
+      }
     }
 
     // hệ số kéo dài lane xuống hết đáy canvas (qua vạch hit như ảnh)
@@ -219,70 +245,75 @@ export function createHighwayRenderer(canvas, container) {
     g.stroke();
     g.restore();
 
-    // đế nhận (receptor): cột sáng + vòng + hạt pixel như ảnh
+    // đế nhận (receptor): sprite flare từ ảnh tham chiếu, fallback vector
     for (let i = 0; i < 4; i++) {
       const x = laneCenterX(i, 1);
       const pk = Math.max(0, 1 - (now - pressT[i]) / 0.25);
       const mk = Math.max(0, 1 - (now - missT[i]) / 0.3);
       const c = LANE_COLORS[i];
       const laneW = edgeX(i + 1, 1) - edgeX(i, 1);
+      const flare = IMG[FLARE_SPRITES[i]];
       g.save();
-      // cột sáng dựng lên từ receptor
-      const beamH = H * 0.15 * (1 + pk * 0.6);
-      const beamW = laneW * (0.24 + pk * 0.16);
-      const beam = g.createLinearGradient(0, hitY() - beamH, 0, hitY());
-      beam.addColorStop(0, `${c}00`);
-      beam.addColorStop(1, `${c}${Math.round((0.1 + pk * 0.32) * 255).toString(16).padStart(2, "0")}`);
-      g.fillStyle = beam;
-      g.beginPath();
-      g.moveTo(x - beamW * 0.4, hitY() - beamH);
-      g.lineTo(x + beamW * 0.4, hitY() - beamH);
-      g.lineTo(x + beamW, hitY());
-      g.lineTo(x - beamW, hitY());
-      g.closePath();
-      g.fill();
-      // hạt pixel lấp lánh quanh chân receptor
-      for (let d = 0; d < 8; d++) {
-        const seed = Math.sin(i * 37.7 + d * 91.3 + Math.floor(now * 5) * 13.7) * 0.5 + 0.5;
-        const seed2 = Math.sin(i * 53.1 + d * 47.9 + Math.floor(now * 5) * 7.3) * 0.5 + 0.5;
-        const dx = (seed - 0.5) * laneW * 0.75;
-        const dy = -seed2 * 52 - 4;
-        g.globalAlpha = (0.25 + seed2 * 0.5) * (0.55 + pk * 0.45);
-        g.fillStyle = c;
-        const sz = 2 + seed * 2.4;
-        g.fillRect(x + dx - sz / 2, hitY() + dy, sz, sz);
+      if (ready(flare)) {
+        // sprite cộng sáng: beam + burst + vòng nhận + hạt pixel đã có sẵn
+        const fw = laneW * 0.8 * (1 + pk * 0.08);
+        const fh = fw * (flare.naturalHeight / flare.naturalWidth);
+        const [ax, ay] = FLARE_ANCHOR[i];
+        g.globalCompositeOperation = "lighter";
+        g.globalAlpha = 0.8 + pk * 0.2;
+        g.drawImage(flare, x - fw * ax, hitY() - fh * ay, fw, fh);
+        if (pk > 0) {
+          // nhấn: chồng thêm 1 lớp sprite cho bùng sáng
+          g.globalAlpha = pk * 0.7;
+          g.drawImage(flare, x - fw * ax, hitY() - fh * ay, fw, fh);
+        }
+        g.globalCompositeOperation = "source-over";
+        g.globalAlpha = 1;
+      } else {
+        // fallback vector khi sprite chưa decode
+        const beamH = H * 0.15 * (1 + pk * 0.6);
+        const beamW = laneW * (0.24 + pk * 0.16);
+        const beam = g.createLinearGradient(0, hitY() - beamH, 0, hitY());
+        beam.addColorStop(0, `${c}00`);
+        beam.addColorStop(1, `${c}${Math.round((0.1 + pk * 0.32) * 255).toString(16).padStart(2, "0")}`);
+        g.fillStyle = beam;
+        g.beginPath();
+        g.moveTo(x - beamW * 0.4, hitY() - beamH);
+        g.lineTo(x + beamW * 0.4, hitY() - beamH);
+        g.lineTo(x + beamW, hitY());
+        g.lineTo(x - beamW, hitY());
+        g.closePath();
+        g.fill();
+        const glowR = 26 + pk * 12;
+        const gl = g.createRadialGradient(x, hitY(), 2, x, hitY(), glowR * 1.7);
+        gl.addColorStop(0, `${c}${Math.round((0.4 + pk * 0.45) * 255).toString(16).padStart(2, "0")}`);
+        gl.addColorStop(1, `${c}00`);
+        g.fillStyle = gl;
+        g.beginPath();
+        g.ellipse(x, hitY(), glowR * 1.7, glowR * 0.62, 0, 0, Math.PI * 2);
+        g.fill();
+        g.shadowColor = c;
+        g.shadowBlur = 12 + pk * 10;
+        g.strokeStyle = c;
+        g.globalAlpha = 0.75 + pk * 0.25;
+        g.lineWidth = 3 + pk * 2;
+        g.beginPath();
+        g.ellipse(x, hitY(), 30 + pk * 7, 10.5 + pk * 3, 0, 0, Math.PI * 2);
+        g.stroke();
+        g.shadowBlur = 0;
+        g.strokeStyle = "rgba(255,255,255,0.7)";
+        g.lineWidth = 1.2;
+        g.beginPath();
+        g.ellipse(x, hitY(), 21, 7, 0, 0, Math.PI * 2);
+        g.stroke();
       }
-      g.globalAlpha = 1;
-      // quầng sáng chân
-      const glowR = 26 + pk * 12;
-      const gl = g.createRadialGradient(x, hitY(), 2, x, hitY(), glowR * 1.7);
-      gl.addColorStop(0, `${c}${Math.round((0.4 + pk * 0.45) * 255).toString(16).padStart(2, "0")}`);
-      gl.addColorStop(1, `${c}00`);
-      g.fillStyle = gl;
-      g.beginPath();
-      g.ellipse(x, hitY(), glowR * 1.7, glowR * 0.62, 0, 0, Math.PI * 2);
-      g.fill();
-      // vòng receptor kép
-      g.shadowColor = c;
-      g.shadowBlur = 12 + pk * 10;
-      g.strokeStyle = c;
-      g.globalAlpha = 0.75 + pk * 0.25;
-      g.lineWidth = 3 + pk * 2;
-      g.beginPath();
-      g.ellipse(x, hitY(), 30 + pk * 7, 10.5 + pk * 3, 0, 0, Math.PI * 2);
-      g.stroke();
-      g.shadowBlur = 0;
-      g.strokeStyle = "rgba(255,255,255,0.7)";
-      g.lineWidth = 1.2;
-      g.beginPath();
-      g.ellipse(x, hitY(), 21, 7, 0, 0, Math.PI * 2);
-      g.stroke();
       if (pk > 0) {
         g.globalAlpha = pk * 0.55;
         g.fillStyle = c;
         g.beginPath();
         g.ellipse(x, hitY(), 22, 7.4, 0, 0, Math.PI * 2);
         g.fill();
+        g.globalAlpha = 1;
       }
       if (mk > 0) {
         g.globalAlpha = mk * 0.6;
@@ -291,6 +322,7 @@ export function createHighwayRenderer(canvas, container) {
         g.beginPath();
         g.ellipse(x, hitY(), 34 + (1 - mk) * 14, 12, 0, 0, Math.PI * 2);
         g.stroke();
+        g.globalAlpha = 1;
       }
       g.restore();
     }
@@ -308,24 +340,32 @@ export function createHighwayRenderer(canvas, container) {
       const w = laneW * 0.74;
       const h = 9 + k * 15;
       const c = LANE_COLORS[n.lane];
+      const noteImg = IMG[NOTE_SPRITES[n.lane]];
       g.save();
-      // quầng dưới note
-      g.fillStyle = `${c}2e`;
-      g.beginPath();
-      g.roundRect(x - w / 2 - 5, y - h / 2 - 4, w + 10, h + 8, (h + 8) / 2);
-      g.fill();
-      g.shadowColor = c;
-      g.shadowBlur = 10 + k * 14;
-      g.fillStyle = c;
-      g.beginPath();
-      g.roundRect(x - w / 2, y - h / 2, w, h, h / 2);
-      g.fill();
-      g.shadowBlur = 0;
-      // dải sáng trắng giữa note
-      g.fillStyle = "rgba(255,255,255,0.75)";
-      g.beginPath();
-      g.roundRect(x - w / 2 + 4, y - h * 0.22, w - 8, Math.max(2, h * 0.36), 3);
-      g.fill();
+      if (ready(noteImg)) {
+        // sprite pill neon (glow đã nằm trong sprite, kèm padding)
+        const dw = w * 1.14;
+        const dh = h * 2.0;
+        g.drawImage(noteImg, x - dw / 2, y - dh / 2, dw, dh);
+      } else {
+        // quầng dưới note
+        g.fillStyle = `${c}2e`;
+        g.beginPath();
+        g.roundRect(x - w / 2 - 5, y - h / 2 - 4, w + 10, h + 8, (h + 8) / 2);
+        g.fill();
+        g.shadowColor = c;
+        g.shadowBlur = 10 + k * 14;
+        g.fillStyle = c;
+        g.beginPath();
+        g.roundRect(x - w / 2, y - h / 2, w, h, h / 2);
+        g.fill();
+        g.shadowBlur = 0;
+        // dải sáng trắng giữa note
+        g.fillStyle = "rgba(255,255,255,0.75)";
+        g.beginPath();
+        g.roundRect(x - w / 2 + 4, y - h * 0.22, w - 8, Math.max(2, h * 0.36), 3);
+        g.fill();
+      }
       g.restore();
     }
 
@@ -432,6 +472,30 @@ export function paintHeart(canvas, progress) {
   canvas.height = rows * cell * dpr;
   const g = canvas.getContext("2d");
   g.scale(dpr, dpr);
+  const cw = cols * cell;
+  const ch = rows * cell;
+  const p = Math.max(0, Math.min(1, progress));
+
+  // SPRITE trái tim pixel từ ảnh tham chiếu: phần "đã vá" sáng từ dưới
+  // lên theo progress, phần trên mờ
+  if (ready(IMG.heart)) {
+    const litH = Math.round(ch * p);
+    g.save();
+    g.globalAlpha = 0.22;
+    g.drawImage(IMG.heart, 0, 0, cw, ch);
+    g.restore();
+    if (litH > 0) {
+      g.save();
+      g.beginPath();
+      g.rect(0, ch - litH, cw, litH);
+      g.clip();
+      g.drawImage(IMG.heart, 0, 0, cw, ch);
+      g.restore();
+    }
+    return;
+  }
+
+  // fallback: trái tim pixel vẽ code
   const cells = [];
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
@@ -440,7 +504,7 @@ export function paintHeart(canvas, progress) {
   }
   // thắp sáng từ dưới lên theo progress
   cells.sort((a, b) => b[1] - a[1] || a[0] - b[0]);
-  const lit = Math.round(cells.length * Math.max(0, Math.min(1, progress)));
+  const lit = Math.round(cells.length * p);
   cells.forEach(([x, y], i) => {
     const on = i < lit;
     g.fillStyle = on ? "#2fa8ff" : "rgba(47, 123, 255, 0.16)";

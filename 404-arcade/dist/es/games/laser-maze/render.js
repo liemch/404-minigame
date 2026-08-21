@@ -6,8 +6,44 @@
  */
 
 import { BEAM_COLORS, REFLECT } from "./engine.js";
+import { loadSprites } from "./assets.js";
 
 const TILE_LINE = "rgba(140, 158, 205, 0.28)";
+
+/* Sprite cắt từ ảnh tham chiếu — nạp 1 lần ở mức module; mọi hàm vẽ
+   fallback nét vector cũ cho tới khi ảnh decode xong. */
+const readyFns = new Set();
+let spritesReady = false;
+const IMGS = loadSprites(() => {
+  spritesReady = true;
+  for (const fn of readyFns) fn();
+  readyFns.clear();
+});
+
+/* Biến thể đổi màu (hue-rotate) pre-render vào offscreen canvas:
+   receiver gốc màu xanh dương, filter gốc màu hồng tím như ảnh. */
+const tintCache = new Map();
+function tinted(key, deg) {
+  const img = IMGS[key];
+  if (!img) return null;
+  if (!deg) return img;
+  const ck = `${key}|${deg}`;
+  let cv = tintCache.get(ck);
+  if (!cv) {
+    cv = document.createElement("canvas");
+    cv.width = img.width;
+    cv.height = img.height;
+    const c = cv.getContext("2d");
+    c.filter = `hue-rotate(${deg}deg)`;
+    c.drawImage(img, 0, 0);
+    tintCache.set(ck, cv);
+  }
+  return cv;
+}
+
+// góc hue từ sprite gốc → màu hệ thống tia
+const RECEIVER_HUE = { red: -57, cyan: 0, violet: 68 };
+const FILTER_HUE = { violet: -35, cyan: -118 };
 
 export function createMazeRenderer(canvas, box) {
   const g = canvas.getContext("2d");
@@ -68,6 +104,28 @@ export function createMazeRenderer(canvas, box) {
   }
 
   function drawSource(x, y, dir, time) {
+    if (IMGS.source) {
+      const X = cx(x);
+      const Y = cy(y);
+      const s = t * 1.08;
+      const ang = { R: 0, D: Math.PI / 2, L: Math.PI, U: -Math.PI / 2 }[dir] || 0;
+      g.save();
+      g.translate(X, Y);
+      g.rotate(ang);
+      g.drawImage(IMGS.source, -s / 2, -s / 2, s, s);
+      g.restore();
+      // nhịp sáng lõi đỏ (phần động vẽ code)
+      const pulse2 = 0.35 + 0.3 * Math.sin(time * 5);
+      g.save();
+      g.globalCompositeOperation = "lighter";
+      const gl = g.createRadialGradient(X, Y, 1, X, Y, t * 0.22);
+      gl.addColorStop(0, `rgba(255,120,130,${pulse2})`);
+      gl.addColorStop(1, "rgba(255,60,80,0)");
+      g.fillStyle = gl;
+      g.fillRect(X - t * 0.25, Y - t * 0.25, t * 0.5, t * 0.5);
+      g.restore();
+      return;
+    }
     tileBase(x, y, "#251016", "rgba(255,90,110,0.6)");
     const X = cx(x);
     const Y = cy(y);
@@ -103,6 +161,26 @@ export function createMazeRenderer(canvas, box) {
   function drawReceiver(x, y, need, litOk, time) {
     // receiver tia gốc (đỏ) hiển thị vòng xanh lá như legend ảnh reference
     const col = need === "red" ? "#4df77f" : BEAM_COLORS[need] || "#4df77f";
+    const spr = tinted("receiver", RECEIVER_HUE[need] ?? 0);
+    if (spr) {
+      const X = cx(x);
+      const Y = cy(y);
+      const s = t * 1.02;
+      g.save();
+      if (litOk) {
+        g.shadowColor = col;
+        g.shadowBlur = 10 + 4 * Math.sin(time * 7);
+      } else {
+        g.globalAlpha = 0.82;
+      }
+      g.drawImage(spr, X - s / 2, Y - s / 2, s, s);
+      g.restore();
+      if (litOk && IMGS.badge) {
+        const bs = t * 0.42;
+        g.drawImage(IMGS.badge, X + t * 0.4 - bs / 2, Y + t * 0.21 - bs / 2, bs, bs);
+      }
+      return;
+    }
     tileBase(x, y, "rgba(8,12,24,0.94)", litOk ? "rgba(77,247,127,0.6)" : `${col}55`);
     const X = cx(x);
     const Y = cy(y);
@@ -147,6 +225,20 @@ export function createMazeRenderer(canvas, box) {
   }
 
   function drawMirror(x, y, o, rotatable, hintGlow, time) {
+    const spr = o === "/" ? IMGS.mirrorFs : IMGS.mirrorBs;
+    if (spr) {
+      const X = cx(x);
+      const Y = cy(y);
+      const s = t * 0.97;
+      g.save();
+      if (hintGlow) {
+        g.shadowColor = "#a8ff3e";
+        g.shadowBlur = 13 + 5 * Math.sin(time * 6);
+      }
+      g.drawImage(spr, X - s / 2, Y - s / 2, s, s);
+      g.restore();
+      return;
+    }
     tileBase(x, y, "#141926", "rgba(160,185,230,0.42)");
     const X = cx(x);
     const Y = cy(y);
@@ -202,6 +294,38 @@ export function createMazeRenderer(canvas, box) {
   }
 
   function drawSplitter(x, y, o, time) {
+    if (IMGS.splitter) {
+      const X = cx(x);
+      const Y = cy(y);
+      const s = t * 1.02;
+      g.drawImage(IMGS.splitter, X - s / 2, Y - s / 2, s, s);
+      // chữ thập + chấm sáng giữa (phần động vẽ code như cũ)
+      const r2 = t * 0.24;
+      g.strokeStyle = "rgba(255,140,155,0.75)";
+      g.lineWidth = 1.8;
+      g.beginPath();
+      g.moveTo(X - r2, Y);
+      g.lineTo(X + r2, Y);
+      g.moveTo(X, Y - r2);
+      g.lineTo(X, Y + r2);
+      g.stroke();
+      g.strokeStyle = "rgba(255,170,185,0.5)";
+      g.lineWidth = 2.6;
+      const a2 = o === "/" ? -Math.PI / 4 : Math.PI / 4;
+      g.beginPath();
+      g.moveTo(X - Math.cos(a2) * r2 * 0.8, Y - Math.sin(a2) * r2 * 0.8);
+      g.lineTo(X + Math.cos(a2) * r2 * 0.8, Y + Math.sin(a2) * r2 * 0.8);
+      g.stroke();
+      g.save();
+      g.shadowColor = "#ff8091";
+      g.shadowBlur = 8 + 3 * Math.sin(time * 5);
+      g.fillStyle = "#fff";
+      g.beginPath();
+      g.arc(X, Y, 3.4, 0, Math.PI * 2);
+      g.fill();
+      g.restore();
+      return;
+    }
     tileBase(x, y, "#1a0f14", "rgba(255,110,130,0.5)");
     const X = cx(x);
     const Y = cy(y);
@@ -234,6 +358,18 @@ export function createMazeRenderer(canvas, box) {
 
   function drawFilter(x, y, color) {
     const col = BEAM_COLORS[color];
+    const spr = tinted("filter", FILTER_HUE[color] ?? 0);
+    if (spr) {
+      const X = cx(x);
+      const Y = cy(y);
+      const s = t * 1.04;
+      g.save();
+      g.shadowColor = col;
+      g.shadowBlur = 8;
+      g.drawImage(spr, X - s / 2, Y - (s * 1.03) / 2, s, s * 1.03);
+      g.restore();
+      return;
+    }
     tileBase(x, y, "rgba(10,14,28,0.95)", `${col}55`);
     const X = cx(x);
     const Y = cy(y);
@@ -259,6 +395,13 @@ export function createMazeRenderer(canvas, box) {
   }
 
   function drawBlocker(x, y) {
+    if (IMGS.blocker) {
+      const X = cx(x);
+      const Y = cy(y);
+      const s = t * 1.06;
+      g.drawImage(IMGS.blocker, X - s / 2, Y - (s * 0.955) / 2, s, s * 0.955);
+      return;
+    }
     tileBase(x, y, "#1d2230", "rgba(115,125,150,0.55)");
     const X = cx(x);
     const Y = cy(y);
@@ -315,9 +458,13 @@ export function createMazeRenderer(canvas, box) {
       g.stroke();
     }
 
-    // lưới ô: khối slate nổi như ảnh (đỉnh sáng, đáy tối)
+    // lưới ô: sprite khối slate cắt từ ảnh, tile kín board (fallback vector)
     for (let y = 0; y < level.h; y++) {
       for (let x = 0; x < level.w; x++) {
+        if (IMGS.floor) {
+          g.drawImage(IMGS.floor, ox + x * t, oy + y * t, t, t);
+          continue;
+        }
         const px = ox + x * t + 2;
         const py = oy + y * t + 2;
         const tg = g.createLinearGradient(0, py, 0, py + t - 4);
@@ -408,12 +555,45 @@ export function createMazeRenderer(canvas, box) {
   return { fit, draw, geometry };
 }
 
-/** Icon chú giải sidebar trái (canvas nhỏ ~30px). */
+/** Icon chú giải sidebar trái (~30px): sprite thật, vẽ lại khi decode xong. */
 export function paintMazeLegend(canvas, kind) {
+  const repaint = () => paintMazeLegendNow(canvas, kind);
+  repaint();
+  if (!spritesReady) readyFns.add(repaint);
+}
+
+function paintMazeLegendNow(canvas, kind) {
   canvas.width = 56;
   canvas.height = 56;
   const c = canvas.getContext("2d");
   c.scale(2, 2);
+  const sprMap = {
+    source: IMGS.source,
+    receiver: tinted("receiver", RECEIVER_HUE.red),
+    mirror: IMGS.mirrorFs,
+    splitter: IMGS.splitter,
+    "filter-cyan": tinted("filter", FILTER_HUE.cyan),
+    "filter-violet": tinted("filter", FILTER_HUE.violet),
+    blocker: IMGS.blocker,
+  };
+  if (sprMap[kind]) {
+    c.drawImage(sprMap[kind], 0.5, 0.5, 27, 27);
+    if (kind === "splitter") {
+      c.strokeStyle = "rgba(255,140,155,0.9)";
+      c.lineWidth = 1.4;
+      c.beginPath();
+      c.moveTo(7.5, 14);
+      c.lineTo(20.5, 14);
+      c.moveTo(14, 7.5);
+      c.lineTo(14, 20.5);
+      c.stroke();
+      c.fillStyle = "#fff";
+      c.beginPath();
+      c.arc(14, 14, 1.9, 0, Math.PI * 2);
+      c.fill();
+    }
+    return;
+  }
   c.fillStyle = "#141927";
   c.strokeStyle = "rgba(120,140,190,0.4)";
   c.beginPath();
@@ -502,14 +682,28 @@ export function paintMazeLegend(canvas, kind) {
   }
 }
 
-/** Icon gương trong KHO GƯƠNG (slot vuông). */
+/** Icon gương trong KHO GƯƠNG (slot vuông): sprite tile gương như ảnh. */
 export function paintInventoryMirror(canvas, filled) {
+  // lưu trạng thái mới nhất lên canvas để repaint khi asset sẵn sàng
+  canvas.__lmFilled = filled;
+  paintInventoryMirrorNow(canvas, filled);
+  if (!spritesReady && !canvas.__lmQueued) {
+    canvas.__lmQueued = true;
+    readyFns.add(() => paintInventoryMirrorNow(canvas, canvas.__lmFilled));
+  }
+}
+
+function paintInventoryMirrorNow(canvas, filled) {
   canvas.width = 76;
   canvas.height = 76;
   const c = canvas.getContext("2d");
   c.scale(2, 2);
   c.clearRect(0, 0, 38, 38);
   if (!filled) return;
+  if (IMGS.mirrorFs) {
+    c.drawImage(IMGS.mirrorFs, 1, 1, 36, 36);
+    return;
+  }
   c.save();
   c.translate(19, 20);
   c.rotate(-Math.PI / 4);

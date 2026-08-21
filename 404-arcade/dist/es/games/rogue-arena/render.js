@@ -1,19 +1,31 @@
 /**
- * render.js — vẽ Rogue Arena theo ảnh reference: sàn đấu tối với vòng
- * tròn đồng tâm phát sáng giữa sàn, khung tường + dải neon góc hồng/cyan
- * dày, robot trắng mắt cyan có quầng sáng lớn, đạn sao chổi cyan, enemy
- * khối wireframe neon (tam giác hồng / khối đỏ tâm ngắm / khối tím) luôn
- * kèm thanh máu đỏ, gem XP kim cương xanh glow, hex XP lime, hex hồi
- * máu, boss kim tự tháp đỏ, chữ nổi "+N XP".
+ * render.js — vẽ Rogue Arena.
+ *
+ * Đồ họa chính dùng SPRITE cắt từ ảnh tham chiếu rogue-arena.png
+ * (assets.js): robot người chơi, enemy wireframe neon (pyramid hồng /
+ * cầu đỏ tâm ngắm / khối tím, boss = cầu đỏ phóng to), gem XP kim cương,
+ * hex XP lime, hex hồi máu. Khi ảnh chưa decode xong, painter fallback
+ * về nét vẽ vector cũ. Phần ĐỘNG (đạn sao chổi, hạt nổ, quầng sáng,
+ * thanh máu, chữ nổi, orbit) vẫn vẽ code; sàn/tường tĩnh giữ vector vì
+ * đã khớp bố cục reference.
  */
 
 import { ARENA_W, ARENA_H, WALL } from "./data.js";
+import { loadImages, ready } from "./assets.js";
+
+const IMG = loadImages();
 
 export function createArenaRenderer(g, { reducedMotion = false } = {}) {
   let staticLayer = null;
+  let lastArena = null; // vẽ lại frame tĩnh (intro) khi sprite decode xong
   const parts = []; // hạt {x,y,vx,vy,life,color,size}
   const floats = []; // chữ nổi
   const rings = []; // vòng nổ
+
+  Promise.all(Object.values(IMG).map((im) => im.decode().catch(() => {})))
+    .then(() => {
+      if (lastArena) draw(lastArena, 0, 0);
+    });
 
   /* ---------------- lớp tĩnh ---------------- */
 
@@ -206,6 +218,13 @@ export function createArenaRenderer(g, { reducedMotion = false } = {}) {
     if (p.ifr > 0 && Math.floor(time * 14) % 2 === 0) g.globalAlpha = 0.45;
     const bob = Math.sin(time * 5) * 1.4;
     g.translate(0, bob);
+    if (ready(IMG.player)) {
+      const w = 36;
+      const h = w * (88 / 59);
+      g.drawImage(IMG.player, -w / 2, -h * 0.56, w, h);
+      g.restore();
+      return;
+    }
     // chân
     g.fillStyle = "#8f9ec4";
     g.beginPath();
@@ -305,6 +324,40 @@ export function createArenaRenderer(g, { reducedMotion = false } = {}) {
     g.save();
     g.translate(e.x, e.y);
     const flash = e.hitFlash > 0;
+
+    // SPRITE enemy từ ảnh tham chiếu (boss dùng cầu đỏ phóng to)
+    const enemySprite =
+      e.type === "chaser" ? IMG.chaser
+      : e.type === "shooter" || e.type === "boss" ? IMG.shooter
+      : e.type === "tank" ? IMG.tank
+      : null;
+    if (ready(enemySprite)) {
+      const sway = e.type === "boss" ? Math.sin(time * 1.6) * 0.08 : Math.sin(time * 2.4 + e.id) * 0.12;
+      g.rotate(sway);
+      const w = e.r * (e.type === "chaser" ? 2.5 : 2.35);
+      const h = w * (enemySprite.naturalHeight / enemySprite.naturalWidth);
+      g.drawImage(enemySprite, -w / 2, -h / 2, w, h);
+      if (flash) {
+        // lóe trắng khi trúng đạn (động)
+        g.save();
+        g.globalCompositeOperation = "lighter";
+        g.globalAlpha = 0.55;
+        g.drawImage(enemySprite, -w / 2, -h / 2, w, h);
+        g.restore();
+      }
+      g.rotate(-sway);
+      if (e.type === "boss") {
+        const bw = 90;
+        g.fillStyle = "rgba(8,8,16,0.85)";
+        g.fillRect(-bw / 2, -e.r - 18, bw, 7);
+        g.fillStyle = "#ff3b4f";
+        g.fillRect(-bw / 2 + 1, -e.r - 17, (bw - 2) * Math.max(0, e.hp / e.maxHp), 5);
+      } else {
+        hpBar(e);
+      }
+      g.restore();
+      return;
+    }
 
     if (e.type === "chaser") {
       // kim tự tháp hồng wireframe (như ảnh)
@@ -515,6 +568,20 @@ export function createArenaRenderer(g, { reducedMotion = false } = {}) {
   function drawGem(gem, time) {
     g.save();
     g.translate(gem.x, gem.y + Math.sin(time * 4 + gem.x) * 2);
+
+    // SPRITE gem/hex từ ảnh tham chiếu
+    const gemSprite = gem.heal ? IMG.healhex : gem.big ? IMG.xphex : IMG.gem;
+    if (ready(gemSprite)) {
+      let w;
+      if (gem.heal) w = 30;
+      else if (gem.big) w = 32;
+      else w = gem.value >= 3 ? 17 : 14;
+      const h = w * (gemSprite.naturalHeight / gemSprite.naturalWidth);
+      g.drawImage(gemSprite, -w / 2, -h / 2, w, h);
+      g.restore();
+      return;
+    }
+
     if (gem.heal) {
       // hex hồi máu xanh lá (như ảnh)
       g.save();
@@ -677,6 +744,7 @@ export function createArenaRenderer(g, { reducedMotion = false } = {}) {
   /* ---------------- khung hình ---------------- */
 
   function draw(arena, dt, time) {
+    lastArena = arena;
     if (!staticLayer) buildStatic();
     g.clearRect(0, 0, ARENA_W, ARENA_H);
     g.drawImage(staticLayer, 0, 0, ARENA_W, ARENA_H);

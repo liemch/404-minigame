@@ -10,6 +10,41 @@
 import { WORLD_W, WORLD_H } from "./courses.js";
 import { pointInPoly, gateSegment, BALL_R, PORTAL_R } from "./engine.js";
 import { seededRand } from "../../core/utils.js";
+import { loadSprites } from "./assets.js";
+
+/* Sprite cắt từ ảnh tham chiếu — nạp 1 lần ở mức module; render fallback
+   nét vẽ vector cũ cho tới khi từng ảnh decode xong. */
+const readyFns = new Set();
+let spritesReady = false;
+const IMGS = loadSprites(() => {
+  spritesReady = true;
+  for (const fn of readyFns) fn();
+  readyFns.clear();
+});
+
+/** Pattern lặp từ sprite: nhân đôi kiểu gương 2×2 để không lộ mép nối,
+    thu về kích thước ô (tw×th cho 1 bản gốc) theo tọa độ world. */
+const mirrorCache = new Map();
+function tilePattern(c, img, key, tw, th) {
+  let cv = mirrorCache.get(key);
+  if (!cv) {
+    cv = document.createElement("canvas");
+    cv.width = img.width * 2;
+    cv.height = img.height * 2;
+    const t = cv.getContext("2d");
+    for (const [fx, fy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+      t.save();
+      t.translate(fx === 1 ? 0 : img.width * 2, fy === 1 ? 0 : img.height * 2);
+      t.scale(fx, fy);
+      t.drawImage(img, 0, 0, img.width, img.height);
+      t.restore();
+    }
+    mirrorCache.set(key, cv);
+  }
+  const pat = c.createPattern(cv, "repeat");
+  pat.setTransform(new DOMMatrix([(tw * 2) / cv.width, 0, 0, (th * 2) / cv.height, 0, 0]));
+  return pat;
+}
 
 export function createGolfRenderer(canvas, box) {
   const g = canvas.getContext("2d");
@@ -48,6 +83,9 @@ export function createGolfRenderer(canvas, box) {
   let bgCanvas = null;
   let bgHoleId = -1;
 
+  // khi asset decode xong: vẽ lại nền hố hiện tại bằng texture thật
+  if (!spritesReady) readyFns.add(() => { bgHoleId = -1; });
+
   function px(c, x, y, s, color) {
     c.fillStyle = color;
     c.fillRect(Math.round(x), Math.round(y), s, s);
@@ -57,14 +95,26 @@ export function createGolfRenderer(canvas, box) {
   function drawPlant(c, x, y, rand) {
     const kind = rand();
     if (kind < 0.3) {
-      // xương rồng / san hô pixel
-      const col = ["#2fbf71", "#7a4fd0", "#c44fd0"][Math.floor(rand() * 3)];
+      // san hô tím + tinh thể xanh (sprite từ ảnh; fallback xương rồng pixel)
+      const r1 = rand();
+      const r2 = rand();
+      if (IMGS.decoCoral) {
+        const w = 40 + r1 * 22;
+        const h = w * (IMGS.decoCoral.height / IMGS.decoCoral.width);
+        c.save();
+        c.translate(x, y + 6);
+        if (r2 > 0.5) c.scale(-1, 1);
+        c.drawImage(IMGS.decoCoral, -w / 2, -h, w, h);
+        c.restore();
+        return;
+      }
+      const col = ["#2fbf71", "#7a4fd0", "#c44fd0"][Math.floor(r1 * 3)];
       for (let i = 0; i < 5; i++) px(c, x, y - i * 5, 5, col);
       px(c, x - 5, y - 10, 5, col);
       px(c, x - 5, y - 15, 5, col);
       px(c, x + 5, y - 15, 5, col);
       px(c, x + 5, y - 20, 5, col);
-      px(c, x, y - 25, 5, rand() > 0.5 ? "#ff5ad2" : "#20e3ff");
+      px(c, x, y - 25, 5, r2 > 0.5 ? "#ff5ad2" : "#20e3ff");
     } else if (kind < 0.55) {
       // cụm tinh thể
       const col = rand() > 0.5 ? "#20e3ff" : "#ff2ee6";
@@ -81,8 +131,17 @@ export function createGolfRenderer(canvas, box) {
       px(c, x + 4, y + 3, 4, `${col}88`);
       px(c, x, y - 4, 3, "#ffffffaa");
     } else {
-      // tượng đài neon pixel (như ảnh: khối tối lõi phát sáng)
-      const col = ["#d7ff3e", "#ff2ee6", "#20e3ff", "#ffd23f"][Math.floor(rand() * 4)];
+      // tượng đài neon pixel (sprite từ ảnh; fallback khối tối lõi sáng)
+      const rCol = rand();
+      const sprite = rCol > 0.5 ? IMGS.decoLime : IMGS.decoPink;
+      if (sprite) {
+        const w = (26 + Math.floor(rand() * 3) * 5) * (sprite.width / 69);
+        const h = w * (sprite.height / sprite.width);
+        rand();
+        c.drawImage(sprite, x - w / 2, y - h + 4, w, h);
+        return;
+      }
+      const col = ["#d7ff3e", "#ff2ee6", "#20e3ff", "#ffd23f"][Math.floor(rCol * 4)];
       const w = 18 + Math.floor(rand() * 3) * 4;
       const h = 30 + Math.floor(rand() * 3) * 8;
       c.fillStyle = "#0a0820";
@@ -191,6 +250,11 @@ export function createGolfRenderer(canvas, box) {
       c.fillStyle = rand() > 0.5 ? "rgba(255,255,255,0.045)" : "rgba(4,34,30,0.3)";
       c.fillRect(x, y, 3, 3);
     }
+    // texture cỏ ca-rô kim cương cắt từ ảnh (phủ lên checker fallback)
+    if (IMGS.grass) {
+      c.fillStyle = tilePattern(c, IMGS.grass, "grass", 46, 63);
+      c.fillRect(0, 0, WORLD_W, WORLD_H);
+    }
     // bóng tối mép trong sân (inner shadow)
     pathPoly(c, def.poly);
     c.strokeStyle = "rgba(2,22,20,0.5)";
@@ -217,26 +281,43 @@ export function createGolfRenderer(canvas, box) {
           // mép răng cưa pixel
           const edge = s.r - 4 + (r2() - 0.5) * 7;
           if (d > edge) continue;
+          // bỏ viền nếu ô nằm trong ruột bunker khác (2 vòng cát giao nhau)
+          let inOther = false;
+          for (const o of def.sand) {
+            if (o !== s && Math.hypot(xx + S / 2 - o.x, yy + S / 2 - o.y) < o.r - 2) {
+              inOther = true;
+              break;
+            }
+          }
           let col;
-          if (d > edge - S) col = "#7c4e20"; // viền nâu đậm
-          else if (d > edge - S * 2) col = "#b8842f";
+          if (d > edge - S && !inOther) col = "#7c4e20"; // viền nâu đậm
+          else if (d > edge - S * 2 && !inOther) col = "#b8842f";
           else col = r2() > 0.85 ? "#f0c886" : r2() > 0.12 ? "#dda757" : "#c69245";
           c.fillStyle = col;
           c.fillRect(xx, yy, S, S);
         }
       }
-      // đốm cát
-      c.fillStyle = "rgba(120,86,38,0.55)";
-      for (let i = 0; i < 16; i++) {
-        const a = r2() * Math.PI * 2;
-        const rr = r2() * s.r * 0.7;
-        c.fillRect(Math.round((s.x + Math.cos(a) * rr) / S) * S, Math.round((s.y + Math.sin(a) * rr) / S) * S, 4, 4);
-      }
-      c.fillStyle = "rgba(255,238,200,0.35)";
-      for (let i = 0; i < 10; i++) {
-        const a = r2() * Math.PI * 2;
-        const rr = r2() * s.r * 0.6;
-        c.fillRect(s.x + Math.cos(a) * rr, s.y + Math.sin(a) * rr, 3, 3);
+      if (IMGS.sand) {
+        // texture cát thật từ ảnh phủ phần ruột (chừa viền pixel nâu)
+        c.beginPath();
+        c.arc(s.x, s.y, Math.max(4, s.r - 6), 0, Math.PI * 2);
+        c.clip();
+        c.fillStyle = tilePattern(c, IMGS.sand, "sand", 62, 42);
+        c.fillRect(s.x - s.r, s.y - s.r, s.r * 2, s.r * 2);
+      } else {
+        // đốm cát
+        c.fillStyle = "rgba(120,86,38,0.55)";
+        for (let i = 0; i < 16; i++) {
+          const a = r2() * Math.PI * 2;
+          const rr = r2() * s.r * 0.7;
+          c.fillRect(Math.round((s.x + Math.cos(a) * rr) / S) * S, Math.round((s.y + Math.sin(a) * rr) / S) * S, 4, 4);
+        }
+        c.fillStyle = "rgba(255,238,200,0.35)";
+        for (let i = 0; i < 10; i++) {
+          const a = r2() * Math.PI * 2;
+          const rr = r2() * s.r * 0.6;
+          c.fillRect(s.x + Math.cos(a) * rr, s.y + Math.sin(a) * rr, 3, 3);
+        }
       }
       c.restore();
     }
@@ -266,26 +347,40 @@ export function createGolfRenderer(canvas, box) {
       c.fillStyle = "#5b2ba8";
       c.fillRect(-HW, -HW, len + HW * 2, HW * 2);
       c.restore();
-      // khối gạch pixel: 2 hàng so le
-      const BW = 22;
-      for (let row = 0; row < 2; row++) {
-        const yTop = -HW + row * HW;
-        const off = row % 2 === 0 ? 0 : BW / 2;
-        for (let d = -HW - BW; d < len + HW; d += BW) {
-          const bx = d + off;
-          const shade = ((Math.round(bx / BW) + row) % 3 + 3) % 3;
-          c.fillStyle = shade === 0 ? "#8a4fe0" : shade === 1 ? "#7038cc" : "#5b2ba8";
-          c.fillRect(bx, yTop, BW - 2, HW - 2);
-          // highlight đỉnh viên gạch
-          c.fillStyle = "rgba(220,185,255,0.35)";
-          c.fillRect(bx, yTop, BW - 2, 2);
+      if (IMGS.wall) {
+        // dải gạch tím 3D cắt từ ảnh, lặp dọc đoạn tường
+        const wh = 27;
+        const wt = Math.round(wh * (IMGS.wall.width / IMGS.wall.height));
+        c.save();
+        c.beginPath();
+        c.rect(-HW - 3, -HW - 5, len + HW * 2 + 6, wh);
+        c.clip();
+        for (let d = -HW - 3; d < len + HW + 3; d += wt) {
+          c.drawImage(IMGS.wall, d, -HW - 5, wt, wh);
         }
+        c.restore();
+      } else {
+        // khối gạch pixel: 2 hàng so le
+        const BW = 22;
+        for (let row = 0; row < 2; row++) {
+          const yTop = -HW + row * HW;
+          const off = row % 2 === 0 ? 0 : BW / 2;
+          for (let d = -HW - BW; d < len + HW; d += BW) {
+            const bx = d + off;
+            const shade = ((Math.round(bx / BW) + row) % 3 + 3) % 3;
+            c.fillStyle = shade === 0 ? "#8a4fe0" : shade === 1 ? "#7038cc" : "#5b2ba8";
+            c.fillRect(bx, yTop, BW - 2, HW - 2);
+            // highlight đỉnh viên gạch
+            c.fillStyle = "rgba(220,185,255,0.35)";
+            c.fillRect(bx, yTop, BW - 2, 2);
+          }
+        }
+        // viền sáng mép trên + tối mép dưới
+        c.fillStyle = "rgba(230,200,255,0.55)";
+        c.fillRect(-HW, -HW, len + HW * 2, 2);
+        c.fillStyle = "rgba(16,4,40,0.7)";
+        c.fillRect(-HW, HW - 2, len + HW * 2, 2);
       }
-      // viền sáng mép trên + tối mép dưới
-      c.fillStyle = "rgba(230,200,255,0.55)";
-      c.fillRect(-HW, -HW, len + HW * 2, 2);
-      c.fillStyle = "rgba(16,4,40,0.7)";
-      c.fillRect(-HW, HW - 2, len + HW * 2, 2);
       c.restore();
     }
     // đầu trụ vuông tại các đỉnh poly
@@ -315,6 +410,23 @@ export function createGolfRenderer(canvas, box) {
 
   function drawPortal(cxy, color, time, flip) {
     const PR = PORTAL_R * 1.4; // vẽ to hơn hitbox cho giống ảnh
+    const sprite = flip ? IMGS.portalCyan : IMGS.portalPink;
+    if (sprite) {
+      // vành xuyến neon cắt từ ảnh (cyan = bản xoay màu) + quầng mềm
+      const h = PR * 2.6;
+      const w = h * (sprite.width / sprite.height);
+      g.save();
+      g.translate(cxy.x, cxy.y);
+      g.rotate(Math.sin(time * 1.4) * 0.06);
+      const halo = g.createRadialGradient(0, 0, 2, 0, 0, PR * 1.9);
+      halo.addColorStop(0, `${color}3c`);
+      halo.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = halo;
+      g.fillRect(-PR * 2, -PR * 2, PR * 4, PR * 4);
+      g.drawImage(sprite, -w / 2, -h / 2, w, h);
+      g.restore();
+      return;
+    }
     g.save();
     g.translate(cxy.x, cxy.y);
     g.rotate(Math.sin(time * 1.4) * 0.08);
@@ -355,6 +467,17 @@ export function createGolfRenderer(canvas, box) {
     // bumper vòng neon + mũi tên quay
     for (const b of def.bumpers || []) {
       const R = b.r * 1.45; // đế vẽ to hơn hitbox cho giống ảnh
+      if (IMGS.bumper) {
+        // trống isometric neon cắt từ ảnh + nhịp phát sáng
+        const w = b.r * 3.4;
+        const h = w * (IMGS.bumper.height / IMGS.bumper.width);
+        g.save();
+        g.shadowColor = "#ff2ee6";
+        g.shadowBlur = 12 + 6 * Math.sin(time * 3 + b.x);
+        g.drawImage(IMGS.bumper, b.x - w / 2, b.y - h / 2 - b.r * 0.12, w, h);
+        g.restore();
+        continue;
+      }
       g.save();
       g.translate(b.x, b.y);
       // đế tối
@@ -415,6 +538,13 @@ export function createGolfRenderer(canvas, box) {
     // cổng trượt: trụ pixel + thanh laser đỏ + chevron chạy dọc
     for (const gate of def.gates || []) {
       for (const [px2, py2] of [[gate.x1, gate.y1], [gate.x2, gate.y2]]) {
+        if (IMGS.gatePost) {
+          // trụ cổng neon cao cắt từ ảnh (mũi tên hồng/cyan phát sáng)
+          const w = 24;
+          const h = w * (IMGS.gatePost.height / IMGS.gatePost.width);
+          g.drawImage(IMGS.gatePost, px2 - w / 2, py2 - h + 13, w, h);
+          continue;
+        }
         // trụ pixel tím có đèn đỏ
         g.fillStyle = "rgba(4,4,16,0.6)";
         g.fillRect(px2 - 10, py2 - 8, 20, 20);
@@ -525,24 +655,35 @@ export function createGolfRenderer(canvas, box) {
 
     // lỗ + cờ cyan phát sáng
     const hole = def.hole;
-    g.save();
-    g.shadowColor = "#20e3ff";
-    g.shadowBlur = 14 + 5 * Math.sin(time * 3);
-    g.fillStyle = "#03101c";
-    g.beginPath();
-    g.ellipse(hole.x, hole.y, 13, 9.6, 0, 0, Math.PI * 2);
-    g.fill();
-    g.restore();
-    g.strokeStyle = "rgba(32,227,255,0.85)";
-    g.lineWidth = 2.2;
-    g.beginPath();
-    g.ellipse(hole.x, hole.y, 13, 9.6, 0, 0, Math.PI * 2);
-    g.stroke();
-    g.strokeStyle = "rgba(6,60,66,0.8)";
-    g.lineWidth = 1.4;
-    g.beginPath();
-    g.ellipse(hole.x, hole.y, 9, 6.4, 0, 0, Math.PI * 2);
-    g.stroke();
+    if (IMGS.hole) {
+      // vành hố neon cắt từ ảnh + nhịp phát sáng
+      const hw = 48;
+      const hh = hw * (IMGS.hole.height / IMGS.hole.width);
+      g.save();
+      g.shadowColor = "#20e3ff";
+      g.shadowBlur = 10 + 5 * Math.sin(time * 3);
+      g.drawImage(IMGS.hole, hole.x - hw / 2, hole.y - hh / 2, hw, hh);
+      g.restore();
+    } else {
+      g.save();
+      g.shadowColor = "#20e3ff";
+      g.shadowBlur = 14 + 5 * Math.sin(time * 3);
+      g.fillStyle = "#03101c";
+      g.beginPath();
+      g.ellipse(hole.x, hole.y, 13, 9.6, 0, 0, Math.PI * 2);
+      g.fill();
+      g.restore();
+      g.strokeStyle = "rgba(32,227,255,0.85)";
+      g.lineWidth = 2.2;
+      g.beginPath();
+      g.ellipse(hole.x, hole.y, 13, 9.6, 0, 0, Math.PI * 2);
+      g.stroke();
+      g.strokeStyle = "rgba(6,60,66,0.8)";
+      g.lineWidth = 1.4;
+      g.beginPath();
+      g.ellipse(hole.x, hole.y, 9, 6.4, 0, 0, Math.PI * 2);
+      g.stroke();
+    }
     // cột cờ trắng
     g.strokeStyle = "#eef4ff";
     g.lineWidth = 3.2;
@@ -552,17 +693,31 @@ export function createGolfRenderer(canvas, box) {
     g.stroke();
     // cờ cyan phát sáng vẫy
     const wave = Math.sin(time * 4) * 3;
-    g.save();
-    g.shadowColor = "#7ce6ff";
-    g.shadowBlur = 14;
-    g.fillStyle = "#aef4ff";
-    g.beginPath();
-    g.moveTo(hole.x - 1, hole.y - 56);
-    g.lineTo(hole.x - 30, hole.y - 47 + wave);
-    g.lineTo(hole.x - 1, hole.y - 38);
-    g.closePath();
-    g.fill();
-    g.restore();
+    if (IMGS.flag) {
+      // lá cờ pennant cắt từ ảnh, hướng theo phía có chỗ trống
+      const fw = 30;
+      const fh = fw * (IMGS.flag.height / IMGS.flag.width);
+      const dir = hole.x > WORLD_W * 0.62 ? -1 : 1;
+      g.save();
+      g.translate(hole.x + dir * 1, hole.y - 56);
+      g.scale(dir, 1 + wave * 0.012);
+      g.shadowColor = "#7ce6ff";
+      g.shadowBlur = 12;
+      g.drawImage(IMGS.flag, -3, -2, fw, fh);
+      g.restore();
+    } else {
+      g.save();
+      g.shadowColor = "#7ce6ff";
+      g.shadowBlur = 14;
+      g.fillStyle = "#aef4ff";
+      g.beginPath();
+      g.moveTo(hole.x - 1, hole.y - 56);
+      g.lineTo(hole.x - 30, hole.y - 47 + wave);
+      g.lineTo(hole.x - 1, hole.y - 38);
+      g.closePath();
+      g.fill();
+      g.restore();
+    }
 
     if (!hs) return;
     const ball = hs.ball;
@@ -638,22 +793,32 @@ export function createGolfRenderer(canvas, box) {
       g.ellipse(ball.x, ball.y + BALL_R * 0.7, BALL_R * 0.9, BALL_R * 0.42, 0, 0, Math.PI * 2);
       g.fill();
       g.restore();
-      g.save();
-      g.shadowColor = "#bfefff";
-      g.shadowBlur = 12;
-      const bg2 = g.createRadialGradient(ball.x - 2.4, ball.y - 3, 1, ball.x, ball.y, BALL_R + 1.5);
-      bg2.addColorStop(0, "#ffffff");
-      bg2.addColorStop(0.62, "#eaf2fc");
-      bg2.addColorStop(1, "#9fb2cc");
-      g.fillStyle = bg2;
-      g.beginPath();
-      g.arc(ball.x, ball.y, BALL_R + 0.5, 0, Math.PI * 2);
-      g.fill();
-      g.restore();
-      g.fillStyle = "rgba(255,255,255,0.95)";
-      g.beginPath();
-      g.arc(ball.x - BALL_R * 0.32, ball.y - BALL_R * 0.4, BALL_R * 0.26, 0, Math.PI * 2);
-      g.fill();
+      if (IMGS.ball) {
+        // bóng pixel bóng loáng cắt từ ảnh (highlight + rim cyan có sẵn)
+        const bw = BALL_R * 2 * 1.4;
+        g.save();
+        g.shadowColor = "#bfefff";
+        g.shadowBlur = 10;
+        g.drawImage(IMGS.ball, ball.x - bw / 2, ball.y - bw / 2, bw, bw);
+        g.restore();
+      } else {
+        g.save();
+        g.shadowColor = "#bfefff";
+        g.shadowBlur = 12;
+        const bg2 = g.createRadialGradient(ball.x - 2.4, ball.y - 3, 1, ball.x, ball.y, BALL_R + 1.5);
+        bg2.addColorStop(0, "#ffffff");
+        bg2.addColorStop(0.62, "#eaf2fc");
+        bg2.addColorStop(1, "#9fb2cc");
+        g.fillStyle = bg2;
+        g.beginPath();
+        g.arc(ball.x, ball.y, BALL_R + 0.5, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+        g.fillStyle = "rgba(255,255,255,0.95)";
+        g.beginPath();
+        g.arc(ball.x - BALL_R * 0.32, ball.y - BALL_R * 0.4, BALL_R * 0.26, 0, Math.PI * 2);
+        g.fill();
+      }
     }
   }
 

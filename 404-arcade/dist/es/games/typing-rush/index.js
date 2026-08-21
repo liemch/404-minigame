@@ -149,11 +149,24 @@ export function createGame() {
 
   /* ---------------- Mưa ký tự ---------------- */
 
+  const LANE_GLOWS = ["#20e3ff", "#9a5cff", "#c8f542", "#4a7dff", "#ff2ee6", "#20e3ff"];
+
   function stepRain(dt) {
     if (!rainG) return;
     const rect = frame.playfield.getBoundingClientRect();
     rainG.fillStyle = "rgba(5, 8, 20, 0.15)";
     rainG.fillRect(0, 0, rect.width, dangerY);
+    // quầng sáng dọc mỗi lane (như ảnh: mỗi cột từ có màu riêng)
+    for (let ln = 0; ln < LANES; ln++) {
+      const cx = laneX(ln);
+      const w = (rect.width / LANES) * 0.42;
+      const gGrad = rainG.createLinearGradient(cx - w, 0, cx + w, 0);
+      gGrad.addColorStop(0, "rgba(0,0,0,0)");
+      gGrad.addColorStop(0.5, `${LANE_GLOWS[ln % LANE_GLOWS.length]}0e`);
+      gGrad.addColorStop(1, "rgba(0,0,0,0)");
+      rainG.fillStyle = gGrad;
+      rainG.fillRect(cx - w, 0, w * 2, dangerY);
+    }
     rainG.font = "700 14px monospace";
     rainG.textAlign = "center";
     for (let i = 0; i < rainCols.length; i++) {

@@ -8,9 +8,20 @@
 
 import { seededRand } from "../../core/utils.js";
 import { WORLD, SPIKE, PLATFORM, PLAYER } from "./engine.js";
+import { SPRITES } from "./assets.js";
 
 export function createFlipRenderer(canvas, box) {
   const g = canvas.getContext("2d");
+  /* Sprite cắt từ ảnh tham chiếu — decode async; khi chưa sẵn sàng thì
+   * từng hàm vẽ tự fallback về nét vẽ vector cũ. */
+  const spr = {};
+  for (const [key, url] of Object.entries(SPRITES)) {
+    const im = new Image();
+    im.onload = () => {
+      spr[key] = im;
+    };
+    im.src = url;
+  }
   let dpr = 1;
   let scale = 1;
   let W = 0; // kích thước CSS px
@@ -35,9 +46,9 @@ export function createFlipRenderer(canvas, box) {
 
   function drawBackdrop(camX, time) {
     const grad = g.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, "#0b0e2a");
-    grad.addColorStop(0.5, "#0a0d26");
-    grad.addColorStop(1, "#080a20");
+    grad.addColorStop(0, "#1a2153");
+    grad.addColorStop(0.5, "#181e4c");
+    grad.addColorStop(1, "#131843");
     g.fillStyle = grad;
     g.fillRect(0, 0, W, H);
 
@@ -49,28 +60,37 @@ export function createFlipRenderer(canvas, box) {
       const rand = seededRand(900 + ((i % 97) + 97) % 97);
       const bx = (i * tile - par) * scale;
       // cụm pixel
-      for (let k = 0; k < 8; k++) {
-        g.fillStyle = rand() > 0.72 ? "rgba(32,227,255,.3)" : "rgba(120,110,220,.2)";
-        g.fillRect(bx + rand() * tile * scale, (170 + rand() * 540) * scale, 2.4, 2.4);
+      for (let k = 0; k < 14; k++) {
+        g.fillStyle = rand() > 0.72 ? "rgba(32,227,255,.45)" : "rgba(130,120,235,.32)";
+        const ps = rand() > 0.8 ? 4 : 2.6;
+        g.fillRect(bx + rand() * tile * scale, (170 + rand() * 540) * scale, ps, ps);
       }
-      // chevron lớn mờ giữa hành lang
+      // chevron lớn mờ giữa hành lang (sprite tím cắt từ reference)
       if (rand() > 0.35) {
         const cy = (300 + rand() * 300) * scale;
         const cxx = bx + rand() * tile * scale * 0.7;
         const s = (26 + rand() * 22) * scale;
-        g.strokeStyle = rand() > 0.5 ? "rgba(32,227,255,.22)" : "rgba(154,92,255,.2)";
-        g.lineWidth = 6 * scale;
-        for (const off of [0, s * 0.9]) {
-          g.beginPath();
-          g.moveTo(cxx + off, cy - s);
-          g.lineTo(cxx + off + s, cy);
-          g.lineTo(cxx + off, cy + s);
-          g.stroke();
+        if (spr.chevronR) {
+          const dw = s * 3.4;
+          const dh = dw * (spr.chevronR.height / spr.chevronR.width);
+          g.globalAlpha = 0.38;
+          g.drawImage(spr.chevronR, cxx - dw * 0.2, cy - dh / 2, dw, dh);
+          g.globalAlpha = 1;
+        } else {
+          g.strokeStyle = rand() > 0.5 ? "rgba(32,227,255,.22)" : "rgba(154,92,255,.2)";
+          g.lineWidth = 6 * scale;
+          for (const off of [0, s * 0.9]) {
+            g.beginPath();
+            g.moveTo(cxx + off, cy - s);
+            g.lineTo(cxx + off + s, cy);
+            g.lineTo(cxx + off, cy + s);
+            g.stroke();
+          }
         }
       }
       // trace mạch
-      g.strokeStyle = "rgba(60,90,200,.12)";
-      g.lineWidth = 1.4;
+      g.strokeStyle = "rgba(70,100,215,.24)";
+      g.lineWidth = 1.6;
       let x = bx + rand() * tile * scale;
       let y = (200 + rand() * 480) * scale;
       g.beginPath();
@@ -102,6 +122,27 @@ export function createFlipRenderer(canvas, box) {
     for (const side of ["top", "bot"]) {
       const y0 = side === "top" ? 0 : WORLD.floor * scale;
       const bh = side === "top" ? WORLD.ceil * scale : H - WORLD.floor * scale;
+      const im = side === "top" ? spr.wallTop : spr.wallBottom;
+      if (im && bh > 0) {
+        // tile sprite tường cắt từ reference, cuộn theo camera (parallax 1);
+        // tile lẻ lật gương để mép hai tile liền nhau luôn khớp
+        const tileW = bh * (im.width / im.height);
+        const start = Math.floor((camX * scale) / tileW);
+        for (let i = start; (i - start) * tileW < W + tileW; i++) {
+          const x = i * tileW - camX * scale;
+          if (i % 2) {
+            g.save();
+            g.translate(x + tileW, y0);
+            g.scale(-1, 1);
+            g.drawImage(im, -0.4, 0, tileW + 0.8, bh);
+            g.restore();
+          } else {
+            g.drawImage(im, x - 0.4, y0, tileW + 0.8, bh);
+          }
+        }
+        drawWallEdge(side);
+        continue;
+      }
       const wg = g.createLinearGradient(0, y0, 0, y0 + bh);
       if (side === "top") {
         wg.addColorStop(0, "#1a1d42");
@@ -165,19 +206,23 @@ export function createFlipRenderer(canvas, box) {
         }
       }
 
-      // viền neon cyan mép trong
-      const edge = side === "top" ? WORLD.ceil * scale : WORLD.floor * scale;
-      g.save();
-      g.shadowColor = "#20e3ff";
-      g.shadowBlur = 10;
-      g.strokeStyle = "rgba(32,227,255,.9)";
-      g.lineWidth = 2.6;
-      g.beginPath();
-      g.moveTo(0, edge);
-      g.lineTo(W, edge);
-      g.stroke();
-      g.restore();
+      drawWallEdge(side);
     }
+  }
+
+  /** Viền neon cyan mép trong của tường. */
+  function drawWallEdge(side) {
+    const edge = side === "top" ? WORLD.ceil * scale : WORLD.floor * scale;
+    g.save();
+    g.shadowColor = "#20e3ff";
+    g.shadowBlur = 10;
+    g.strokeStyle = "rgba(32,227,255,.9)";
+    g.lineWidth = 2.6;
+    g.beginPath();
+    g.moveTo(0, edge);
+    g.lineTo(W, edge);
+    g.stroke();
+    g.restore();
   }
 
   const wx = (x, camX) => (x - camX) * scale;
@@ -190,10 +235,22 @@ export function createFlipRenderer(canvas, box) {
       const up = run.side === "floor";
       const baseY = up ? WORLD.floor : WORLD.ceil;
       const glow = 0.75 + Math.sin(time * 5 + run.x) * 0.2;
+      const im = up ? spr.spikeFloor : spr.spikeCeil;
       for (let i = 0; i < n; i++) {
         const x0 = wx(run.x + i * SPIKE.step, camX);
         const x1 = wx(run.x + (i + 1) * SPIKE.step, camX);
         const tipY = wy(baseY + (up ? -SPIKE.h : SPIKE.h));
+        if (im) {
+          /* sprite gai neon cắt từ reference — neo đường chân gai vào mép
+           * tường (floor: chân ở ~0.81 chiều cao sprite; ceiling: ~0.075) */
+          const dh = SPIKE.h * scale * (up ? 62 / 44 : 54 / 46);
+          const top = up ? wy(baseY) - dh * 0.81 : wy(baseY) - dh * 0.075;
+          g.save();
+          g.globalAlpha = Math.min(1, 0.82 + glow * 0.18);
+          g.drawImage(im, x0 - 2, top, x1 - x0 + 4, dh);
+          g.restore();
+          continue;
+        }
         g.save();
         g.shadowColor = "#ff2ea6";
         g.shadowBlur = 9;
@@ -219,6 +276,17 @@ export function createFlipRenderer(canvas, box) {
       const x = wx(sh.x, camX);
       const y = wy(sh.y + bob);
       const s = 21 * scale;
+      if (spr.crystal) {
+        // tinh thể xanh cắt từ reference (đã có glow nướng sẵn)
+        const dh = 56 * scale;
+        const dw = dh * (spr.crystal.width / spr.crystal.height);
+        g.save();
+        g.shadowColor = "rgba(59,157,255,.8)";
+        g.shadowBlur = 10;
+        g.drawImage(spr.crystal, x - dw / 2, y - dh / 2, dw, dh);
+        g.restore();
+        continue;
+      }
       g.save();
       g.translate(x, y);
       g.shadowColor = "#3b9dff";
@@ -288,6 +356,12 @@ export function createFlipRenderer(canvas, box) {
     const y = wy(p.y);
     const w = p.w * scale;
     const h = PLATFORM.h * scale;
+    if (spr.bus) {
+      /* xe buýt neon cắt từ reference — nén dọc để mặt glow trùng p.y và
+       * thân nằm trong dải physics 30px (bánh xe nhô nhẹ dưới đáy) */
+      g.drawImage(spr.bus, x, y - 9 * scale, w, 52 * scale);
+      return;
+    }
     g.save();
     // thân xe đệm tối
     g.fillStyle = "#1a1432";
@@ -359,43 +433,57 @@ export function createFlipRenderer(canvas, box) {
       g.stroke();
       g.shadowBlur = 0;
     }
-    // thân vuông trắng
-    g.shadowColor = "rgba(220,235,255,.7)";
-    g.shadowBlur = 10;
-    const bg = g.createLinearGradient(0, -s / 2, 0, s / 2);
-    bg.addColorStop(0, "#f4f7ff");
-    bg.addColorStop(1, "#c9d5ef");
+    /* Khối cyan viền neon + ruột tối + lõi sáng — vẽ code theo đúng
+     * reference (phần động: xoay theo sim.rot nên giữ vector cho sắc nét). */
+    // lửa đẩy về phía trọng lực khi đang bay
+    if (sim.grounded === null) {
+      const flick = 0.8 + Math.sin(time * 31) * 0.2;
+      g.save();
+      g.shadowColor = "#20e3ff";
+      g.shadowBlur = 12;
+      g.fillStyle = "#3fd9ff";
+      g.beginPath();
+      g.moveTo(0, sim.g * s * 0.4);
+      g.lineTo(-s * 0.3, sim.g * s * (0.5 + 0.5 * flick));
+      g.lineTo(s * 0.3, sim.g * s * (0.5 + 0.5 * flick));
+      g.closePath();
+      g.fill();
+      g.restore();
+    }
+    // thân vuông cyan
+    g.shadowColor = "rgba(64,226,255,.85)";
+    g.shadowBlur = 12;
+    const bg = g.createLinearGradient(-s / 2, -s / 2, s / 2, s / 2);
+    bg.addColorStop(0, "#b5f8ff");
+    bg.addColorStop(0.45, "#46e2ff");
+    bg.addColorStop(1, "#17b1e8");
     g.fillStyle = bg;
     g.beginPath();
-    g.roundRect(-s / 2, -s / 2, s, s, 6 * scale);
+    g.roundRect(-s / 2, -s / 2, s, s, s * 0.16);
     g.fill();
     g.shadowBlur = 0;
-    g.strokeStyle = "rgba(70,90,150,.6)";
-    g.lineWidth = 1.6;
-    g.stroke();
-    // visor tối + mắt cyan
-    g.fillStyle = "#0c1226";
+    // gờ sáng trắng cạnh trên (điểm sáng như reference)
+    g.strokeStyle = "rgba(255,255,255,.92)";
+    g.lineWidth = Math.max(1.6, s * 0.055);
+    g.lineCap = "round";
     g.beginPath();
-    g.roundRect(-s * 0.32, -s * 0.22, s * 0.64, s * 0.3, 4 * scale);
+    g.moveTo(-s * 0.3, -s * 0.455);
+    g.lineTo(s * 0.28, -s * 0.455);
+    g.stroke();
+    // ruột tối
+    g.fillStyle = "#081124";
+    g.beginPath();
+    g.roundRect(-s * 0.3, -s * 0.3, s * 0.6, s * 0.6, s * 0.09);
     g.fill();
+    // lõi sáng nhỏ giữa
     g.save();
-    g.shadowColor = "#20e3ff";
+    g.shadowColor = "#8ff2ff";
     g.shadowBlur = 7;
-    g.fillStyle = "#20e3ff";
-    g.fillRect(-s * 0.18, -s * 0.13, s * 0.1, s * 0.12);
-    g.fillRect(s * 0.08, -s * 0.13, s * 0.1, s * 0.12);
-    g.restore();
-    // antenna
-    g.strokeStyle = "#8ea4cc";
-    g.lineWidth = 2.4;
+    g.fillStyle = "#c4f6ff";
     g.beginPath();
-    g.moveTo(s * 0.18, -s / 2);
-    g.lineTo(s * 0.3, -s * 0.78);
-    g.stroke();
-    g.fillStyle = "#ff2ea6";
-    g.beginPath();
-    g.arc(s * 0.3, -s * 0.82, 3.4 * scale, 0, Math.PI * 2);
+    g.roundRect(-s * 0.09, -s * 0.09, s * 0.18, s * 0.18, s * 0.04);
     g.fill();
+    g.restore();
     g.restore();
   }
 
@@ -429,6 +517,17 @@ export function createFlipRenderer(canvas, box) {
     const x = 56 * scale + 10;
     const y = H / 2;
     const r = 26 * scale;
+    if (spr.flipBadge) {
+      const dw = r * 2.1;
+      const dh = dw * (spr.flipBadge.height / spr.flipBadge.width);
+      g.save();
+      g.globalAlpha = 0.92;
+      g.shadowColor = "rgba(150,220,255,.8)";
+      g.shadowBlur = 8 + Math.sin(time * 3) * 3;
+      g.drawImage(spr.flipBadge, x - dw / 2, y - dh / 2, dw, dh);
+      g.restore();
+      return;
+    }
     g.save();
     g.globalAlpha = 0.85;
     g.strokeStyle = "rgba(220,235,255,.85)";
@@ -470,7 +569,7 @@ export function createFlipRenderer(canvas, box) {
       const a = Math.max(0, t.life / t.life0);
       g.globalAlpha = a * 0.85;
       g.fillStyle = t.g === 1 ? "#9dff3e" : "#20e3ff";
-      const s = (3 + a * 4) * scale;
+      const s = (5 + a * 5) * scale;
       g.fillRect(wx(t.x, camX) - s / 2, wy(t.y) - s / 2, s, s);
     }
     g.globalAlpha = 1;

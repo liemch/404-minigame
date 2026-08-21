@@ -111,9 +111,17 @@ export function createGame() {
     return QUALITY_SCALE[settings.quality] ?? 0.82;
   }
 
+  /** Bloom theo thang chất lượng: tắt ở low; auto tắt khi autoScale đã tụt đáy. */
+  function bloomWanted() {
+    if (settings.quality === "low") return false;
+    if (settings.quality === "auto") return autoScale > QUALITY_SCALE.low + 0.001;
+    return true;
+  }
+
   function applyQuality() {
     if (!engine || !wrap) return;
     engine.resize(wrap.clientWidth, wrap.clientHeight, currentScale());
+    engine.setBloom?.(bloomWanted());
   }
 
   function applySettings(partial) {
@@ -534,12 +542,18 @@ export function createGame() {
       wrap.insertBefore(canvas, wrap.firstChild);
 
       try {
-        // Ambient/hướng nắng opt-in: arena sáng rõ như gameplay reference
+        // Ambient/hướng nắng opt-in: arena sáng rõ như gameplay reference.
+        // bloom: opt-in — bật/tắt runtime theo thang chất lượng (applyQuality).
         engine = createEngine(canvas, {
           fogNear: 30,
           fogFar: 88,
           ambient: 0.62,
           lightDir: [-0.3, -0.85, -0.42],
+          bloom: true,
+          // Map nhiều neon diện tích lớn → bloom nhẹ tay hơn mặc định,
+          // giữ nét mạch sàn mảnh như ảnh gameplay reference.
+          bloomStrength: 0.62,
+          bloomThreshold: 0.66,
         });
       } catch {
         engine = null;
