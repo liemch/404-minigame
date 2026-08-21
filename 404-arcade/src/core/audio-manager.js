@@ -165,6 +165,10 @@ export function createAudio(storage, { defaultOn = false } = {}) {
     tr_err:    () => tone({ type: "sawtooth", from: 200, to: 140, dur: 0.08, vol: 0.2 }),
     tr_word:   () => { tone({ from: 840, dur: 0.05, vol: 0.22 }); tone({ from: 1180, dur: 0.08, vol: 0.2, delay: 0.05 }); },
     tr_danger: () => { tone({ type: "sawtooth", from: 320, to: 90, dur: 0.3, vol: 0.34 }); noise({ dur: 0.2, vol: 0.2, from: 900, to: 150 }); },
+
+    /* Expansion 11–15 — Astro Patrol */
+    ap_shoot: () => { tone({ type: "square", from: 880, to: 320, dur: 0.07, vol: 0.13 }); noise({ dur: 0.04, vol: 0.07, from: 3200, to: 900 }); },
+    ap_alarm: () => { tone({ type: "square", from: 620, dur: 0.12, vol: 0.24 }); tone({ type: "square", from: 470, dur: 0.12, vol: 0.24, delay: 0.14 }); tone({ type: "square", from: 620, dur: 0.16, vol: 0.24, delay: 0.28 }); },
   };
 
   return {

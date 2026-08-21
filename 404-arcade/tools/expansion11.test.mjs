@@ -59,6 +59,19 @@ import {
 } from "../src/games/typing-rush/engine.js";
 import { DICTIONARY, poolOf } from "../src/games/typing-rush/dictionary.js";
 import { DIFFICULTIES, sessionConfig } from "../src/games/typing-rush/difficulty.js";
+import {
+  createSim,
+  stepSim,
+  drainEvents as apDrain,
+  damagePlayer,
+  fireEnemyBullet,
+  startWave,
+  B_CAP,
+  EB_CAP,
+  MAX_POWER,
+  WORLD as AP_WORLD,
+} from "../src/games/astro-patrol/engine.js";
+import { WAVE_DEFS, BOSS_DEF, ENEMY_STATS } from "../src/games/astro-patrol/waves.js";
 
 /* ================== BRICK BREAKER 404 ================== */
 
@@ -714,4 +727,175 @@ test("typing-rush: từ điển vi hợp lệ + đủ 3 độ khó và adaptive"
   assert.ok(DIFFICULTIES.easy.fall < DIFFICULTIES.normal.fall);
   assert.ok(DIFFICULTIES.normal.fall < DIFFICULTIES.hard.fall);
   assert.ok(DIFFICULTIES.adaptive.adaptive);
+});
+
+/* ================== ASTRO PATROL 404 ================== */
+
+const AP_IDLE = { mx: 0, my: 0, targetX: null, targetY: null, fire: false };
+
+test("astro-patrol: đủ 5 wave + boss, đủ 3 loại địch", () => {
+  assert.equal(WAVE_DEFS.length, 5);
+  const types = new Set();
+  for (const w of WAVE_DEFS) for (const s of w.spawns) types.add(s.type);
+  assert.deepEqual([...types].sort(), ["charger", "scout", "shooter"]);
+  assert.ok(BOSS_DEF.hp > 0 && BOSS_DEF.phase2At === 0.5);
+  for (const t of Object.keys(ENEMY_STATS)) assert.ok(ENEMY_STATS[t].r > 0 && ENEMY_STATS[t].score > 0);
+});
+
+test("astro-patrol: KHIÊN hấp thụ damage trước HP", () => {
+  const sim = createSim({ rand: () => 0.99 });
+  sim.player.shield = 30;
+  sim.player.hp = 100;
+  damagePlayer(sim, 20);
+  assert.equal(sim.player.shield, 10, "khiên hấp thụ trước");
+  assert.equal(sim.player.hp, 100, "HP chưa mất");
+  sim.player.inv = 0;
+  damagePlayer(sim, 25);
+  assert.equal(sim.player.shield, 0);
+  assert.equal(sim.player.hp, 85, "phần dư mới trừ HP");
+  const ev = apDrain(sim);
+  assert.ok(ev.some((e) => e.type === "shieldHit"));
+});
+
+test("astro-patrol: i-frame chặn damage liên tiếp + combo reset khi trúng đòn", () => {
+  const sim = createSim({ rand: () => 0.99 });
+  sim.combo = 8;
+  sim.player.shield = 0;
+  damagePlayer(sim, 10);
+  assert.equal(sim.combo, 0, "trúng đòn reset combo");
+  const hp1 = sim.player.hp;
+  damagePlayer(sim, 10); // trong i-frame
+  assert.equal(sim.player.hp, hp1, "i-frame phải chặn damage thứ 2");
+});
+
+test("astro-patrol: wave CHỈ hoàn tất khi hết queue và sạch địch", () => {
+  const sim = createSim({ rand: () => 0.99, test: true });
+  startWave(sim, 1);
+  // qua announce
+  for (let i = 0; i < 300; i++) stepSim(sim, AP_IDLE, 1 / 60);
+  assert.equal(sim.wave, 1, "còn địch → chưa sang wave 2");
+  assert.ok(sim.enemies.length > 0 || sim.spawnQueue.length > 0);
+  // dọn sạch địch + queue
+  sim.spawnQueue.length = 0;
+  sim.enemies.length = 0;
+  for (let i = 0; i < 30; i++) stepSim(sim, AP_IDLE, 1 / 60);
+  assert.equal(sim.wave, 2, "sạch địch + hết queue → wave 2");
+});
+
+test("astro-patrol: giới hạn projectile — không vượt B_CAP/EB_CAP", () => {
+  const sim = createSim({ rand: () => 0.99 });
+  sim.waveState = "fighting";
+  sim.spawnQueue = [{ type: "scout", delay: 9999, x: 0.5 }];
+  sim.spawnT = 9999;
+  sim.player.power = 3;
+  // spam bắn 30 giây liên tục không cho đạn rời màn hình
+  for (let i = 0; i < 600; i++) {
+    sim.player.fireCd = 0;
+    stepSim(sim, { ...AP_IDLE, fire: true }, 1 / 600); // dt cực nhỏ → đạn không kịp thoát
+    assert.ok(sim.bullets.length <= B_CAP, `đạn người chơi vượt trần: ${sim.bullets.length}`);
+  }
+  for (let i = 0; i < EB_CAP + 50; i++) fireEnemyBullet(sim, 480, 100, 0, 50);
+  assert.equal(sim.ebullets.length, EB_CAP, "đạn địch phải bị chặn ở trần");
+});
+
+test("astro-patrol: object pool tái sử dụng đạn (không cấp phát mới)", () => {
+  const sim = createSim({ rand: () => 0.99 });
+  // giữ trạng thái fighting (spawn còn xa) để được phép bắn
+  sim.waveState = "fighting";
+  sim.spawnQueue = [{ type: "scout", delay: 9999, x: 0.5 }];
+  sim.spawnT = 9999;
+  // bắn 1 viên rồi để nó bay khỏi màn
+  sim.player.fireCd = 0;
+  stepSim(sim, { ...AP_IDLE, fire: true }, 1 / 120);
+  const b0 = sim.bullets[0];
+  assert.ok(b0);
+  for (let i = 0; i < 400 && sim.bullets.length; i++) stepSim(sim, AP_IDLE, 1 / 60);
+  assert.equal(sim.bullets.length, 0);
+  assert.ok(sim.bulletPool.size >= 1, "viên đạn phải quay về pool");
+  sim.player.fireCd = 0;
+  stepSim(sim, { ...AP_IDLE, fire: true }, 1 / 120);
+  assert.ok(sim.bullets.includes(b0), "OBJECT CŨ phải được tái sử dụng từ pool");
+});
+
+test("astro-patrol: charger có telegraph trước khi lao", () => {
+  const sim = createSim({ rand: () => 0.5 });
+  sim.waveState = "fighting";
+  sim.spawnQueue = [{ type: "charger", delay: 0, x: 0.5 }];
+  sim.spawnT = 0;
+  let sawAim = false;
+  let sawDashAfterAim = false;
+  for (let i = 0; i < 1200; i++) {
+    stepSim(sim, AP_IDLE, 1 / 60);
+    for (const e of apDrain(sim)) {
+      if (e.type === "chargerAim") sawAim = true;
+      if (e.type === "chargerDash") {
+        assert.ok(sawAim, "dash phải diễn ra SAU telegraph");
+        sawDashAfterAim = true;
+      }
+    }
+    if (sawDashAfterAim) break;
+  }
+  assert.ok(sawDashAfterAim, "charger phải lao sau khi ngắm");
+});
+
+test("astro-patrol: boss chuyển phase ĐÚNG MỘT LẦN", () => {
+  const sim = createSim({ rand: () => 0.5, test: true });
+  startWave(sim, sim.waves.length + 1); // vào thẳng boss wave
+  for (let i = 0; i < 600 && !(sim.boss && sim.boss.entered); i++) stepSim(sim, AP_IDLE, 1 / 60);
+  assert.ok(sim.boss && sim.boss.entered, "boss phải vào vị trí");
+  apDrain(sim);
+  sim.boss.hp = sim.boss.maxHp * 0.49;
+  let phaseEvents = 0;
+  for (let i = 0; i < 600; i++) {
+    stepSim(sim, AP_IDLE, 1 / 60);
+    phaseEvents += apDrain(sim).filter((e) => e.type === "bossPhase").length;
+  }
+  assert.equal(phaseEvents, 1, "bossPhase phải bắn đúng 1 lần");
+  assert.equal(sim.boss.phase, 2);
+});
+
+test("astro-patrol: pattern wall/spiral của boss luôn chừa khe né", () => {
+  const sim = createSim({ rand: () => 0.42, test: true });
+  startWave(sim, sim.waves.length + 1);
+  for (let i = 0; i < 3000 && sim.ebullets.length < 8; i++) stepSim(sim, AP_IDLE, 1 / 60);
+  assert.ok(sim.ebullets.length > 0, "boss phải bắn đạn");
+  // đạn wall: kiểm tra tồn tại khoảng trống ngang ≥ 100px ở một loạt wall
+  const rows = sim.ebullets.filter((b) => b.vx === 0 && b.kind === "orange");
+  if (rows.length > 3) {
+    const xs = rows.map((b) => b.x).sort((a, b) => a - b);
+    let maxGap = xs[0] + (AP_WORLD.w - xs[xs.length - 1]);
+    for (let i = 1; i < xs.length; i++) maxGap = Math.max(maxGap, xs[i] - xs[i - 1]);
+    assert.ok(maxGap >= 100, `wall không có khe né (gap lớn nhất ${maxGap}px)`);
+  }
+});
+
+test("astro-patrol: pickup power có trần, khiên có trần 100", () => {
+  const sim = createSim({ rand: () => 0.99 });
+  const p = sim.player;
+  p.power = MAX_POWER;
+  sim.pickups.push({ x: p.x, y: p.y, vy: 0, kind: "power", phase: 0 });
+  const score0 = sim.score;
+  stepSim(sim, AP_IDLE, 1 / 60);
+  assert.equal(p.power, MAX_POWER, "power không vượt trần");
+  assert.ok(sim.score > score0, "power thừa đổi thành điểm");
+  p.shield = 90;
+  sim.pickups.push({ x: p.x, y: p.y, vy: 0, kind: "shield", phase: 0 });
+  stepSim(sim, AP_IDLE, 1 / 60);
+  assert.equal(p.shield, 100, "khiên trần 100");
+});
+
+test("astro-patrol: hitbox nhất quán — đạn trong bán kính trúng, ngoài thì không", () => {
+  const sim = createSim({ rand: () => 0.99 });
+  sim.waveState = "fighting";
+  sim.spawnQueue = [];
+  sim.enemies.push({ id: 1, type: "scout", x: 480, y: 200, vx: 0, vy: 0, hp: 1, r: 17, t: 0, fireT: 99, state: "enter", aimT: 0, targetY: 999, sway: 0 });
+  // đạn ngay cạnh mép hitbox ngoài (r + 5 + 2) — không trúng
+  sim.bullets.push(Object.assign(sim.bulletPool.acquire(), { x: 480 + 17 + 5 + 3, y: 200, vx: 0, vy: 0 }));
+  stepSim(sim, AP_IDLE, 1 / 120);
+  assert.equal(sim.enemies.length, 1, "đạn ngoài bán kính không được trúng");
+  // đạn trong hitbox — trúng
+  sim.bullets.length = 0;
+  sim.bullets.push(Object.assign(sim.bulletPool.acquire(), { x: 480 + 10, y: 200, vx: 0, vy: 0 }));
+  stepSim(sim, AP_IDLE, 1 / 120);
+  assert.equal(sim.enemies.length, 0, "đạn trong bán kính phải trúng");
 });

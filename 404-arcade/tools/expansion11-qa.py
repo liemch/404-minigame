@@ -661,6 +661,107 @@ def test_typing(c):
     console_clean(c, "typing open/close")
 
 
+# ============================= ASTRO PATROL =============================
+
+def test_astro(c):
+    print("\n== Astro Patrol 404 ==")
+    go_home(c, fresh_storage=True)
+    c.js("window.__ARCADE_EXP11_TEST__ = true; true")
+    check("card Astro Patrol hiển thị", open_game(c, "Astro Patrol 404"))
+    check("intro hiện", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'"))
+    c.shot("astro-intro.png")
+
+    c.js(sr("sr.querySelector('.exp-cta').click(); true"))
+    time.sleep(0.7)
+    check("vào trận", c.js(sr("!sr.querySelector('.exp-screen')")))
+    check("joystick + nút bắn + thanh boss (ẩn) hiển thị",
+          c.js(sr("!!sr.querySelector('.ap-joy .pad')"))
+          and c.js(sr("!!sr.querySelector('.ap-fire .btn')"))
+          and c.js(sr("!sr.querySelector('.ap-bossbar').classList.contains('show')")))
+    st = wait_state(c, "__AP_STATE__", lambda s: s.get("mode") == "play", 6)
+    check("telemetry wave 1", bool(st) and st.get("wave") == 1, f"state={st}")
+
+    # Giữ SPACE → bắn đạn (giới hạn trần)
+    key_down(c, "Space", " ")
+    st = wait_state(c, "__AP_STATE__", lambda s: s.get("bullets", 0) > 0, 5)
+    check("giữ SPACE bắn đạn", bool(st) and st.get("bullets", 0) > 0, f"bullets={st and st.get('bullets')}")
+    check("đạn không vượt trần 44", bool(st) and st.get("bullets", 0) <= 44)
+
+    # Di chuyển bằng phím
+    x0 = c.js(sr("(() => { return null; })()"))  # placeholder giữ nhịp
+    key_down(c, "ArrowLeft")
+    time.sleep(0.7)
+    key_up(c, "ArrowLeft")
+
+    # Nút bắn cảm ứng
+    key_up(c, "Space", " ")
+    time.sleep(0.4)
+    c.js(sr("sr.querySelector('.ap-fire .btn').dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, composed: true, pointerId: 9})); true"))
+    st = wait_state(c, "__AP_STATE__", lambda s: s.get("bullets", 0) > 0, 4)
+    check("NÚT BẮN cảm ứng hoạt động", bool(st) and st.get("bullets", 0) > 0)
+    c.js("window.dispatchEvent(new PointerEvent('pointerup', {pointerId: 9, bubbles: true})); true")
+
+    # Khiên hấp thụ trước HP
+    c.js("window.__AP_TEST__.setShield(50); window.__AP_TEST__.hitPlayer(20); true")
+    st = wait_state(c, "__AP_STATE__", lambda s: s.get("shield") == 30, 4)
+    check("khiên hấp thụ damage trước (50→30, HP nguyên)", bool(st) and st.get("shield") == 30 and st.get("hp") == 100, f"shield={st and st.get('shield')} hp={st and st.get('hp')}")
+    c.shot("astro-play.png")
+
+    # Dọn wave → tiến wave (chỉ khi sạch địch + hết queue)
+    for _ in range(5):
+        c.js("window.__AP_TEST__.clearWave(); true")
+        time.sleep(0.5)
+        wave_now = c.js("window.__AP_STATE__?.wave") or 0
+        if wave_now >= 6:
+            break
+        wait_state(c, "__AP_STATE__", lambda s: s.get("waveState") in ("fighting", "boss"), 6)
+    st = wait_state(c, "__AP_STATE__", lambda s: s.get("wave", 0) >= 6, 10)
+    check("qua đủ 5 wave → boss wave", bool(st) and st.get("wave", 0) >= 6, f"wave={st and st.get('wave')}")
+
+    st = wait_state(c, "__AP_STATE__", lambda s: s.get("bossHp") is not None, 10)
+    check("boss xuất hiện", bool(st) and st.get("bossHp") is not None, f"bossHp={st and st.get('bossHp')}")
+    check("thanh máu boss hiện", wait_for(c, "sr.querySelector('.ap-bossbar').classList.contains('show')", 6))
+    check("boss phase 1", c.js("window.__AP_STATE__?.bossPhase") == 1)
+
+    # Boss bắn đạn (có telegraph) → ebullets xuất hiện
+    st = wait_state(c, "__AP_STATE__", lambda s: s.get("ebullets", 0) > 0, 15)
+    check("boss khai hỏa sau telegraph", bool(st) and st.get("ebullets", 0) > 0, f"ebullets={st and st.get('ebullets')}")
+    c.shot("astro-boss.png")
+
+    # Chuyển phase đúng một lần
+    c.js("window.__AP_TEST__.setBossHp(Math.floor(window.__AP_STATE__.bossHp * 0.3)); true")
+    st = wait_state(c, "__AP_STATE__", lambda s: s.get("bossPhase") == 2, 8)
+    check("boss chuyển phase 2", bool(st) and st.get("bossPhase") == 2)
+
+    # Esc pause/resume
+    key(c, "Escape")
+    time.sleep(0.4)
+    check("Esc mở pause", c.js(sr("sr.querySelector('.exp-screen')?.dataset.screen === 'pause'")))
+    check("pause có tùy chọn TỰ ĐỘNG BẮN", c.js(sr("[...sr.querySelectorAll('.exp-setrow span')].some(s=>s.textContent==='TỰ ĐỘNG BẮN')")))
+    hp0 = c.js("window.__AP_STATE__?.bossHp")
+    time.sleep(1.0)
+    check("gameplay dừng khi pause", c.js("window.__AP_STATE__?.bossHp") == hp0)
+    resume_via_menu(c)
+    check("resume", c.js(sr("!sr.querySelector('.exp-screen')")))
+
+    # Hạ boss → chiến thắng
+    c.js("window.__AP_TEST__.setBossHp(1); true")
+    key_down(c, "Space", " ")
+    check("hạ boss → màn chiến thắng", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'over'", 25))
+    key_up(c, "Space", " ")
+    heading = c.js(sr("sr.querySelector('.exp-h1')?.textContent || ''"))
+    check("heading chiến thắng", "DẸP YÊN" in heading, heading)
+    score_txt = c.js(sr("sr.querySelector('.exp-over-score .num')?.textContent"))
+    check("điểm hiển thị > 0", bool(score_txt) and score_txt not in ("0", ""), f"= {score_txt}")
+    c.shot("astro-victory.png")
+    console_clean(c, "astro gameplay")
+
+    close_via_switch(c)
+    check("đóng game dọn sạch surface", c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0")))
+    open_close_leak_check(c, "Astro Patrol 404", 3)
+    console_clean(c, "astro open/close")
+
+
 # ==================== REGRESSION game cũ (smoke) ====================
 
 def test_old_games(c):
@@ -691,6 +792,7 @@ SECTIONS = {
     "laser": test_laser,
     "golf": test_golf,
     "typing": test_typing,
+    "astro": test_astro,
     "old": test_old_games,
 }
 

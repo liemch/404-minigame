@@ -1878,6 +1878,196 @@ function typingRushArt(ctx) {
   ctx.stroke();
 }
 
+/* ---------- Astro Patrol 404: không gian + tàu + boss ---------- */
+function astroPatrolArt(ctx) {
+  const rand = seededRand(4404);
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#0a0824");
+  bg.addColorStop(1, "#070619");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  const ng = ctx.createRadialGradient(90, 80, 8, 90, 80, 120);
+  ng.addColorStop(0, "rgba(110,50,200,.2)");
+  ng.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = ng;
+  ctx.fillRect(0, 0, W, H);
+  stars(ctx, rand, 40);
+
+  // asteroid
+  const rock = (x, y, r) => {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (Math.PI * 2 * i) / 8;
+      const rr = r * (0.75 + rand() * 0.35);
+      ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    ctx.closePath();
+    const rg = ctx.createLinearGradient(-r, -r, r, r);
+    rg.addColorStop(0, "#8a8fa8");
+    rg.addColorStop(1, "#2e3245");
+    ctx.fillStyle = rg;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(20,22,38,.8)";
+    ctx.stroke();
+    ctx.fillStyle = "#b45cff";
+    ctx.beginPath();
+    ctx.moveTo(2, -5);
+    ctx.lineTo(6, 0);
+    ctx.lineTo(2, 5);
+    ctx.lineTo(-2, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  };
+  rock(40, 60, 20);
+  rock(286, 130, 24);
+  rock(60, 158, 14);
+
+  // boss lục giác mắt đỏ
+  ctx.save();
+  ctx.translate(160, 52);
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i + Math.PI / 6;
+    ctx.lineTo(Math.cos(a) * 34, Math.sin(a) * 34);
+  }
+  ctx.closePath();
+  const bgb = ctx.createLinearGradient(0, -34, 0, 34);
+  bgb.addColorStop(0, "#3a4260");
+  bgb.addColorStop(1, "#141a30");
+  ctx.fillStyle = bgb;
+  ctx.fill();
+  ctx.strokeStyle = "rgba(140,150,210,.7)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.shadowColor = "#ff2438";
+  ctx.shadowBlur = 10;
+  const eg = ctx.createRadialGradient(0, 0, 1, 0, 0, 10);
+  eg.addColorStop(0, "#ffd9de");
+  eg.addColorStop(0.4, "#ff4453");
+  eg.addColorStop(1, "#7a0f22");
+  ctx.fillStyle = eg;
+  ctx.beginPath();
+  ctx.arc(0, 0, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // đạn cam + hồng
+  for (const [x, y] of [[120, 92], [200, 100], [148, 118]]) {
+    const og = ctx.createRadialGradient(x, y, 0.5, x, y, 5);
+    og.addColorStop(0, "#fff3d9");
+    og.addColorStop(0.5, "#ffab3d");
+    og.addColorStop(1, "rgba(255,120,40,0)");
+    ctx.fillStyle = og;
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = "#ff5ab5";
+  for (const [x, y] of [[110, 128], [214, 122]]) {
+    ctx.beginPath();
+    ctx.ellipse(x, y, 3, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // laser cyan đôi của người chơi
+  ctx.save();
+  ctx.shadowColor = "#20e3ff";
+  ctx.shadowBlur = 6;
+  ctx.fillStyle = "#9df0ff";
+  ctx.fillRect(153, 96, 4, 16);
+  ctx.fillRect(165, 96, 4, 16);
+  ctx.restore();
+
+  // tàu người chơi
+  ctx.save();
+  ctx.translate(161, 158);
+  ctx.fillStyle = "rgba(120,240,255,.8)";
+  ctx.beginPath();
+  ctx.moveTo(-4, 12);
+  ctx.lineTo(0, 26);
+  ctx.lineTo(4, 12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#8fa6c8";
+  ctx.beginPath();
+  ctx.moveTo(-3, -2);
+  ctx.lineTo(-16, 10);
+  ctx.lineTo(-5, 10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(3, -2);
+  ctx.lineTo(16, 10);
+  ctx.lineTo(5, 10);
+  ctx.closePath();
+  ctx.fill();
+  const pg2 = ctx.createLinearGradient(-5, 0, 6, 0);
+  pg2.addColorStop(0, "#f4f8ff");
+  pg2.addColorStop(1, "#c3d2ea");
+  ctx.fillStyle = pg2;
+  ctx.beginPath();
+  ctx.moveTo(0, -16);
+  ctx.quadraticCurveTo(7, -3, 5.5, 10);
+  ctx.lineTo(-5.5, 10);
+  ctx.quadraticCurveTo(-7, -3, 0, -16);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#20e3ff";
+  ctx.beginPath();
+  ctx.ellipse(0, -4, 2.4, 4.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // địch tam giác xanh lá
+  for (const [x, y] of [[64, 96], [256, 70]]) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = "#1d2436";
+    ctx.beginPath();
+    ctx.moveTo(0, 12);
+    ctx.lineTo(-11, -9);
+    ctx.lineTo(0, -4);
+    ctx.lineTo(11, -9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(90,110,150,.8)";
+    ctx.stroke();
+    ctx.fillStyle = "#4df77f";
+    ctx.fillRect(-8, -8, 4, 2);
+    ctx.fillRect(4, -8, 4, 2);
+    ctx.restore();
+  }
+
+  // pickup khiên
+  ctx.save();
+  ctx.translate(262, 168);
+  ctx.strokeStyle = "#3b9dff";
+  ctx.shadowColor = "#3b9dff";
+  ctx.shadowBlur = 8;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i - Math.PI / 6;
+    ctx.lineTo(Math.cos(a) * 11, Math.sin(a) * 11);
+  }
+  ctx.closePath();
+  ctx.stroke();
+  ctx.fillStyle = "#3b9dff";
+  ctx.beginPath();
+  ctx.moveTo(0, -6);
+  ctx.lineTo(5, -3);
+  ctx.lineTo(5, 2);
+  ctx.quadraticCurveTo(5, 5, 0, 7);
+  ctx.quadraticCurveTo(-5, 5, -5, 2);
+  ctx.lineTo(-5, -3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
 const PAINTERS = {
   runner: runnerArt,
   "bug-hunter": bugArt,
@@ -1894,6 +2084,7 @@ const PAINTERS = {
   "laser-maze": laserMazeArt,
   "pixel-golf": pixelGolfArt,
   "typing-rush": typingRushArt,
+  "astro-patrol": astroPatrolArt,
 };
 
 /** Vẽ preview của một game lên canvas trong card. */

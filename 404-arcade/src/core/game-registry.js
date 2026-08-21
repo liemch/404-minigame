@@ -254,6 +254,23 @@ export const GAMES = [
     fullBleed: true,
     ownResults: true,
   },
+  {
+    id: "astro-patrol",
+    title: "Astro Patrol 404",
+    accent: "cyan",
+    kind: "2d",
+    goal: "Bắn phi thuyền dọc: sống sót 5 wave địch (trinh sát, xạ thủ, tàu lao), né asteroid và hạ mini-boss 2 phase. Khiên hấp thụ sát thương, nhặt nâng cấp hỏa lực!",
+    hint: { keys: ["WASD"], text: "di chuyển · SPACE bắn" },
+    controls: [
+      { keys: ["WASD", "↑↓←→"], text: "di chuyển (hoặc rê chuột)" },
+      { keys: ["SPACE", "Click"], text: "bắn — có tùy chọn auto-fire" },
+      { keys: ["Chạm"], text: "joystick trái + NÚT BẮN phải" },
+      { keys: ["Esc"], text: "tạm dừng" },
+    ],
+    loader: () => import("../games/astro-patrol/index.js"),
+    fullBleed: true,
+    ownResults: true,
+  },
 ];
 
 const byId = new Map(GAMES.map((g) => [g.id, g]));
