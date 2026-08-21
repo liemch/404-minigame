@@ -2,3 +2,5 @@ node_modules/
 __pycache__/
 *.pyc
 .DS_Store
+404-arcade/tools/vr-shots/
+404-arcade/tools/shots-exp5/

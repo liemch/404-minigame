@@ -104,6 +104,43 @@ export function createAudio(storage, { defaultOn = false } = {}) {
     wave:     () => { tone({ from: 392, dur: 0.09, vol: 0.28 }); tone({ from: 523, dur: 0.09, vol: 0.28, delay: 0.1 }); tone({ from: 659, dur: 0.14, vol: 0.28, delay: 0.2 }); },
     pickup:   () => { tone({ from: 700, to: 1050, dur: 0.09, vol: 0.26 }); tone({ from: 1400, dur: 0.06, vol: 0.2, delay: 0.08 }); },
     empty:    () => tone({ from: 220, dur: 0.04, vol: 0.18 }),
+
+    /* Expansion 6–10 (Portal Puzzle / Neon Drift / Cyber Defense / Rogue Arena / Rhythm Hack) */
+    step:     () => tone({ type: "sine", from: 300, to: 250, dur: 0.045, vol: 0.14 }),
+    push:     () => { noise({ dur: 0.09, vol: 0.2, from: 700, to: 180 }); tone({ type: "triangle", from: 140, to: 100, dur: 0.09, vol: 0.22 }); },
+    portal:   () => { tone({ type: "sine", from: 320, to: 960, dur: 0.16, vol: 0.26 }); tone({ type: "sine", from: 960, to: 480, dur: 0.14, vol: 0.2, delay: 0.13 }); },
+    switch:   () => { tone({ from: 520, dur: 0.05, vol: 0.24 }); tone({ from: 780, dur: 0.07, vol: 0.2, delay: 0.05 }); },
+    denied:   () => tone({ type: "square", from: 170, to: 120, dur: 0.09, vol: 0.24 }),
+    undo:     () => tone({ type: "sine", from: 620, to: 380, dur: 0.09, vol: 0.2 }),
+    win:      () => { tone({ from: 523, dur: 0.09, vol: 0.28 }); tone({ from: 659, dur: 0.09, vol: 0.28, delay: 0.09 }); tone({ from: 784, dur: 0.09, vol: 0.28, delay: 0.18 }); tone({ from: 1047, dur: 0.22, vol: 0.3, delay: 0.27 }); },
+    checkpoint: () => { tone({ from: 784, dur: 0.07, vol: 0.26 }); tone({ from: 1175, dur: 0.11, vol: 0.24, delay: 0.06 }); },
+    nitro:    () => { noise({ dur: 0.24, vol: 0.2, from: 900, to: 2600 }); tone({ type: "sawtooth", from: 190, to: 420, dur: 0.24, vol: 0.16 }); },
+    crash:    () => { noise({ dur: 0.24, vol: 0.42, from: 2000, to: 220 }); tone({ type: "sawtooth", from: 200, to: 70, dur: 0.26, vol: 0.3 }); },
+    build:    () => { tone({ from: 340, dur: 0.06, vol: 0.24 }); tone({ from: 510, dur: 0.06, vol: 0.24, delay: 0.06 }); noise({ dur: 0.05, vol: 0.12, from: 1500, to: 500, delay: 0.02 }); },
+    upgrade:  () => { tone({ from: 440, dur: 0.06, vol: 0.24 }); tone({ from: 587, dur: 0.06, vol: 0.24, delay: 0.06 }); tone({ from: 880, dur: 0.1, vol: 0.24, delay: 0.12 }); },
+    sell:     () => { tone({ from: 660, to: 330, dur: 0.12, vol: 0.22 }); },
+    zap:      () => { tone({ type: "square", from: 1150, to: 700, dur: 0.045, vol: 0.13 }); },
+    boom:     () => { noise({ dur: 0.3, vol: 0.4, from: 1200, to: 90 }); tone({ type: "sine", from: 130, to: 45, dur: 0.3, vol: 0.34 }); },
+    corehit:  () => { tone({ type: "sawtooth", from: 240, to: 90, dur: 0.3, vol: 0.4 }); noise({ dur: 0.2, vol: 0.24, from: 800, to: 150 }); },
+    xp:       () => tone({ type: "sine", from: 900, to: 1350, dur: 0.06, vol: 0.14 }),
+    hurt2:    () => { tone({ type: "sine", from: 160, to: 90, dur: 0.14, vol: 0.4 }); },
+    miss:     () => tone({ type: "triangle", from: 260, to: 150, dur: 0.12, vol: 0.22 }),
+
+    /* Void Runner 404 */
+    vr_step:     () => noise({ dur: 0.045, vol: 0.09, from: 900, to: 300 }),
+    vr_jump:     () => tone({ type: "sine", from: 280, to: 520, dur: 0.13, vol: 0.26 }),
+    vr_walljump: () => { tone({ type: "sine", from: 360, to: 700, dur: 0.12, vol: 0.26 }); noise({ dur: 0.08, vol: 0.12, from: 1600, to: 500 }); },
+    vr_land:     () => { noise({ dur: 0.09, vol: 0.2, from: 800, to: 200 }); tone({ type: "sine", from: 170, to: 110, dur: 0.08, vol: 0.2 }); },
+    vr_slide:    () => noise({ dur: 0.26, vol: 0.16, from: 2200, to: 500 }),
+    vr_wall:     () => { noise({ dur: 0.16, vol: 0.14, from: 1800, to: 700 }); tone({ type: "triangle", from: 500, to: 640, dur: 0.12, vol: 0.14 }); },
+    vr_shard:    () => { tone({ from: 990, dur: 0.06, vol: 0.24 }); tone({ from: 1480, dur: 0.09, vol: 0.22, delay: 0.05 }); },
+    vr_gate:     () => { tone({ from: 660, dur: 0.07, vol: 0.26 }); tone({ from: 880, dur: 0.07, vol: 0.26, delay: 0.07 }); tone({ from: 1320, dur: 0.12, vol: 0.24, delay: 0.14 }); },
+    vr_boost:    () => { noise({ dur: 0.3, vol: 0.22, from: 700, to: 3200 }); tone({ type: "sawtooth", from: 220, to: 560, dur: 0.28, vol: 0.16 }); },
+    vr_warn:     () => tone({ type: "square", from: 940, dur: 0.05, vol: 0.13 }),
+    vr_zap:      () => { tone({ type: "sawtooth", from: 1200, to: 240, dur: 0.16, vol: 0.3 }); noise({ dur: 0.14, vol: 0.24, from: 3000, to: 400 }); },
+    vr_fall:     () => { tone({ type: "sine", from: 420, to: 90, dur: 0.4, vol: 0.3 }); noise({ dur: 0.2, vol: 0.14, from: 900, to: 150, delay: 0.1 }); },
+    vr_respawn:  () => { tone({ type: "sine", from: 300, to: 620, dur: 0.14, vol: 0.2 }); tone({ from: 830, dur: 0.07, vol: 0.16, delay: 0.12 }); },
+    vr_finish:   () => { tone({ from: 587, dur: 0.09, vol: 0.28 }); tone({ from: 740, dur: 0.09, vol: 0.28, delay: 0.09 }); tone({ from: 988, dur: 0.09, vol: 0.28, delay: 0.18 }); tone({ from: 1319, dur: 0.24, vol: 0.3, delay: 0.27 }); },
   };
 
   return {
@@ -133,6 +170,18 @@ export function createAudio(storage, { defaultOn = false } = {}) {
       volume = Math.min(1, Math.max(0, v));
       storage.setPref("volume", volume);
       if (master) master.gain.value = gainValue();
+    },
+
+    /**
+     * AudioContext + master gain cho game cần tổng hợp nhạc nền riêng
+     * (Rhythm Hack). Trả về null nếu chưa unlock / không hỗ trợ WebAudio.
+     * Node của game PHẢI connect vào master để tôn trọng mute/volume,
+     * và game tự dọn node của mình khi destroy.
+     */
+    getContext() {
+      this.unlock();
+      if (!ensure()) return null;
+      return { ctx, master, isEnabled: () => enabled };
     },
 
     /** Phát hiệu ứng theo tên; an toàn khi chưa unlock hoặc đã tắt. */

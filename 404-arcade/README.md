@@ -1,6 +1,6 @@
 # 404 Arcade — Web Component `<arcade-404>`
 
-Trang 404 dạng arcade đóng gói thành **một Web Component độc lập**: nhúng được vào HTML thuần, React, Next.js hay bất kỳ hệ thống nào mà không phụ thuộc framework. Gồm **5 mini game**:
+Trang 404 dạng arcade đóng gói thành **một Web Component độc lập**: nhúng được vào HTML thuần, React, Next.js hay bất kỳ hệ thống nào mà không phụ thuộc framework. Danh sách mini game:
 
 | Game | Loại | Điều khiển |
 |---|---|---|
@@ -9,6 +9,7 @@ Trang 404 dạng arcade đóng gói thành **một Web Component độc lập**:
 | Stack Tower | 2D Canvas | Click / Space / chạm |
 | Snake | 2D Canvas | Mũi tên / WASD / vuốt / d-pad |
 | **404 Strike** | **3D FPS (WebGL)** | WASD + chuột, Pointer Lock, desktop-first |
+| **Void Runner 404** | **3D Parkour (WebGL)** | WASD + chuột, Space nhảy, Shift sprint, Ctrl trượt, wall-run, desktop-first |
 
 Điểm cao + cài đặt lưu bằng `localStorage` (có namespace). CSS cô lập trong shadow DOM. Không backend, không CDN, không đăng nhập.
 
@@ -125,13 +126,25 @@ src/
 ├── ui/                    # template shadow DOM, home, card, overlay
 └── games/
     ├── runner|bug-hunter|stack-tower|snake/   # 4 game 2D độc lập
-    └── strike/             # 404 Strike (FPS 3D)
-        ├── engine.js       # renderer WebGL thuần (xem ghi chú bên dưới)
-        ├── world.js        # map 60×40m theo Level Map: khu cao, hành lang,
-        │                   # 8 cổng spawn, vật cản, neon, collider, patrol
-        ├── player.js weapon.js bots.js fx.js pickups.js
-        ├── hud.js screens.js styles.js       # HUD + start/pause/kết thúc trận
-        └── index.js        # vòng đời + wave + điểm + pointer lock
+    ├── strike/             # 404 Strike (FPS 3D)
+    │   ├── engine.js       # renderer WebGL thuần DÙNG CHUNG cho game 3D
+    │   │                   # (node/mesh/camera/fog/roll/raycast — xem ghi chú)
+    │   ├── world.js        # map 60×40m theo Level Map: khu cao, hành lang,
+    │   │                   # 8 cổng spawn, vật cản, neon, collider, patrol
+    │   ├── player.js weapon.js bots.js fx.js pickups.js
+    │   ├── hud.js screens.js styles.js       # HUD + start/pause/kết thúc trận
+    │   └── index.js        # vòng đời + wave + điểm + pointer lock
+    └── void-runner/        # Void Runner 404 (parkour 3D góc nhìn thứ nhất)
+        ├── course.js       # dữ liệu 8 zone theo blueprint (1 unit = 1 m):
+        │                   # xuất phát → nhảy → wall-run → trượt → platform
+        │                   # động → laser → leap cuối → đích (chữ U)
+        ├── world.js        # dựng scene + collider + laser/pad/shard/gate/
+        │                   # portal + landing marker + skyline cyber
+        ├── player.js       # capsule controller: coyote time, jump buffer,
+        │                   # slide, wall-run, moving platform displacement
+        ├── gloves.js fx.js # viewmodel găng neon + particle/speed streaks
+        ├── hud.js screens.js styles.js config.js  # HUD + start/pause/results
+        └── index.js        # vòng đời + timer/energy/combo + pointer lock
 ```
 
 **Interface bắt buộc của mỗi game** (game-controller gọi):
@@ -166,7 +179,8 @@ npm run build            # Vite ES + IIFE (cần mạng để npm install lần 
 
 ## 6. Ghi chú kỹ thuật quan trọng
 
-- **Renderer của 404 Strike là WebGL thuần** (`games/strike/engine.js`, API mô phỏng Three.js: node/mesh/camera/fog/raycast). Lý do: môi trường phát triển offline không thể cài `three` từ npm. Toàn bộ hình khối low-poly + texture canvas là nguyên bản, không dùng tài sản của Counter-Strike/Valve hay bên thứ ba. Muốn chuyển sang Three.js: thay `engine.js`, giữ nguyên API các module còn lại; `vite.config.js` đã sẵn sàng cho code-splitting.
+- **Renderer 3D là WebGL thuần dùng chung** (`games/strike/engine.js`, API mô phỏng Three.js: node/mesh/camera/fog/camera-roll/raycast; geometry: box, plane, tri, gem, cyl, ring). Lý do: môi trường phát triển offline không thể cài `three` từ npm. 404 Strike và Void Runner 404 cùng import engine này (Void Runner chỉ tải engine khi được chọn — vẫn lazy). Toàn bộ hình khối low-poly + texture canvas là nguyên bản, không dùng tài sản bên thứ ba. Muốn chuyển sang Three.js: thay `engine.js`, giữ nguyên API các module còn lại; `vite.config.js` đã sẵn sàng cho code-splitting.
+- **Void Runner 404**: movement controller theo plan (coyote time + jump buffer, slide không đứng dậy dưới trần, wall-run chỉ trên tường đánh dấu, moving platform truyền displacement, jump pad boost); 8 checkpoint kích hoạt theo thứ tự, respawn + penalty theo độ khó; kết quả chính là thời gian (best time lưu prefs) + điểm tổng hợp lưu qua hệ thống điểm chung. Settings (âm lượng, độ nhạy chuột, FOV 75–105, chất lượng, rung, giảm chuyển động) persist bằng storage.
 - Không autoplay audio trước tương tác thật (`isTrusted` + `userActivation`); SFX tổng hợp WebAudio, không file ngoài.
 - Tự pause khi tab ẩn; Pointer Lock được giải phóng khi thoát 404 Strike; đổi game nhiều lần không rò rỉ (canvas/listener/GL đều được dispose — đã kiểm chứng bằng integration test trên Chrome thật).
 - Mobile: 4 game 2D responsive từ 360px (Snake có d-pad); 404 Strike hiển thị "Tối ưu cho máy tính". WebGL không khả dụng → màn hình fallback, 4 game 2D vẫn chạy.

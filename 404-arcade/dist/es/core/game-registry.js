@@ -81,6 +81,78 @@ export const GAMES = [
     fullBleed: true, // game tự vẽ chrome/HUD riêng, shell không hiện thanh cửa sổ
     ownResults: true, // game tự hiển thị màn hình kết quả theo reference
   },
+
+  /* ---------- Expansion 6–10 ---------- */
+  {
+    id: "portal-puzzle",
+    title: "Portal Puzzle 404",
+    accent: "cyan",
+    kind: "2d",
+    goal: "Giải đố 15 màn: đẩy thùng gỗ, kích hoạt công tắc, né tia laser và dịch chuyển qua cổng không gian để đến lối thoát.",
+    hint: { keys: ["←↑↓→"], text: "di chuyển · U hoàn tác · H gợi ý" },
+    controls: [
+      { keys: ["↑ ↓ ← →", "WASD"], text: "di chuyển từng ô" },
+      { keys: ["U"], text: "hoàn tác" },
+      { keys: ["R"], text: "chơi lại màn" },
+      { keys: ["H"], text: "gợi ý một bước" },
+      { keys: ["Vuốt"], text: "vuốt / chạm ô kề trên cảm ứng" },
+    ],
+    loader: () => import("../games/portal-puzzle/index.js"),
+    fullBleed: true,
+    ownResults: true,
+  },
+  {
+    id: "void-runner",
+    title: "Void Runner 404",
+    accent: "violet",
+    kind: "3d",
+    badge: "3D",
+    goal: "Parkour 3D góc nhìn thứ nhất: chạy, nhảy, trượt, wall-run qua 8 checkpoint giữa thành phố cyber trong thời gian ngắn nhất.",
+    hint: { keys: ["WASD"], text: "+ chuột — tối ưu desktop" },
+    controls: [
+      { keys: ["W A S D"], text: "di chuyển / Chuột quan sát" },
+      { keys: ["Space", "Shift"], text: "nhảy / chạy nhanh" },
+      { keys: ["Ctrl", "C"], text: "trượt (qua cổng tròn)" },
+      { keys: ["Q"], text: "wall-run assist / Esc tạm dừng" },
+    ],
+    // Engine WebGL dùng chung với 404 Strike — chỉ tải khi chọn game
+    loader: () => import("../games/void-runner/index.js"),
+    fullBleed: true,
+    ownResults: true,
+  },
+  {
+    id: "neon-drift",
+    title: "Neon Drift 404",
+    accent: "pink",
+    kind: "2d",
+    goal: "Đua xe neon nhìn từ trên xuống: qua 8 checkpoint đúng thứ tự, drift ăn combo, thu năng lượng và bung nitro trước khi hết giờ.",
+    hint: { keys: ["← →"], text: "lái · SPACE drift · SHIFT nitro" },
+    controls: [
+      { keys: ["↑ ↓ ← →", "WASD"], text: "ga / phanh / đánh lái" },
+      { keys: ["SPACE"], text: "drift (phanh tay) — giữ để ôm cua" },
+      { keys: ["SHIFT"], text: "nitro (có thanh năng lượng)" },
+      { keys: ["Chạm"], text: "nút ◀ ▶ + NITRO, xe tự ga trên cảm ứng" },
+    ],
+    loader: () => import("../games/neon-drift/index.js"),
+    fullBleed: true,
+    ownResults: true,
+  },
+  {
+    id: "cyber-defense",
+    title: "Cyber Defense",
+    accent: "violet",
+    kind: "2d",
+    goal: "Tower defense trên bảng mạch: xây và nâng cấp tháp trên các pad, chặn 8 wave bot trước khi chúng chạm tới lõi CORE.",
+    hint: { keys: [], text: "click chọn tháp → click pad để xây" },
+    controls: [
+      { keys: ["Click", "Chạm"], text: "chọn tháp / xây trên pad / nâng cấp / bán" },
+      { keys: ["1 2 3 4 5"], text: "chọn nhanh loại tháp" },
+      { keys: ["Esc"], text: "hủy chế độ xây / tạm dừng" },
+    ],
+    loader: () => import("../games/cyber-defense/index.js"),
+    fullBleed: true,
+    ownResults: true,
+  },
 ];
 
 const byId = new Map(GAMES.map((g) => [g.id, g]));

@@ -23,6 +23,7 @@ import urllib.request
 
 BASE = os.environ.get("ARCADE_QA_BASE", "http://127.0.0.1:8404/404-arcade/")
 SHOT_DIR = os.environ.get("ARCADE_QA_SHOTS", "/tmp/arcade-browser-qa")
+QA_PORT = int(os.environ.get("ARCADE_QA_PORT", "9222"))
 
 
 class WS:
@@ -91,7 +92,7 @@ class WS:
 
 
 class CDP:
-    def __init__(self, port=9222):
+    def __init__(self, port=QA_PORT):
         targets = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/json"))
         page = next(t for t in targets if t["type"] == "page")
         self.ws = WS(page["webSocketDebuggerUrl"])
@@ -194,7 +195,8 @@ def main():
     print("== Home ==")
     c.cmd("Page.navigate", {"url": BASE})
     time.sleep(1.6)
-    check("5 card game", c.js(sr("sr.querySelectorAll('.game-card').length")) == 5)
+    n_cards = c.js(sr("sr.querySelectorAll('.game-card').length"))
+    check("card game >= 5", isinstance(n_cards, int) and n_cards >= 5, f"{n_cards} card")
     check(
         "lazy-load: chưa tải module game nào",
         c.js("performance.getEntriesByType('resource').filter(r=>r.name.includes('/games/')).length") == 0,
@@ -204,7 +206,7 @@ def main():
 
     print("\n== 404 Strike: trọn vòng đời ==")
     c.js("window.__ARCADE_STRIKE_TEST__ = true; true")
-    c.js(sr("sr.querySelectorAll('.card-play')[4].click(); true"))
+    c.js(sr("[...sr.querySelectorAll('.game-card')].find(card => card.textContent.includes('404 Strike'))?.querySelector('.card-play')?.click(); true"))
     time.sleep(1.6)
     check("start screen", c.js(sr("sr.querySelector('.sk-screen')?.dataset.screen")) == "start")
     c.shot(f"{SHOT_DIR}/strike-start.png")
@@ -239,7 +241,8 @@ def main():
     print("\n== IIFE build (examples/vanilla) ==")
     c.cmd("Page.navigate", {"url": BASE + "examples/vanilla/"})
     time.sleep(1.6)
-    check("IIFE render đủ 5 card", c.js(sr("sr.querySelectorAll('.game-card').length")) == 5)
+    n_iife = c.js(sr("sr.querySelectorAll('.game-card').length"))
+    check("IIFE render card >= 5", isinstance(n_iife, int) and n_iife >= 5, f"{n_iife} card")
     console_clean(c, "iife")
 
     print("\n========== KẾT QUẢ ==========")

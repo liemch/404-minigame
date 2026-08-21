@@ -74,14 +74,22 @@ export function mat4Compose(out, pos, rot, scale) {
   return out;
 }
 
-/** View matrix cho camera FPS: nghịch đảo của T(pos)*RY(yaw)*RX(pitch). */
-export function mat4FpsView(out, pos, yaw, pitch) {
+/** View matrix cho camera FPS: nghịch đảo của T(pos)*RY(yaw)*RX(pitch)*RZ(roll). */
+export function mat4FpsView(out, pos, yaw, pitch, roll = 0) {
   const cy = Math.cos(yaw), sy = Math.sin(yaw);
   const cp = Math.cos(pitch), sp = Math.sin(pitch);
   // Trục camera trong world
-  const rx = [cy, 0, -sy];
-  const ry = [sy * sp, cp, cy * sp];
+  let rx = [cy, 0, -sy];
+  let ry = [sy * sp, cp, cy * sp];
   const rz = [sy * cp, -sp, cy * cp];
+  if (roll) {
+    // Xoay right/up quanh trục nhìn (camera roll — wall-run, nghiêng người)
+    const cr = Math.cos(roll), sr = Math.sin(roll);
+    const ax = [rx[0] * cr + ry[0] * sr, rx[1] * cr + ry[1] * sr, rx[2] * cr + ry[2] * sr];
+    const ay = [ry[0] * cr - rx[0] * sr, ry[1] * cr - rx[1] * sr, ry[2] * cr - rx[2] * sr];
+    rx = ax;
+    ry = ay;
+  }
   out[0] = rx[0]; out[4] = rx[1]; out[8] = rx[2];
   out[1] = ry[0]; out[5] = ry[1]; out[9] = ry[2];
   out[2] = rz[0]; out[6] = rz[1]; out[10] = rz[2];
@@ -236,6 +244,64 @@ function triData() {
   };
 }
 
+function cylData(segments = 14) {
+  // Trụ tròn trục Y (bán kính 0.5, cao 1, tâm gốc) — cột/đế/ống neon.
+  const pos = [];
+  const nor = [];
+  const uv = [];
+  const idx = [];
+  for (let i = 0; i <= segments; i++) {
+    const a = (i / segments) * Math.PI * 2;
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    pos.push(c * 0.5, -0.5, s * 0.5, c * 0.5, 0.5, s * 0.5);
+    nor.push(c, 0, s, c, 0, s);
+    uv.push(i / segments, 1, i / segments, 0);
+  }
+  for (let i = 0; i < segments; i++) {
+    const b = i * 2;
+    idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
+  }
+  for (const [y, ny] of [[0.5, 1], [-0.5, -1]]) {
+    const center = pos.length / 3;
+    pos.push(0, y, 0);
+    nor.push(0, ny, 0);
+    uv.push(0.5, 0.5);
+    for (let i = 0; i <= segments; i++) {
+      const a = (i / segments) * Math.PI * 2;
+      pos.push(Math.cos(a) * 0.5, y, Math.sin(a) * 0.5);
+      nor.push(0, ny, 0);
+      uv.push(0.5 + Math.cos(a) * 0.5, 0.5 + Math.sin(a) * 0.5);
+    }
+    for (let i = 0; i < segments; i++) {
+      if (ny > 0) idx.push(center, center + 1 + i, center + 2 + i);
+      else idx.push(center, center + 2 + i, center + 1 + i);
+    }
+  }
+  return { pos, nor, uv, idx };
+}
+
+function ringData(inner = 0.4, segments = 28) {
+  // Vành khuyên phẳng trên XY (pháp tuyến +Z) — cổng tròn/portal/marker.
+  const pos = [];
+  const nor = [];
+  const uv = [];
+  const idx = [];
+  for (let i = 0; i <= segments; i++) {
+    const a = (i / segments) * Math.PI * 2;
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    pos.push(c * 0.5, s * 0.5, 0, c * inner, s * inner, 0);
+    nor.push(0, 0, 1, 0, 0, 1);
+    uv.push(i / segments, 0, i / segments, 1);
+  }
+  for (let i = 0; i < segments; i++) {
+    const b = i * 2;
+    idx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3);
+  }
+  return { pos, nor, uv, idx };
+}
+
 function gemData() {
   // Octahedron (viên năng lượng giữa map)
   const v = [
@@ -359,6 +425,8 @@ export function createEngine(canvas, opts = {}) {
   upload("plane", planeData());
   upload("tri", triData());
   upload("gem", gemData());
+  upload("cyl", cylData());
+  upload("ring", ringData());
 
   /* --- Texture từ canvas --- */
   const textures = [];
@@ -457,7 +525,7 @@ export function createEngine(canvas, opts = {}) {
 
     const aspect = width / height;
     mat4Perspective(proj, (camera.fov * Math.PI) / 180, aspect, 0.08, 120);
-    mat4FpsView(view, camera.pos, camera.yaw, camera.pitch);
+    mat4FpsView(view, camera.pos, camera.yaw, camera.pitch, camera.roll || 0);
     gl.uniformMatrix4fv(U.uProj, false, proj);
     gl.uniformMatrix4fv(U.uView, false, view);
     gl.uniform2f(U.uFogRange, fogNear, fogFar);
