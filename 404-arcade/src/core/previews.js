@@ -1123,6 +1123,154 @@ function defenseArt(ctx) {
   ctx.fillText("CORE 86%", 272, 34);
 }
 
+/* ---------- Rogue Arena: đấu trường neon + robot + enemy hình học ---------- */
+function rogueArt(ctx) {
+  const rand = seededRand(909);
+  const bg = ctx.createRadialGradient(W / 2, H / 2, 20, W / 2, H / 2, 220);
+  bg.addColorStop(0, "#0d1330");
+  bg.addColorStop(1, "#060a1c");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // vòng tròn sàn + tường
+  ctx.strokeStyle = "rgba(100,140,255,.14)";
+  ctx.lineWidth = 1.6;
+  for (const r of [28, 52, 76]) {
+    ctx.beginPath();
+    ctx.arc(W / 2, H / 2, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = "rgba(110,130,210,.4)";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(8, 8, W - 16, H - 16);
+  // dải neon góc
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "rgba(255,46,150,1)";
+  ctx.beginPath();
+  ctx.moveTo(52, 12);
+  ctx.lineTo(12, 12);
+  ctx.lineTo(12, 52);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(32,227,255,1)";
+  ctx.beginPath();
+  ctx.moveTo(W - 52, H - 12);
+  ctx.lineTo(W - 12, H - 12);
+  ctx.lineTo(W - 12, H - 52);
+  ctx.stroke();
+
+  // tia điện tỏa từ robot
+  ctx.strokeStyle = "rgba(32,227,255,.8)";
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i + 0.4;
+    ctx.beginPath();
+    ctx.moveTo(W / 2 + Math.cos(a) * 22, H / 2 + Math.sin(a) * 22);
+    ctx.lineTo(W / 2 + Math.cos(a) * (44 + rand() * 22), H / 2 + Math.sin(a) * (40 + rand() * 20));
+    ctx.stroke();
+  }
+
+  // robot giữa
+  ctx.save();
+  ctx.translate(W / 2, H / 2);
+  ctx.strokeStyle = "rgba(32,227,255,.4)";
+  ctx.beginPath();
+  ctx.arc(0, 5, 17, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "#e8edff";
+  ctx.beginPath();
+  ctx.roundRect(-10, -11, 20, 20, 5);
+  ctx.fill();
+  ctx.fillStyle = "#0a1224";
+  ctx.beginPath();
+  ctx.roundRect(-6, -7, 12, 7, 3);
+  ctx.fill();
+  ctx.save();
+  ctx.shadowColor = "#20e3ff";
+  ctx.shadowBlur = 7;
+  ctx.fillStyle = "#20e3ff";
+  ctx.fillRect(-4, -5.4, 8, 3);
+  ctx.restore();
+  ctx.restore();
+
+  // enemy hình học
+  const tri = (x, y, r, color, dark) => {
+    ctx.fillStyle = dark;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y - r);
+    ctx.lineTo(x + r, y + r * 0.75);
+    ctx.lineTo(x - r, y + r * 0.75);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "rgba(10,10,20,.8)";
+    ctx.fillRect(x - r * 0.8, y - r - 7, r * 1.6, 3);
+    ctx.fillStyle = "#ff3b4f";
+    ctx.fillRect(x - r * 0.8, y - r - 7, r * 1.1, 3);
+  };
+  tri(64, 66, 13, "#ff2e96", "#3d1030");
+  tri(250, 148, 12, "#ff2e96", "#3d1030");
+  tri(226, 52, 11, "#ff3b4f", "#3c0a12");
+  // shooter cube
+  ctx.fillStyle = "#38080c";
+  ctx.strokeStyle = "#ff3b4f";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(272, 82, 26, 26, 4);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = "#ff8091";
+  ctx.beginPath();
+  ctx.arc(285, 95, 6, 0, Math.PI * 2);
+  ctx.stroke();
+  // tank cube tím
+  ctx.fillStyle = "#241040";
+  ctx.strokeStyle = "#9a5cff";
+  ctx.beginPath();
+  ctx.roundRect(52, 128, 30, 30, 5);
+  ctx.fill();
+  ctx.stroke();
+
+  // gem XP
+  const gem = (x, y) => {
+    ctx.fillStyle = "#20e3ff";
+    ctx.beginPath();
+    ctx.moveTo(x, y - 6);
+    ctx.lineTo(x + 4.5, y);
+    ctx.lineTo(x, y + 6);
+    ctx.lineTo(x - 4.5, y);
+    ctx.closePath();
+    ctx.fill();
+  };
+  gem(130, 140);
+  gem(196, 60);
+  gem(160, 158);
+  // hex XP lime
+  ctx.strokeStyle = "#a8ff3e";
+  ctx.fillStyle = "rgba(30,46,8,.92)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i - Math.PI / 6;
+    const x = 118 + Math.cos(a) * 11;
+    const y = 84 + Math.sin(a) * 11;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#a8ff3e";
+  ctx.font = "800 8px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("XP", 118, 87);
+  // chữ nổi
+  ctx.fillStyle = "#20e3ff";
+  ctx.font = "800 11px monospace";
+  ctx.fillText("+40 XP", 108, 118);
+}
+
 const PAINTERS = {
   runner: runnerArt,
   "bug-hunter": bugArt,
@@ -1132,6 +1280,7 @@ const PAINTERS = {
   "portal-puzzle": portalArt,
   "neon-drift": driftArt,
   "cyber-defense": defenseArt,
+  "rogue-arena": rogueArt,
   "void-runner": voidRunnerArt,
 };
 

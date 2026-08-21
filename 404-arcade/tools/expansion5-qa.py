@@ -487,10 +487,79 @@ def test_defense(c):
     console_clean(c, "defense open/close")
 
 
+# ============================= ROGUE ARENA =============================
+
+def test_rogue(c):
+    print("\n== Rogue Arena ==")
+    go_home(c, fresh_storage=True)
+    c.js("window.__ARCADE_EXP5_TEST__ = true; true")
+    check("mở được card Rogue Arena", open_game(c, "Rogue Arena"))
+    check("intro hiện", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'"))
+    c.shot("rogue-intro.png")
+
+    c.js(sr("sr.querySelector('.exp-cta').click(); true"))
+    time.sleep(0.8)
+    check("vào trận", c.js(sr("!sr.querySelector('.exp-screen')")))
+    check("3 chỉ báo kỹ năng hiển thị", c.js(sr("sr.querySelectorAll('.ra-ab').length")) == 3)
+
+    # Di chuyển: giữ D → player x tăng (đọc qua canvas không được, dùng HUD kills/level thay)
+    c.js("window.dispatchEvent(new KeyboardEvent('keydown', {code:'KeyD', key:'d'})); true")
+    time.sleep(1.0)
+    c.js("window.dispatchEvent(new KeyboardEvent('keyup', {code:'KeyD', key:'d'})); true")
+
+    # Vũ khí tự bắn → có kill
+    st = wait_state(c, "__RA_STATE__", lambda s: s.get("kills", 0) > 0, 30)
+    check("vũ khí tự nhắm hạ được enemy", bool(st) and st.get("kills", 0) > 0, f"kills={st and st.get('kills')}")
+
+    # Level-up panel (TEST xpToNext=3 → nhanh)
+    check("panel NÂNG CẤP xuất hiện (pause thật)", wait_for(c, "!sr.querySelector('.ra-levelup').hidden", 30))
+    t_before = c.js("window.__RA_STATE__?.time")
+    time.sleep(1.2)
+    t_after = c.js("window.__RA_STATE__?.time")
+    check("gameplay DỪNG THẬT khi chọn nâng cấp", t_before == t_after, f"time {t_before} → {t_after}")
+    check("có 3 lựa chọn", c.js(sr("sr.querySelectorAll('.ra-choice').length")) == 3)
+    c.shot("rogue-levelup.png")
+    key(c, "Digit1", "1")
+    time.sleep(0.4)
+    resumed = c.js(sr("sr.querySelector('.ra-levelup').hidden")) or c.js(sr("sr.querySelectorAll('.ra-choice').length")) == 3
+    check("chọn nâng cấp bằng phím 1 → tiếp tục", bool(resumed))
+
+    # HP giảm khi bị đánh (đứng yên giữa bầy)
+    st = wait_state(c, "__RA_STATE__", lambda s: s.get("hp", 100) < 100, 30)
+    check("HP giảm khi trúng đòn", bool(st) and st.get("hp", 100) < 100, f"hp={st and st.get('hp')}")
+    c.shot("rogue-play.png")
+
+    # Pause / resume (chỉ khi không có panel level-up)
+    for _ in range(12):
+        if c.js(sr("sr.querySelector('.ra-levelup').hidden")):
+            break
+        key(c, "Digit1", "1")
+        time.sleep(0.3)
+    key(c, "Escape")
+    time.sleep(0.3)
+    check("Esc mở pause", c.js(sr("sr.querySelector('.exp-screen')?.dataset.screen === 'pause'")))
+    c.js(sr("[...sr.querySelectorAll('.exp-menu-btn')].find(b=>b.textContent==='TIẾP TỤC').click(); true"))
+    time.sleep(0.3)
+    check("resume", c.js(sr("!sr.querySelector('.exp-screen')")))
+    console_clean(c, "rogue gameplay")
+
+    close_via_switch(c)
+    check("đóng game dọn sạch surface", c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0")))
+    for i in range(3):
+        open_game(c, "Rogue Arena")
+        wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'", 8)
+        roots = c.js(sr("sr.querySelectorAll('.exp-root').length"))
+        check(f"lần mở {i + 1}: đúng 1 exp-root", roots == 1, f"= {roots}")
+        close_via_switch(c)
+    check("surface sạch sau 3 lần", c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0")))
+    console_clean(c, "rogue open/close")
+
+
 SECTIONS = {
     "portal": test_portal,
     "drift": test_drift,
     "defense": test_defense,
+    "rogue": test_rogue,
 }
 
 

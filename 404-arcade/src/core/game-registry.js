@@ -153,6 +153,22 @@ export const GAMES = [
     fullBleed: true,
     ownResults: true,
   },
+  {
+    id: "rogue-arena",
+    title: "Rogue Arena",
+    accent: "magenta",
+    kind: "2d",
+    goal: "Sinh tồn 3 phút: vũ khí tự nhắm, bạn chỉ cần di chuyển và né. Hút XP, chọn nâng cấp mỗi cấp và hạ boss ở phút cuối.",
+    hint: { keys: ["WASD"], text: "di chuyển — vũ khí tự bắn" },
+    controls: [
+      { keys: ["W A S D", "↑ ↓ ← →"], text: "di chuyển (vũ khí tự nhắm bắn)" },
+      { keys: ["1 2 3"], text: "chọn nâng cấp khi lên cấp" },
+      { keys: ["Chạm"], text: "joystick ảo trên màn hình cảm ứng" },
+    ],
+    loader: () => import("../games/rogue-arena/index.js"),
+    fullBleed: true,
+    ownResults: true,
+  },
 ];
 
 const byId = new Map(GAMES.map((g) => [g.id, g]));

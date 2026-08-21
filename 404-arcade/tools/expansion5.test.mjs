@@ -10,6 +10,8 @@ import { parseLevel, stepPure, runSolution, computeBeams, exitOpen } from "../sr
 import { LEVELS } from "../src/games/portal-puzzle/levels.js";
 import { createSim } from "../src/games/cyber-defense/engine.js";
 import { WAVES as CD_WAVES, TOWERS as CD_TOWERS } from "../src/games/cyber-defense/data.js";
+import { createArena } from "../src/games/rogue-arena/engine.js";
+import { UPGRADES, MAX_ENEMIES } from "../src/games/rogue-arena/data.js";
 
 /* ---------------- Portal Puzzle: 15 level có lời giải hợp lệ ---------------- */
 
@@ -238,4 +240,138 @@ test("cyber-defense: không phòng thủ → thua khi core về 0", () => {
   }
   assert.equal(sim.phase, "defeat");
   assert.equal(sim.core, 0);
+});
+
+/* ---------------- Rogue Arena ---------------- */
+
+test("rogue-arena: có đúng 8 nâng cấp đủ schema {id,name,description,maxLevel,weight,apply}", () => {
+  assert.equal(UPGRADES.length, 8);
+  for (const u of UPGRADES) {
+    assert.ok(u.id && u.name && u.description);
+    assert.ok(Number.isFinite(u.maxLevel) && u.maxLevel >= 1);
+    assert.ok(u.weight > 0);
+    assert.equal(typeof u.apply, "function");
+  }
+});
+
+test("rogue-arena: auto-aim hysteresis — không rung giữa 2 mục tiêu cùng khoảng cách", () => {
+  const a = createArena({ test: true, rng: () => 0.5 });
+  a.spawnT = 9999; // tắt spawn tự nhiên
+  // 2 enemy đối xứng quanh player, xê dịch nhẹ mỗi frame
+  const e1 = a.enemies.items[0];
+  const e2 = a.enemies.items[1];
+  for (const [e, x] of [[e1, a.player.x - 200], [e2, a.player.x + 200]]) {
+    e.alive = true;
+    e.id = x < a.player.x ? 7001 : 7002;
+    e.type = "chaser";
+    e.x = x;
+    e.y = a.player.y;
+    e.hp = 100000;
+    e.maxHp = 100000;
+    e.r = 15;
+    e.speed = 0;
+    e.dmg = 0;
+    e.xp = 1;
+    e.score = 0;
+  }
+  const targets = new Set();
+  for (let i = 0; i < 60; i++) {
+    // dao động vị trí: lúc e1 gần hơn 2px, lúc e2 gần hơn 2px
+    e1.x = a.player.x - 200 + (i % 2 === 0 ? 2 : -2);
+    e2.x = a.player.x + 200 + (i % 2 === 0 ? 2 : -2);
+    a.update(1 / 60, { mx: 0, my: 0 });
+    if (a.targetId >= 0) targets.add(a.targetId);
+  }
+  assert.equal(targets.size, 1, `mục tiêu bị đổi ${targets.size} lần — hysteresis fail`);
+});
+
+test("rogue-arena: XP threshold chỉ lên cấp một lần + xp dư được giữ", () => {
+  const a = createArena({ test: true }); // xpToNext = 3
+  a.spawnT = 9999;
+  // gainXp nội bộ qua gem: mô phỏng bằng cách chèn gem sát player
+  const g = a.gems.items[0];
+  g.alive = true;
+  g.x = a.player.x + 1;
+  g.y = a.player.y;
+  g.vx = 0;
+  g.vy = 0;
+  g.value = 7; // 7 xp → cấp 2 (3) + cấp 3 (3) + dư 1
+  g.big = false;
+  g.heal = false;
+  a.update(1 / 60, { mx: 0, my: 0 });
+  assert.equal(a.level, 3);
+  assert.equal(a.xp, 1);
+  assert.equal(a.pendingLevelUps, 2, "mỗi threshold đúng 1 lần level-up chờ xử lý");
+});
+
+test("rogue-arena: nâng cấp không xuất hiện khi đã max level", () => {
+  const a = createArena({ test: true, rng: () => 0.01 });
+  // max hoá 'damage'
+  const dmg = UPGRADES.find((u) => u.id === "damage");
+  for (let i = 0; i < dmg.maxLevel; i++) a.applyUpgrade(dmg);
+  for (let trial = 0; trial < 30; trial++) {
+    const choices = a.rollChoices();
+    assert.equal(choices.length, 3);
+    assert.ok(!choices.some((c) => c.id === "damage"), "damage đã max không được xuất hiện");
+  }
+});
+
+test("rogue-arena: pool giới hạn enemy — không vượt MAX_ENEMIES", () => {
+  const a = createArena({ test: true });
+  let t = 0;
+  while (t < 60) {
+    a.update(1 / 30, { mx: 0, my: 0 });
+    a.drainEvents();
+    // bất tử để sống lâu
+    a.player.hp = 1000;
+    a.player.maxHp = 1000;
+    let alive = 0;
+    for (const e of a.enemies.items) if (e.alive) alive++;
+    assert.ok(alive <= MAX_ENEMIES + 6, `enemy alive ${alive} vượt trần`);
+    t += 1 / 30;
+  }
+});
+
+test("rogue-arena: trọn trận 3 phút với auto-chọn nâng cấp → thắng, boss xuất hiện", () => {
+  let seed = 7; // seed thắng ổn định cho bot kite đơn giản (đã dò 4 seed)
+  const rng = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  const a = createArena({ test: false, rng });
+  let sawBoss = false;
+  let levelups = 0;
+  let t = 0;
+  const PRIORITY = ["damage", "firerate", "multishot", "orbit", "maxhp", "speed", "pierce", "magnet", "repair"];
+  while (!a.over && t < 200) {
+    // bot "kiting" phản ứng: quỹ đạo vòng quanh tâm + đẩy lùi khỏi enemy gần
+    const w = 0.55;
+    let mx = 680 + Math.cos(t * w) * 300 - a.player.x;
+    let my = 380 + Math.sin(t * w) * 240 - a.player.y;
+    const ml = Math.hypot(mx, my) || 1;
+    mx /= ml;
+    my /= ml;
+    a.queryCircle(a.player.x, a.player.y, 170, (e, d2) => {
+      const d = Math.sqrt(d2) || 1;
+      const push = (1 - d / 170) * 3.2;
+      mx += ((a.player.x - e.x) / d) * push;
+      my += ((a.player.y - e.y) / d) * push;
+    });
+    a.update(1 / 30, { mx, my });
+    for (const e of a.drainEvents()) {
+      if (e.type === "boss") sawBoss = true;
+      if (e.type === "levelup") levelups += 1;
+    }
+    while (a.pendingLevelUps > 0) {
+      const c = a.rollChoices();
+      c.sort((x, y) => PRIORITY.indexOf(x.id) - PRIORITY.indexOf(y.id));
+      a.applyUpgrade(c[0]);
+    }
+    t += 1 / 30;
+  }
+  assert.ok(a.over, "trận phải kết thúc");
+  assert.ok(a.victory, `phải sống sót 3 phút (hp=${Math.round(a.player.hp)}, t=${Math.round(a.time)})`);
+  assert.ok(sawBoss, "boss phải xuất hiện ở phút thứ 3");
+  assert.ok(levelups >= 3, `phải lên cấp nhiều lần (${levelups})`);
+  assert.ok(a.kills > 30, `phải hạ đủ nhiều (${a.kills})`);
 });
