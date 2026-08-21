@@ -1,0 +1,9 @@
+/* Style cấp host cho <arcade-404> — mọi giao diện thật nằm trong shadow DOM.
+   Import: `import "404-arcade-widget/style.css"` hoặc <link> tới dist/arcade-404.css */
+
+arcade-404 {
+  display: block;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--arcade-bg, #050b1c);
+}

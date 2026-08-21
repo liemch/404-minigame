@@ -1,0 +1,39 @@
+{
+  "name": "404-arcade-widget",
+  "version": "1.0.0",
+  "description": "Trang 404 dạng arcade: Web Component <arcade-404> với 5 mini game (4 game 2D Canvas + 404 Strike FPS 3D WebGL).",
+  "type": "module",
+  "license": "MIT",
+  "main": "./src/index.js",
+  "module": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./style.css": "./dist/arcade-404.css",
+    "./dist/*": "./dist/*",
+    "./src/*": "./src/*"
+  },
+  "files": [
+    "src",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && vite build --config vite.iife.config.js",
+    "bundle:offline": "node tools/bundle.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  },
+  "keywords": [
+    "404",
+    "arcade",
+    "web-component",
+    "minigame",
+    "fps",
+    "webgl"
+  ]
+}
