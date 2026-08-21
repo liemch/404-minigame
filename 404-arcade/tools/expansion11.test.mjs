@@ -25,6 +25,15 @@ import {
   launchBall,
 } from "../src/games/brick-breaker/engine.js";
 import { LEVELS as BB_LEVELS } from "../src/games/brick-breaker/levels.js";
+import {
+  makeState,
+  trace,
+  actionAt,
+  applySolution,
+  parOf,
+  nextHint,
+} from "../src/games/laser-maze/engine.js";
+import { LEVELS as LM_LEVELS } from "../src/games/laser-maze/levels.js";
 
 /* ================== BRICK BREAKER 404 ================== */
 
@@ -185,4 +194,144 @@ test("brick-breaker: chống kẹt quỹ đạo ngang — tự đá lệch sau ~
     }
   }
   assert.ok(kicked, "quỹ đạo ngang phải bị đá lệch");
+});
+
+/* ================== LASER MAZE 404 ================== */
+
+test("laser-maze: đủ 20 level, board 7×6 → 12×10", () => {
+  assert.ok(LM_LEVELS.length >= 20, `chỉ có ${LM_LEVELS.length} level`);
+  assert.equal(LM_LEVELS[0].w, 7);
+  assert.equal(LM_LEVELS[0].h, 6);
+  const last = LM_LEVELS[LM_LEVELS.length - 1];
+  assert.equal(last.w, 12);
+  assert.equal(last.h, 10);
+  for (const lv of LM_LEVELS) {
+    for (const f of lv.fixed) {
+      assert.ok(f[1] >= 0 && f[1] < lv.w && f[2] >= 0 && f[2] < lv.h, `level ${lv.id}: ${f[0]} ngoài board`);
+    }
+  }
+});
+
+for (const lv of LM_LEVELS) {
+  test(`laser-maze: level ${lv.id} (${lv.name}) — lời giải kiểm chứng`, () => {
+    const empty = trace(lv, makeState());
+    assert.ok(!empty.done, "level không được tự giải sẵn");
+    const st = applySolution(lv, makeState());
+    const r = trace(lv, st);
+    assert.ok(r.done, `lời giải không thắp đủ receiver (${r.ok}/${r.total})`);
+    assert.ok(st.placed.size <= lv.mirrors, `lời giải dùng ${st.placed.size} gương > giới hạn ${lv.mirrors}`);
+    assert.equal(parOf(lv), st.placed.size, "par phải bằng số gương đặt trong lời giải");
+  });
+}
+
+test("laser-maze: không treo khi 4 gương tạo vòng lặp kín", () => {
+  const lv = {
+    id: 990,
+    w: 6,
+    h: 6,
+    mirrors: 0,
+    fixed: [
+      ["source", 0, 1, "R"],
+      ["receiver", 5, 5, "red"],
+      ["mirror", 1, 1, "\\"],
+      ["mirror", 4, 1, "\\"],
+      ["mirror", 4, 4, "/"],
+      ["mirror", 1, 4, "/"],
+    ],
+    solution: [],
+  };
+  const t0 = Date.now();
+  const r = trace(lv, makeState());
+  assert.ok(Date.now() - t0 < 500, "trace phải kết thúc nhanh (loop guard)");
+  assert.ok(!r.done);
+  assert.ok(r.segs.length < 200, "vòng lặp phải bị cắt bởi visited-state");
+});
+
+test("laser-maze: splitter không nhân tia vô hạn (2 splitter đối nhau)", () => {
+  const lv = {
+    id: 991,
+    w: 8,
+    h: 4,
+    mirrors: 0,
+    fixed: [
+      ["source", 0, 1, "R"],
+      ["splitter", 2, 1, "\\"],
+      ["splitter", 5, 1, "/"],
+      ["mirror", 2, 3, "/"],
+      ["mirror", 5, 3, "\\"],
+      ["receiver", 7, 1, "red"],
+    ],
+    solution: [],
+  };
+  const t0 = Date.now();
+  const r = trace(lv, makeState());
+  assert.ok(Date.now() - t0 < 500);
+  assert.ok(r.segs.length < 400, `tia bùng nổ: ${r.segs.length} đoạn`);
+});
+
+test("laser-maze: filter nhuộm tia đỏ và CHẶN tia khác màu", () => {
+  const lv = {
+    id: 992,
+    w: 8,
+    h: 3,
+    mirrors: 0,
+    fixed: [
+      ["source", 0, 1, "R"],
+      ["filter", 2, 1, "cyan"],
+      ["filter", 4, 1, "violet"],
+      ["receiver", 7, 1, "cyan"],
+    ],
+    solution: [],
+  };
+  const r = trace(lv, makeState());
+  // đỏ → cyan tại filter 1; cyan tới filter violet phải BỊ CHẶN
+  assert.ok(!r.done, "tia cyan không được xuyên filter tím");
+  const litSeg = r.segs.find((s) => s.color === "cyan");
+  assert.ok(litSeg, "sau filter cyan tia phải đổi màu cyan");
+});
+
+test("laser-maze: receiver chỉ nhận đúng màu", () => {
+  const lv = {
+    id: 993,
+    w: 6,
+    h: 3,
+    mirrors: 0,
+    fixed: [
+      ["source", 0, 1, "R"],
+      ["receiver", 5, 1, "cyan"],
+    ],
+    solution: [],
+  };
+  const r = trace(lv, makeState());
+  assert.ok(!r.done, "tia đỏ không thỏa receiver cyan");
+  const lit = r.lit.get("5,1");
+  assert.ok(lit && lit.has("red"), "tia vẫn ghi nhận chạm receiver (sai màu)");
+});
+
+test("laser-maze: actionAt — đặt / xoay / gỡ / giới hạn kho", () => {
+  const lv = LM_LEVELS[0];
+  const st = makeState();
+  assert.equal(actionAt(lv, st, 3, 3).action, "place");
+  assert.equal(st.placed.get("3,3").o, "/");
+  assert.equal(actionAt(lv, st, 3, 3).action, "rotate");
+  assert.equal(st.placed.get("3,3").o, "\\");
+  // kho đã hết (mirrors=1) → ô khác bị từ chối
+  assert.equal(actionAt(lv, st, 2, 2).action, "denied");
+  assert.equal(actionAt(lv, st, 3, 3).action, "remove");
+  assert.ok(!st.placed.has("3,3"));
+  // không đặt đè lên thành phần cố định
+  assert.equal(actionAt(lv, st, 0, 3).action, "denied");
+});
+
+test("laser-maze: hint trả về đúng bước lời giải tiếp theo", () => {
+  const lv = LM_LEVELS[2]; // XOAY GƯƠNG: 2 gương cố định sai hướng
+  const st = makeState();
+  const h1 = nextHint(lv, st);
+  assert.deepEqual({ x: h1.x, y: h1.y, o: h1.o, kind: h1.kind }, { x: 2, y: 3, o: "/", kind: "rotate" });
+  st.rot.set("2,3", "/");
+  const h2 = nextHint(lv, st);
+  assert.equal(h2.kind, "rotate");
+  st.rot.set("2,1", "/");
+  assert.equal(nextHint(lv, st), null, "khớp lời giải → hết gợi ý");
+  assert.ok(trace(lv, st).done, "áp đủ hint phải giải được màn");
 });

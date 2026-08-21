@@ -204,6 +204,23 @@ export const GAMES = [
     fullBleed: true,
     ownResults: true,
   },
+  {
+    id: "laser-maze",
+    title: "Laser Maze 404",
+    accent: "cyan",
+    kind: "2d",
+    goal: "Giải đố 20 màn: đặt và xoay gương dẫn tia laser tới mọi bộ thu. Tách chùm qua splitter, nhuộm màu tia qua kính lọc — bộ thu chỉ nhận đúng màu!",
+    hint: { keys: [], text: "click đặt/xoay gương · U hoàn tác · H gợi ý" },
+    controls: [
+      { keys: ["Click", "Chạm"], text: "ô trống: đặt gương · gương: xoay / gỡ" },
+      { keys: ["U"], text: "hoàn tác" },
+      { keys: ["R"], text: "chơi lại màn" },
+      { keys: ["H"], text: "gợi ý một bước (mất thưởng sao)" },
+    ],
+    loader: () => import("../games/laser-maze/index.js"),
+    fullBleed: true,
+    ownResults: true,
+  },
 ];
 
 const byId = new Map(GAMES.map((g) => [g.id, g]));

@@ -1503,6 +1503,136 @@ function brickBreakerArt(ctx) {
   ctx.fillRect(146, 180, 28, 4);
 }
 
+/* ---------- Laser Maze 404: lưới ô + tia laser gấp khúc ---------- */
+function laserMazeArt(ctx) {
+  ctx.fillStyle = "#0b0e1e";
+  ctx.fillRect(0, 0, W, H);
+  const t = 34;
+  const ox = 24;
+  const oy = 18;
+  // lưới 8×5
+  for (let y = 0; y < 5; y++) {
+    for (let x = 0; x < 8; x++) {
+      ctx.fillStyle = "#151a29";
+      ctx.beginPath();
+      ctx.roundRect(ox + x * t + 1, oy + y * t + 1, t - 3, t - 3, 4);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(96,120,175,.16)";
+      ctx.stroke();
+    }
+  }
+  const cx = (x) => ox + x * t + t / 2;
+  const cy = (y) => oy + y * t + t / 2;
+  const beam = (x1, y1, x2, y2, col) => {
+    ctx.save();
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.moveTo(cx(x1), cy(y1));
+    ctx.lineTo(cx(x2), cy(y2));
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "rgba(255,255,255,.7)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  };
+  // đường tia: nguồn (0,3) → gương (3,3) → lên (3,1) → gương → phải qua filter cyan (5,1) → thu (7,1)
+  beam(0, 3, 3, 3, "#ff3b4f");
+  beam(3, 3, 3, 1, "#ff3b4f");
+  beam(3, 1, 5, 1, "#ff3b4f");
+  beam(5, 1, 7, 1, "#20e3ff");
+
+  // nguồn
+  ctx.fillStyle = "#210b12";
+  ctx.strokeStyle = "rgba(255,80,100,.55)";
+  ctx.beginPath();
+  ctx.roundRect(ox + 3, oy + 3 * t + 3, t - 6, t - 6, 4);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = "#ff3b4f";
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(cx(0), cy(3), 8, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "#ff5a68";
+  ctx.beginPath();
+  ctx.arc(cx(0), cy(3), 3.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // gương
+  const mirror = (x, y, a) => {
+    ctx.save();
+    ctx.translate(cx(x), cy(y));
+    ctx.rotate(a);
+    const g2 = ctx.createLinearGradient(0, -3, 0, 3);
+    g2.addColorStop(0, "#e8f4ff");
+    g2.addColorStop(1, "#5d7fa8");
+    ctx.fillStyle = g2;
+    ctx.beginPath();
+    ctx.roundRect(-10, -2.6, 20, 5.2, 2.6);
+    ctx.fill();
+    ctx.restore();
+  };
+  mirror(3, 3, -Math.PI / 4);
+  mirror(3, 1, Math.PI / 4);
+
+  // filter cyan
+  ctx.strokeStyle = "#20e3ff";
+  ctx.lineWidth = 2.6;
+  ctx.shadowColor = "#20e3ff";
+  ctx.shadowBlur = 6;
+  ctx.strokeRect(cx(5) - 7, cy(1) - 7, 14, 14);
+  ctx.shadowBlur = 0;
+
+  // bộ thu + check
+  ctx.strokeStyle = "#20e3ff";
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.arc(cx(7), cy(1), 9, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx(7), cy(1), 5, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "#20d96a";
+  ctx.beginPath();
+  ctx.arc(cx(7) + 9, cy(1) + 9, 5.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#04270f";
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(cx(7) + 6.6, cy(1) + 9);
+  ctx.lineTo(cx(7) + 8.6, cy(1) + 11);
+  ctx.lineTo(cx(7) + 11.6, cy(1) + 7);
+  ctx.stroke();
+
+  // blocker
+  ctx.strokeStyle = "rgba(130,140,165,.7)";
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(cx(5) - 7, cy(3) - 7);
+  ctx.lineTo(cx(5) + 7, cy(3) + 7);
+  ctx.moveTo(cx(5) + 7, cy(3) - 7);
+  ctx.lineTo(cx(5) - 7, cy(3) + 7);
+  ctx.stroke();
+
+  // splitter nhỏ
+  ctx.strokeStyle = "rgba(255,120,135,.9)";
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(cx(1) - 7, cy(0));
+  ctx.lineTo(cx(1) + 7, cy(0));
+  ctx.moveTo(cx(1), cy(0) - 7);
+  ctx.lineTo(cx(1), cy(0) + 7);
+  ctx.stroke();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(cx(1), cy(0), 2.4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 const PAINTERS = {
   runner: runnerArt,
   "bug-hunter": bugArt,
@@ -1516,6 +1646,7 @@ const PAINTERS = {
   "rhythm-hack": rhythmArt,
   "void-runner": voidRunnerArt,
   "brick-breaker": brickBreakerArt,
+  "laser-maze": laserMazeArt,
 };
 
 /** Vẽ preview của một game lên canvas trong card. */

@@ -361,6 +361,116 @@ def test_brick(c):
     console_clean(c, "brick open/close")
 
 
+# ============================= LASER MAZE =============================
+
+def lm_click_cell(c, x, y):
+    """Click thật vào tâm ô (x,y) trên canvas laser-maze."""
+    c.js(sr(
+        "(() => {"
+        f"const p = window.__LM_TEST__.cellPoint({x}, {y});"
+        "const cv = sr.querySelector('.lm-board canvas');"
+        "cv.dispatchEvent(new PointerEvent('pointerdown', {clientX: p.cx, clientY: p.cy, button: 0, bubbles: true, composed: true}));"
+        "return true; })()"
+    ))
+
+
+def test_laser(c):
+    print("\n== Laser Maze 404 ==")
+    go_home(c, fresh_storage=True)
+    c.js("window.__ARCADE_EXP11_TEST__ = true; true")
+    check("card Laser Maze hiển thị", open_game(c, "Laser Maze 404"))
+    check("intro hiện", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'"))
+    c.shot("laser-intro.png")
+
+    c.js(sr("sr.querySelector('.exp-cta').click(); true"))
+    time.sleep(0.8)
+    check("vào màn 1", c.js(sr("!sr.querySelector('.exp-screen')")))
+    check("sidebar trái: 3 panel + chú giải 7 dòng",
+          c.js(sr("sr.querySelectorAll('.lm-legend-row').length")) == 7)
+    check("sidebar phải: 3 nút hành động + kho gương",
+          c.js(sr("sr.querySelectorAll('.lm-action').length")) == 3
+          and c.js(sr("sr.querySelectorAll('.lm-slot').length")) == 1)
+    st = wait_state(c, "__LM_STATE__", lambda s: s.get("mode") == "play", 6)
+    check("telemetry: màn 1, 0/1 receiver", bool(st) and st.get("level") == 1 and st.get("lit") == 0 and st.get("total") == 1, f"state={st}")
+
+    # Đặt gương SAI chỗ → xoay → gỡ (chu trình click)
+    lm_click_cell(c, 2, 2)
+    time.sleep(0.4)
+    st = wait_state(c, "__LM_STATE__", lambda s: s.get("mirrors") == 1, 4)
+    check("click ô trống đặt gương (kho 1/1)", bool(st) and st.get("mirrors") == 1)
+    guong = c.js(sr("[...sr.querySelectorAll('.lm-panel')].find(p=>p.querySelector('.lbl')?.textContent==='GƯƠNG')?.querySelector('.val')?.textContent"))
+    check("HUD GƯƠNG = 1/1", guong == "1/1", f"= {guong}")
+    check("kho gương trống slot", c.js(sr("sr.querySelectorAll('.lm-slot.empty').length")) == 1)
+    lm_click_cell(c, 3, 3)
+    time.sleep(0.3)
+    st = c.js("window.__LM_STATE__")
+    check("hết kho → không đặt thêm được", st and st.get("mirrors") == 1)
+    lm_click_cell(c, 2, 2)  # xoay / → \\
+    time.sleep(0.25)
+    lm_click_cell(c, 2, 2)  # gỡ
+    time.sleep(0.4)
+    st = wait_state(c, "__LM_STATE__", lambda s: s.get("mirrors") == 0, 4)
+    check("click gương 2 lần: xoay rồi gỡ về kho", bool(st) and st.get("mirrors") == 0)
+
+    # Undo: đặt lại rồi U
+    lm_click_cell(c, 2, 2)
+    time.sleep(0.3)
+    key(c, "KeyU", "u")
+    time.sleep(0.4)
+    st = wait_state(c, "__LM_STATE__", lambda s: s.get("mirrors") == 0, 4)
+    check("U hoàn tác về 0 gương", bool(st) and st.get("mirrors") == 0)
+
+    # Đặt ĐÚNG lời giải màn 1: (5,3) rồi tia sáng receiver → màn kết quả
+    lm_click_cell(c, 5, 3)
+    time.sleep(0.3)
+    st = wait_state(c, "__LM_STATE__", lambda s: s.get("lit") == 1, 4)
+    check("gương đúng chỗ → receiver sáng", bool(st) and st.get("lit") == 1, f"lit={st and st.get('lit')}")
+    check("màn kết quả hiện", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'over'", 6))
+    heading = c.js(sr("sr.querySelector('.exp-h1')?.textContent || ''"))
+    check("heading HOÀN THÀNH", "HOÀN THÀNH" in heading, heading)
+    stars = c.js(sr("[...sr.querySelectorAll('.exp-statcard')].find(x=>x.querySelector('.lbl')?.textContent==='SAO')?.querySelector('.val')?.textContent"))
+    check("đạt 3 sao (đúng par, không hint)", stars == "★★★", f"= {stars}")
+    c.shot("laser-complete.png")
+
+    # Màn 2 + hint
+    c.js(sr("[...sr.querySelectorAll('.exp-ghostbtn')].find(b=>b.textContent.includes('MÀN TIẾP THEO')).click(); true"))
+    time.sleep(0.8)
+    st = wait_state(c, "__LM_STATE__", lambda s: s.get("level") == 2, 5)
+    check("sang màn 2", bool(st) and st.get("level") == 2)
+    key(c, "KeyH", "h")
+    time.sleep(0.4)
+    st = wait_state(c, "__LM_STATE__", lambda s: s.get("mirrors") == 1, 4)
+    check("H gợi ý đặt 1 gương đúng", bool(st) and st.get("mirrors") == 1)
+    c.shot("laser-play.png")
+
+    # Esc pause/resume
+    key(c, "Escape")
+    time.sleep(0.4)
+    check("Esc mở pause", c.js(sr("sr.querySelector('.exp-screen')?.dataset.screen === 'pause'")))
+    t1 = c.js("window.__LM_STATE__?.time")
+    time.sleep(1.1)
+    t2 = c.js("window.__LM_STATE__?.time")
+    check("đồng hồ dừng khi pause", t1 == t2, f"{t1} → {t2}")
+    resume_via_menu(c)
+    check("resume", c.js(sr("!sr.querySelector('.exp-screen')")))
+
+    # Giải nhanh màn 2 bằng hook → sang màn 3 → kiểm tra tiến trình
+    c.js("window.__LM_TEST__.solve(); true")
+    check("solve() hoàn thành màn 2", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'over'", 6))
+    console_clean(c, "laser gameplay")
+
+    close_via_switch(c)
+    check("đóng game dọn sạch surface", c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0")))
+    check("mở lại được", open_game(c, "Laser Maze 404"))
+    check("intro hiện lại", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'"))
+    cta = c.js(sr("sr.querySelector('.exp-cta')?.textContent"))
+    check("tiến trình lưu (TIẾP TỤC — MÀN 03)", cta is not None and "MÀN 03" in cta, f"CTA = {cta}")
+    close_via_switch(c)
+
+    open_close_leak_check(c, "Laser Maze 404", 3)
+    console_clean(c, "laser open/close")
+
+
 # ==================== REGRESSION game cũ (smoke) ====================
 
 def test_old_games(c):
@@ -388,6 +498,7 @@ def test_old_games(c):
 
 SECTIONS = {
     "brick": test_brick,
+    "laser": test_laser,
     "old": test_old_games,
 }
 
