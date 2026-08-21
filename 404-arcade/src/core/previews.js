@@ -1774,6 +1774,110 @@ function pixelGolfArt(ctx) {
   ctx.fillRect(20, 185, 5, 5);
 }
 
+/* ---------- Typing Rush 404: chữ rơi + bàn phím + danger line ---------- */
+function typingRushArt(ctx) {
+  const rand = seededRand(2323);
+  ctx.fillStyle = "#070b1c";
+  ctx.fillRect(0, 0, W, H);
+  // mưa ký tự
+  const cols = ["#20e3ff", "#9a5cff", "#39d353", "#ff2ee6"];
+  ctx.font = "700 9px monospace";
+  ctx.textAlign = "center";
+  for (let i = 0; i < 14; i++) {
+    const x = 14 + i * 22;
+    const col = cols[i % cols.length];
+    for (let k = 0; k < 6; k++) {
+      const y = ((i * 37 + k * 22) % 120) + 8;
+      ctx.fillStyle = `${col}${k === 0 ? "88" : "33"}`;
+      ctx.fillText("01<>#$"[Math.floor(rand() * 6)], x, y);
+    }
+  }
+  // khung từ
+  const word = (x, y, text, tone, active) => {
+    ctx.font = `700 ${active ? 13 : 11}px monospace`;
+    const w2 = ctx.measureText(text).width + 26;
+    const h2 = active ? 26 : 21;
+    ctx.fillStyle = "rgba(6,9,24,.94)";
+    ctx.strokeStyle = tone;
+    ctx.lineWidth = active ? 2.4 : 1.4;
+    if (active) {
+      ctx.shadowColor = tone;
+      ctx.shadowBlur = 10;
+    }
+    ctx.beginPath();
+    ctx.roundRect(x - w2 / 2, y - h2 / 2, w2, h2, 6);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = tone;
+    ctx.fillText("</>", x - w2 / 2 + 14, y + 4);
+    if (active) {
+      ctx.fillStyle = "#20e3ff";
+      ctx.textAlign = "left";
+      ctx.fillText("sys", x - w2 / 2 + 26, y + 4);
+      const sw = ctx.measureText("sys").width;
+      ctx.fillStyle = "#f4f7ff";
+      ctx.fillText("tem", x - w2 / 2 + 26 + sw, y + 4);
+      ctx.textAlign = "center";
+      // chevron
+      ctx.fillStyle = tone;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - h2 / 2 - 9);
+      ctx.lineTo(x, y - h2 / 2 - 4);
+      ctx.lineTo(x + 5, y - h2 / 2 - 9);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillStyle = "#f4f7ff";
+      ctx.fillText(text, x + 8, y + 4);
+    }
+  };
+  word(58, 44, "function", "#20e3ff", false);
+  word(130, 72, "debug", "#9a5cff", false);
+  word(160, 40, "system", "#c8f542", true);
+  word(232, 58, "bộ nhớ", "#dfe6ff", false);
+  word(284, 84, "kết nối", "#ff2ee6", false);
+
+  // danger line
+  ctx.strokeStyle = "#ff2e4d";
+  ctx.lineWidth = 2;
+  ctx.shadowColor = "#ff2e4d";
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(12, 112);
+  ctx.lineTo(W - 12, 112);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#ff4d66";
+  ctx.font = "800 7px monospace";
+  ctx.fillText("« DANGER LINE »", W / 2, 109);
+
+  // bàn phím mini
+  const rows = [13, 12, 11, 10];
+  let y = 126;
+  for (let r = 0; r < rows.length; r++) {
+    const n = rows[r];
+    const kw = (W - 30) / n;
+    for (let i = 0; i < n; i++) {
+      const x = 15 + i * kw;
+      const hot = (r === 1 && (i === 2 || i === 4)) || (r === 2 && (i === 1 || i === 2));
+      ctx.fillStyle = hot ? "rgba(32,227,255,.4)" : "rgba(13,18,40,.92)";
+      ctx.strokeStyle = hot ? "#20e3ff" : "rgba(150,170,230,.3)";
+      ctx.beginPath();
+      ctx.roundRect(x + 1, y, kw - 2, 14, 3);
+      ctx.fill();
+      ctx.stroke();
+    }
+    y += 17;
+  }
+  ctx.fillStyle = "rgba(32,227,255,.3)";
+  ctx.strokeStyle = "rgba(32,227,255,.5)";
+  ctx.beginPath();
+  ctx.roundRect(W / 2 - 50, y, 100, 6, 3);
+  ctx.fill();
+  ctx.stroke();
+}
+
 const PAINTERS = {
   runner: runnerArt,
   "bug-hunter": bugArt,
@@ -1789,6 +1893,7 @@ const PAINTERS = {
   "brick-breaker": brickBreakerArt,
   "laser-maze": laserMazeArt,
   "pixel-golf": pixelGolfArt,
+  "typing-rush": typingRushArt,
 };
 
 /** Vẽ preview của một game lên canvas trong card. */

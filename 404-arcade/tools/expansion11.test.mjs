@@ -47,6 +47,18 @@ import {
   SINK_SPEED,
 } from "../src/games/pixel-golf/engine.js";
 import { COURSES } from "../src/games/pixel-golf/courses.js";
+import {
+  fold,
+  createSession,
+  stepSession,
+  typeChar,
+  backspace as trBackspace,
+  metrics as trMetrics,
+  drainEvents as trDrain,
+  LANES,
+} from "../src/games/typing-rush/engine.js";
+import { DICTIONARY, poolOf } from "../src/games/typing-rush/dictionary.js";
+import { DIFFICULTIES, sessionConfig } from "../src/games/typing-rush/difficulty.js";
 
 /* ================== BRICK BREAKER 404 ================== */
 
@@ -520,4 +532,186 @@ test("pixel-golf: scoring — tên kết quả + điểm arcade", () => {
   assert.equal(scoreName(4, 3), "BOGEY");
   assert.ok(holePoints(1, 3) > holePoints(3, 3), "ít gậy hơn phải nhiều điểm hơn");
   assert.equal(holePoints(9, 3), 0, "điểm không âm");
+});
+
+/* ================== TYPING RUSH 404 ================== */
+
+function trSession(over = {}) {
+  return createSession(
+    {
+      fall: 0.05,
+      spawnEvery: 999, // tự kiểm soát spawn trong test
+      maxTargets: 8,
+      adaptive: false,
+      lives: 3,
+      allowBackspace: true,
+      wordPool: ["placeholder"],
+      ...over,
+    },
+    () => 0
+  );
+}
+
+function addWord(sess, text, lane, y) {
+  sess.words.push({ id: sess.nextId++, text, folded: fold(text), typed: 0, lane, y, len: text.length });
+}
+
+test("typing-rush: fold chuẩn hóa Unicode tiếng Việt nhất quán", () => {
+  assert.equal(fold("Bộ Nhớ"), "bo nho");
+  assert.equal(fold("KẾT NỐI"), "ket noi");
+  assert.equal(fold("Đường"), "duong");
+  assert.equal(fold("thuật toán"), "thuat toan");
+  // NFC và NFD phải cho cùng kết quả
+  const nfc = "ộ".normalize("NFC");
+  const nfd = "ộ".normalize("NFD");
+  assert.equal(fold(nfc), fold(nfd));
+});
+
+test("typing-rush: khóa target TẤT ĐỊNH — gần danger nhất, hòa thì lane trái", () => {
+  const sess = trSession();
+  addWord(sess, "server", 2, 0.3);
+  addWord(sess, "system", 4, 0.7); // gần danger hơn
+  addWord(sess, "socket", 1, 0.7); // cùng y → lane trái hơn
+  const r = typeChar(sess, "s");
+  assert.equal(r.result, "lock");
+  assert.equal(r.word.text, "socket", "cùng y phải chọn lane trái nhất");
+  // gõ tiếp tiến đúng target đã khóa, không nhảy sang từ khác
+  typeChar(sess, "o");
+  assert.equal(sess.words.find((w) => w.text === "socket").typed, 2);
+});
+
+test("typing-rush: gõ đủ từ → complete + combo + điểm; từ tiếng Việt gõ không dấu", () => {
+  const sess = trSession();
+  addWord(sess, "bộ nhớ", 0, 0.5);
+  for (const ch of "bo nho") {
+    const r = typeChar(sess, ch);
+    assert.notEqual(r.result, "error", `ký tự "${ch}" phải khớp`);
+  }
+  assert.equal(sess.wordsDone, 1);
+  assert.equal(sess.combo, 1);
+  assert.ok(sess.score > 0);
+  assert.equal(sess.words.length, 0);
+  const ev = trDrain(sess);
+  assert.ok(ev.some((e) => e.type === "complete"));
+});
+
+test("typing-rush: gõ CÓ DẤU cũng khớp (IME tiếng Việt)", () => {
+  const sess = trSession();
+  addWord(sess, "kết nối", 0, 0.5);
+  for (const ch of "kết nối") {
+    const r = typeChar(sess, ch);
+    assert.notEqual(r.result, "error", `ký tự "${ch}" phải khớp`);
+  }
+  assert.equal(sess.wordsDone, 1);
+});
+
+test("typing-rush: ký tự sai ghi lỗi + reset combo trên target đang gõ", () => {
+  const sess = trSession();
+  addWord(sess, "debug", 0, 0.5);
+  sess.combo = 5;
+  typeChar(sess, "d");
+  const r = typeChar(sess, "x"); // sai
+  assert.equal(r.result, "error");
+  assert.equal(sess.typedWrong, 1);
+  assert.equal(sess.combo, 0, "sai trên target phải reset combo");
+  // ký tự lạc không khớp từ nào → lỗi nhưng không đổi combo
+  const s2 = trSession();
+  addWord(s2, "debug", 0, 0.5);
+  s2.combo = 3;
+  const r2 = typeChar(s2, "z");
+  assert.equal(r2.result, "stray");
+  assert.equal(s2.typedWrong, 1);
+  assert.equal(s2.combo, 3);
+});
+
+test("typing-rush: backspace lùi một ký tự (theo config)", () => {
+  const sess = trSession();
+  addWord(sess, "cache", 0, 0.5);
+  typeChar(sess, "c");
+  typeChar(sess, "a");
+  assert.equal(sess.words[0].typed, 2);
+  assert.ok(trBackspace(sess));
+  assert.equal(sess.words[0].typed, 1);
+  const noBs = trSession({ allowBackspace: false });
+  addWord(noBs, "cache", 0, 0.5);
+  typeChar(noBs, "c");
+  assert.equal(trBackspace(noBs), false);
+});
+
+test("typing-rush: chạm danger line → mất mạng + reset combo ĐÚNG MỘT LẦN", () => {
+  const sess = trSession();
+  addWord(sess, "firewall", 0, 0.99);
+  sess.combo = 7;
+  stepSession(sess, 0.5); // vượt 1.0
+  let ev = trDrain(sess);
+  const dangers = ev.filter((e) => e.type === "danger");
+  assert.equal(dangers.length, 1, "đúng một sự kiện danger");
+  assert.equal(sess.lives, 2);
+  assert.equal(sess.combo, 0);
+  assert.equal(sess.words.length, 0, "từ bị gỡ ngay");
+  // step tiếp không sinh thêm sự kiện
+  stepSession(sess, 0.5);
+  ev = trDrain(sess);
+  assert.equal(ev.filter((e) => e.type === "danger").length, 0);
+});
+
+test("typing-rush: WPM chuẩn ký tự/5 và accuracy", () => {
+  const sess = trSession();
+  sess.elapsed = 60; // đúng 1 phút
+  sess.typedCorrect = 25; // 25 ký tự đúng → 5 WPM
+  sess.typedWrong = 5; // raw = 30/5 = 6
+  const m = trMetrics(sess);
+  assert.equal(m.wpm, 5);
+  assert.equal(m.rawWpm, 6);
+  assert.equal(m.acc, Math.round((25 / 30) * 100));
+  const empty = trSession();
+  empty.elapsed = 30;
+  assert.equal(trMetrics(empty).acc, 100, "chưa gõ gì accuracy 100");
+});
+
+test("typing-rush: adaptive điều chỉnh có trần trên/dưới", () => {
+  const sess = trSession({ adaptive: true });
+  // gõ giỏi liên tục → factor tăng nhưng không vượt 1.35
+  sess.typedCorrect = 500;
+  sess.typedWrong = 0;
+  sess.elapsed = 60;
+  for (let i = 0; i < 40; i++) stepSession(sess, 5.01);
+  assert.ok(sess.adaptFactor <= 1.35 + 1e-9, `factor ${sess.adaptFactor} vượt trần`);
+  // gõ kém → factor giảm nhưng không dưới 0.8
+  const bad = trSession({ adaptive: true });
+  bad.typedCorrect = 1;
+  bad.typedWrong = 50;
+  bad.elapsed = 60;
+  bad.lives = 99;
+  for (let i = 0; i < 40; i++) stepSession(bad, 5.01);
+  assert.ok(bad.adaptFactor >= 0.8 - 1e-9, `factor ${bad.adaptFactor} dưới sàn`);
+});
+
+test("typing-rush: spawn theo lane — không hai từ chồng nhau cùng lane", () => {
+  const sess = createSession(sessionConfig("hard"), () => 0.37);
+  sess.lives = 99;
+  for (let i = 0; i < 60 * 30; i++) stepSession(sess, 1 / 60);
+  trDrain(sess);
+  for (let lane = 0; lane < LANES; lane++) {
+    const ys = sess.words.filter((w) => w.lane === lane).map((w) => w.y).sort((a, b) => a - b);
+    for (let i = 1; i < ys.length; i++) {
+      assert.ok(ys[i] - ys[i - 1] > 0.1, `lane ${lane}: hai từ chồng nhau (${ys[i - 1]} / ${ys[i]})`);
+    }
+  }
+});
+
+test("typing-rush: từ điển vi hợp lệ + đủ 3 độ khó và adaptive", () => {
+  assert.equal(DICTIONARY.locale, "vi");
+  for (const [cat, words] of Object.entries(DICTIONARY.categories)) {
+    assert.ok(words.length >= 10, `nhóm ${cat} quá ít từ`);
+    for (const w of words) {
+      assert.ok(/^[\p{L} ]+$/u.test(w), `từ lạ: "${w}"`);
+      assert.ok(w.length >= 3 && w.length <= 20, `độ dài lạ: "${w}"`);
+    }
+  }
+  assert.ok(poolOf("basic", "technology").length > 20);
+  assert.deepEqual(Object.keys(DIFFICULTIES), ["easy", "normal", "hard", "adaptive"]);
+  assert.ok(DIFFICULTIES.easy.fall < DIFFICULTIES.normal.fall);
+  assert.ok(DIFFICULTIES.normal.fall < DIFFICULTIES.hard.fall);
+  assert.ok(DIFFICULTIES.adaptive.adaptive);
 });

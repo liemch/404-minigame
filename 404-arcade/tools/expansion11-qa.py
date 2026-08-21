@@ -568,6 +568,99 @@ def test_golf(c):
     console_clean(c, "golf open/close")
 
 
+# ============================= TYPING RUSH =============================
+
+def tr_type(c, text, delay=0.045):
+    """Gõ chuỗi ký tự bằng KeyboardEvent(key=ch)."""
+    for ch in text:
+        c.js(
+            "window.dispatchEvent(new KeyboardEvent('keydown', {key: %s, bubbles: true})); true"
+            % json.dumps(ch)
+        )
+        time.sleep(delay)
+
+
+def test_typing(c):
+    print("\n== Typing Rush 404 ==")
+    go_home(c, fresh_storage=True)
+    c.js("window.__ARCADE_EXP11_TEST__ = true; true")
+    check("card Typing Rush hiển thị", open_game(c, "Typing Rush 404"))
+    check("intro hiện", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'"))
+    check("intro có 4 lựa chọn độ khó", c.js(sr("sr.querySelectorAll('.tr-diff').length")) == 4)
+    c.js(sr("[...sr.querySelectorAll('.tr-diff')].find(b=>b.textContent==='THƯỜNG').click(); true"))
+    time.sleep(0.2)
+    check("chọn độ khó THƯỜNG", c.js(sr("[...sr.querySelectorAll('.tr-diff')].find(b=>b.textContent==='THƯỜNG').classList.contains('sel')")))
+    c.shot("typing-intro.png")
+
+    c.js(sr("sr.querySelector('.exp-cta').click(); true"))
+    time.sleep(0.7)
+    check("vào trận", c.js(sr("!sr.querySelector('.exp-screen')")))
+    check("bàn phím ảo + heat map + danger line hiển thị",
+          c.js(sr("sr.querySelectorAll('.tr-key').length")) > 50
+          and c.js(sr("!!sr.querySelector('.tr-heat')"))
+          and c.js(sr("!!sr.querySelector('.tr-danger .lbl')")))
+
+    st = wait_state(c, "__TR_STATE__", lambda s: s.get("targets", 0) >= 1, 8)
+    check("từ đầu tiên xuất hiện", bool(st) and st.get("targets", 0) >= 1, f"state={st}")
+
+    # Gõ đúng từ gần danger nhất
+    word = c.js("(() => { const ws = window.__TR_TEST__.words(); ws.sort((a,b)=>b.y-a.y); return ws[0]?.text || null; })()")
+    check("đọc được từ mục tiêu", bool(word), f"= {word}")
+    folded = c.js(f"(() => {{ const f = s => s.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/đ/g,'d').toLowerCase(); return f({json.dumps(word)}); }})()")
+    tr_type(c, folded)
+    st = wait_state(c, "__TR_STATE__", lambda s: s.get("wordsDone", 0) >= 1, 5)
+    check("gõ đủ từ (không dấu) → hoàn thành", bool(st) and st.get("wordsDone", 0) >= 1)
+    check("điểm + combo tăng", bool(st) and st.get("score", 0) > 0 and st.get("combo", 0) >= 1, f"score={st and st.get('score')} combo={st and st.get('combo')}")
+    check("WPM > 0", bool(st) and st.get("wpm", 0) > 0, f"wpm={st and st.get('wpm')}")
+    c.shot("typing-play.png")
+
+    # Ký tự lạc → lỗi tăng
+    e0 = c.js("window.__TR_STATE__?.errors") or 0
+    tr_type(c, "999")
+    st = wait_state(c, "__TR_STATE__", lambda s: s.get("errors", 0) > e0, 4)
+    check("ký tự lạc ghi nhận lỗi", bool(st) and st.get("errors", 0) > e0, f"{e0} → {st and st.get('errors')}")
+
+    # Từ chạm danger line → mất đúng 1 mạng
+    wait_state(c, "__TR_STATE__", lambda s: s.get("targets", 0) >= 1, 8)
+    lives0 = c.js("window.__TR_STATE__?.lives")
+    c.js("window.__TR_TEST__.rush(); true")
+    st = wait_state(c, "__TR_STATE__", lambda s: s.get("lives", 9) < lives0, 5)
+    check("chạm danger line → -1 mạng", bool(st) and st.get("lives") == lives0 - 1, f"{lives0} → {st and st.get('lives')}")
+    time.sleep(1.0)
+    st2 = c.js("window.__TR_STATE__")
+    check("chỉ mất đúng 1 mạng cho 1 từ", st2 and st2.get("lives") == lives0 - 1)
+
+    # Pause: không bắt phím khi pause
+    key(c, "Escape")
+    time.sleep(0.4)
+    check("Esc mở pause", c.js(sr("sr.querySelector('.exp-screen')?.dataset.screen === 'pause'")))
+    w0 = c.js("window.__TR_STATE__?.wordsDone")
+    er0 = c.js("window.__TR_STATE__?.errors")
+    tr_type(c, "abcxyz", delay=0.02)
+    time.sleep(0.4)
+    check("KHÔNG bắt phím khi pause",
+          c.js("window.__TR_STATE__?.wordsDone") == w0 and c.js("window.__TR_STATE__?.errors") == er0)
+    c.shot("typing-pause.png")
+    resume_via_menu(c)
+    check("resume", c.js(sr("!sr.querySelector('.exp-screen')")))
+
+    # Hết mạng → màn kết quả có WPM/accuracy
+    for _ in range(2):
+        wait_state(c, "__TR_STATE__", lambda s: s.get("targets", 0) >= 1 or s.get("mode") == "over", 10)
+        c.js("window.__TR_TEST__.rush(); true")
+        time.sleep(0.8)
+    check("hết mạng → màn kết quả", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'over'", 12))
+    cards = c.js(sr("sr.querySelectorAll('.exp-statcard').length"))
+    check("kết quả có 6 thẻ chỉ số (WPM/RAW/ACC...)", cards == 6, f"= {cards}")
+    c.shot("typing-over.png")
+    console_clean(c, "typing gameplay")
+
+    close_via_switch(c)
+    check("đóng game dọn sạch surface", c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0")))
+    open_close_leak_check(c, "Typing Rush 404", 3)
+    console_clean(c, "typing open/close")
+
+
 # ==================== REGRESSION game cũ (smoke) ====================
 
 def test_old_games(c):
@@ -597,6 +690,7 @@ SECTIONS = {
     "brick": test_brick,
     "laser": test_laser,
     "golf": test_golf,
+    "typing": test_typing,
     "old": test_old_games,
 }
 

@@ -238,6 +238,22 @@ export const GAMES = [
     fullBleed: true,
     ownResults: true,
   },
+  {
+    id: "typing-rush",
+    title: "Typing Rush 404",
+    accent: "cyan",
+    kind: "2d",
+    goal: "Các từ rơi về DANGER LINE — gõ chính xác để phá hủy, giữ combo và đẩy WPM. Hỗ trợ tiếng Việt (gõ dấu hoặc không dấu), 3 độ khó + chế độ thích ứng. Tối ưu cho máy tính.",
+    hint: { keys: ["A–Z"], text: "gõ từ đang rơi — desktop" },
+    controls: [
+      { keys: ["A–Z"], text: "gõ ký tự — ký tự đầu khóa mục tiêu" },
+      { keys: ["⌫"], text: "lùi một ký tự" },
+      { keys: ["Esc"], text: "tạm dừng" },
+    ],
+    loader: () => import("../games/typing-rush/index.js"),
+    fullBleed: true,
+    ownResults: true,
+  },
 ];
 
 const byId = new Map(GAMES.map((g) => [g.id, g]));

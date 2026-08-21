@@ -159,6 +159,12 @@ export function createAudio(storage, { defaultOn = false } = {}) {
     pg_bumper: () => { tone({ from: 620, to: 900, dur: 0.07, vol: 0.26 }); tone({ from: 1200, dur: 0.05, vol: 0.18, delay: 0.05 }); },
     pg_sink:   () => { tone({ type: "sine", from: 500, to: 250, dur: 0.1, vol: 0.26 }); tone({ from: 660, dur: 0.08, vol: 0.24, delay: 0.1 }); tone({ from: 880, dur: 0.14, vol: 0.24, delay: 0.18 }); },
     pg_oob:    () => { tone({ type: "sawtooth", from: 240, to: 110, dur: 0.2, vol: 0.26 }); },
+
+    /* Expansion 11–15 — Typing Rush */
+    tr_key:    () => tone({ type: "square", from: 720, to: 660, dur: 0.03, vol: 0.1 }),
+    tr_err:    () => tone({ type: "sawtooth", from: 200, to: 140, dur: 0.08, vol: 0.2 }),
+    tr_word:   () => { tone({ from: 840, dur: 0.05, vol: 0.22 }); tone({ from: 1180, dur: 0.08, vol: 0.2, delay: 0.05 }); },
+    tr_danger: () => { tone({ type: "sawtooth", from: 320, to: 90, dur: 0.3, vol: 0.34 }); noise({ dur: 0.2, vol: 0.2, from: 900, to: 150 }); },
   };
 
   return {
