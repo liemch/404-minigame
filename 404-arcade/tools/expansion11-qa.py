@@ -471,6 +471,103 @@ def test_laser(c):
     console_clean(c, "laser open/close")
 
 
+# ============================= PIXEL GOLF =============================
+
+def test_golf(c):
+    print("\n== Pixel Golf 404 ==")
+    go_home(c, fresh_storage=True)
+    c.js("window.__ARCADE_EXP11_TEST__ = true; true")
+    check("card Pixel Golf hiển thị", open_game(c, "Pixel Golf 404"))
+    check("intro hiện", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'"))
+    c.shot("golf-intro.png")
+
+    c.js(sr("sr.querySelector('.exp-cta').click(); true"))
+    time.sleep(0.9)
+    check("vào hố 1", c.js(sr("!sr.querySelector('.exp-screen')")))
+    check("5 panel trái + hướng dẫn + thanh SỨC MẠNH",
+          c.js(sr("sr.querySelectorAll('.pg-panel').length")) == 5
+          and c.js(sr("!!sr.querySelector('.pg-help')"))
+          and c.js(sr("sr.querySelectorAll('.pg-power .segs i').length")) == 26)
+    st = wait_state(c, "__PG_STATE__", lambda s: s.get("mode") == "play", 6)
+    check("telemetry: hố 1, 0 gậy, PAR 2", bool(st) and st.get("hole") == 1 and st.get("strokes") == 0 and st.get("par") == 2, f"state={st}")
+
+    # Kéo ngắm bằng pointer thật: kéo sang TRÁI để đánh sang PHẢI
+    c.js(sr(
+        "(() => {"
+        "const cv = sr.querySelector('.pg-stage canvas');"
+        "const b = window.__PG_TEST__.ballPos();"
+        "const p0 = window.__PG_TEST__.clientOf(b.x, b.y);"
+        "cv.dispatchEvent(new PointerEvent('pointerdown', {clientX: p0.cx, clientY: p0.cy, button: 0, bubbles: true, composed: true, pointerId: 5}));"
+        "return true; })()"
+    ))
+    time.sleep(0.15)
+    c.js(sr(
+        "(() => {"
+        "const cv = sr.querySelector('.pg-stage canvas');"
+        "const b = window.__PG_TEST__.ballPos();"
+        "const p1 = window.__PG_TEST__.clientOf(b.x - 150, b.y);"
+        "cv.dispatchEvent(new PointerEvent('pointermove', {clientX: p1.cx, clientY: p1.cy, bubbles: true, composed: true, pointerId: 5}));"
+        "return true; })()"
+    ))
+    time.sleep(0.3)
+    segs_on = c.js(sr("sr.querySelectorAll('.pg-power .segs i.on').length"))
+    check("kéo ngắm → thanh lực sáng", isinstance(segs_on, int) and segs_on > 3, f"segs={segs_on}")
+    c.shot("golf-aim.png")
+    c.js(sr(
+        "(() => {"
+        "const cv = sr.querySelector('.pg-stage canvas');"
+        "const b = window.__PG_TEST__.ballPos();"
+        "const p1 = window.__PG_TEST__.clientOf(b.x - 150, b.y);"
+        "cv.dispatchEvent(new PointerEvent('pointerup', {clientX: p1.cx, clientY: p1.cy, button: 0, bubbles: true, composed: true, pointerId: 5}));"
+        "return true; })()"
+    ))
+    st = wait_state(c, "__PG_STATE__", lambda s: s.get("strokes") == 1, 5)
+    check("thả → đánh bóng (GẬY = 1)", bool(st) and st.get("strokes") == 1)
+    st = wait_state(c, "__PG_STATE__", lambda s: not s.get("moving"), 10)
+    check("bóng dừng nhờ ma sát", bool(st) and not st.get("moving"), f"x={st and st.get('x')}")
+    x_after = st.get("x") if st else 0
+    check("bóng di chuyển sang phải", x_after > 200, f"x={x_after}")
+
+    # Đặt bóng gần lỗ + đánh nhẹ vào lỗ (hook test)
+    c.js("(() => { const h = window.__PG_TEST__.hole(); window.__PG_TEST__.place(h.x - 60, h.y); return true; })()")
+    time.sleep(0.2)
+    c.js("window.__PG_TEST__.shoot(0, 0.18); true")
+    st = wait_state(c, "__PG_STATE__", lambda s: s.get("hole") == 2, 8)
+    check("bóng vào lỗ → tự sang hố 2", bool(st) and st.get("hole") == 2, f"hole={st and st.get('hole')}")
+    hole_txt = c.js(sr("[...sr.querySelectorAll('.pg-panel')].find(p=>p.querySelector('.lbl')?.textContent==='HỐ')?.querySelector('.val')?.textContent"))
+    check("HUD HỐ = 02/09", hole_txt is not None and hole_txt.startswith("02"), f"= {hole_txt}")
+    c.shot("golf-play.png")
+
+    # Esc pause/resume
+    key(c, "Escape")
+    time.sleep(0.4)
+    check("Esc mở pause", c.js(sr("sr.querySelector('.exp-screen')?.dataset.screen === 'pause'")))
+    resume_via_menu(c)
+    check("resume", c.js(sr("!sr.querySelector('.exp-screen')")))
+
+    # Gậy phím: giữ Space tụ lực rồi thả
+    key_down(c, "Space", " ")
+    time.sleep(0.5)
+    segs_on = c.js(sr("sr.querySelectorAll('.pg-power .segs i.on').length"))
+    check("giữ SPACE tụ lực", isinstance(segs_on, int) and segs_on > 0, f"segs={segs_on}")
+    key_up(c, "Space", " ")
+    st = wait_state(c, "__PG_STATE__", lambda s: s.get("strokes", 0) >= 1, 4)
+    check("thả SPACE đánh bóng", bool(st) and st.get("strokes", 0) >= 1)
+    console_clean(c, "golf gameplay")
+
+    # Tiến trình lưu
+    close_via_switch(c)
+    check("đóng game dọn sạch surface", c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0")))
+    check("mở lại được", open_game(c, "Pixel Golf 404"))
+    check("intro hiện lại", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'"))
+    cta = c.js(sr("sr.querySelector('.exp-cta')?.textContent"))
+    check("tiến trình lưu (TIẾP TỤC — HỐ 02)", cta is not None and "HỐ 02" in cta, f"CTA = {cta}")
+    close_via_switch(c)
+
+    open_close_leak_check(c, "Pixel Golf 404", 3)
+    console_clean(c, "golf open/close")
+
+
 # ==================== REGRESSION game cũ (smoke) ====================
 
 def test_old_games(c):
@@ -499,6 +596,7 @@ def test_old_games(c):
 SECTIONS = {
     "brick": test_brick,
     "laser": test_laser,
+    "golf": test_golf,
     "old": test_old_games,
 }
 

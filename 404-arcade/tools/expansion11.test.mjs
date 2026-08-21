@@ -34,6 +34,19 @@ import {
   nextHint,
 } from "../src/games/laser-maze/engine.js";
 import { LEVELS as LM_LEVELS } from "../src/games/laser-maze/levels.js";
+import {
+  createHole,
+  stepHole,
+  shoot as golfShoot,
+  drainEvents as golfDrain,
+  pointInPoly,
+  gateSegment,
+  scoreName,
+  holePoints,
+  MAX_SHOT,
+  SINK_SPEED,
+} from "../src/games/pixel-golf/engine.js";
+import { COURSES } from "../src/games/pixel-golf/courses.js";
 
 /* ================== BRICK BREAKER 404 ================== */
 
@@ -334,4 +347,177 @@ test("laser-maze: hint trả về đúng bước lời giải tiếp theo", () =
   st.rot.set("2,1", "/");
   assert.equal(nextHint(lv, st), null, "khớp lời giải → hết gợi ý");
   assert.ok(trace(lv, st).done, "áp đủ hint phải giải được màn");
+});
+
+/* ================== PIXEL GOLF 404 ================== */
+
+const golfStep = (hs, seconds) => {
+  const n = Math.ceil(seconds * 120);
+  for (let i = 0; i < n; i++) stepHole(hs, 1 / 120);
+};
+
+test("pixel-golf: đủ 9 hố, tee/lỗ nằm trong sân, par hợp lệ", () => {
+  assert.equal(COURSES.length, 9);
+  for (const def of COURSES) {
+    assert.ok(pointInPoly(def.poly, def.tee.x, def.tee.y), `hố ${def.id}: tee ngoài sân`);
+    assert.ok(pointInPoly(def.poly, def.hole.x, def.hole.y), `hố ${def.id}: lỗ ngoài sân`);
+    assert.ok(def.par >= 2 && def.par <= 5, `hố ${def.id}: par lạ`);
+  }
+  assert.ok(COURSES.some((c) => c.wind), "phải có hố gió (nâng cao)");
+  assert.ok(COURSES.some((c) => c.portals), "phải có hố portal");
+  assert.ok(COURSES.some((c) => c.gates), "phải có hố cổng trượt");
+});
+
+test("pixel-golf: không đánh khi bóng đang lăn + lực bị chặn trần", () => {
+  const hs = createHole(COURSES[0]);
+  assert.ok(golfShoot(hs, 0, 5), "đánh lần đầu");
+  const sp = Math.hypot(hs.ball.vx, hs.ball.vy);
+  assert.ok(sp <= MAX_SHOT + 1, `tốc độ ${sp} vượt trần`);
+  assert.equal(golfShoot(hs, 0, 0.5), false, "không được đánh khi bóng đang lăn");
+  assert.equal(hs.strokes, 1);
+});
+
+test("pixel-golf: bóng KHÔNG xuyên tường ở lực tối đa và bật lại", () => {
+  const hs = createHole(COURSES[0]); // rect y 150..450
+  golfShoot(hs, Math.PI / 2, 1); // bắn thẳng xuống tường dưới hết lực
+  let bounced = false;
+  for (let i = 0; i < 120 * 6; i++) {
+    stepHole(hs, 1 / 120);
+    assert.ok(hs.ball.y < 450 + 1, `bóng xuyên tường dưới (y=${hs.ball.y})`);
+    if (hs.ball.vy < 0) {
+      bounced = true;
+      break;
+    }
+  }
+  assert.ok(bounced, "bóng phải bật lại từ tường");
+});
+
+test("pixel-golf: ma sát dừng bóng; cát hãm mạnh hơn cỏ", () => {
+  const green = createHole(COURSES[0]);
+  golfShoot(green, 0, 0.5);
+  golfStep(green, 8);
+  assert.ok(!green.moving, "bóng phải dừng trên cỏ");
+  const travelledGreen = green.ball.x - COURSES[0].tee.x;
+
+  const sandDef = {
+    ...COURSES[0],
+    sand: [{ x: COURSES[0].tee.x + 130, y: COURSES[0].tee.y, r: 120 }],
+  };
+  const sandy = createHole(sandDef);
+  golfShoot(sandy, 0, 0.5);
+  golfStep(sandy, 8);
+  const travelledSand = sandy.ball.x - sandDef.tee.x;
+  assert.ok(travelledSand < travelledGreen * 0.75, `cát phải hãm mạnh hơn (${travelledSand} vs ${travelledGreen})`);
+});
+
+test("pixel-golf: portal dịch chuyển giữ vận tốc + cooldown chống lặp", () => {
+  const def = COURSES[5]; // SÂN 404 có portal a(400,180) b(660,180)
+  const hs = createHole(def);
+  hs.ball.x = 300;
+  hs.ball.y = 180;
+  hs.rest = { x: 300, y: 180 };
+  golfShoot(hs, 0, 0.55); // bắn sang phải vào portal a
+  let teleported = false;
+  for (let i = 0; i < 120 * 3; i++) {
+    stepHole(hs, 1 / 120);
+    const ev = golfDrain(hs);
+    if (ev.some((e) => e.type === "portal")) {
+      teleported = true;
+      break;
+    }
+  }
+  assert.ok(teleported, "phải dịch chuyển qua portal");
+  assert.ok(hs.ball.x > 660, `bóng phải xuất hiện ở portal b (x=${hs.ball.x})`);
+  assert.ok(hs.ball.vx > 0, "vận tốc giữ nguyên hướng");
+  // ngay sau teleport: cooldown → không teleport ngược tức thì
+  let again = 0;
+  for (let i = 0; i < 12; i++) {
+    stepHole(hs, 1 / 120);
+    if (golfDrain(hs).some((e) => e.type === "portal")) again += 1;
+  }
+  assert.equal(again, 0, "cooldown phải chặn teleport lặp tức thì");
+});
+
+test("pixel-golf: ra ngoài sân → trả bóng về vị trí nghỉ + phạt 1 gậy", () => {
+  const hs = createHole(COURSES[0]);
+  golfShoot(hs, 0, 0.4);
+  const strokes0 = hs.strokes;
+  // ép bóng văng ra ngoài đa giác (mô phỏng lỗi số học)
+  hs.ball.x = 20;
+  hs.ball.y = 20;
+  stepHole(hs, 1 / 120);
+  const ev = golfDrain(hs);
+  assert.ok(ev.some((e) => e.type === "oob"), "phải bắt sự kiện oob");
+  assert.equal(hs.strokes, strokes0 + 1, "phạt đúng 1 gậy");
+  assert.ok(!hs.moving, "bóng dừng sau khi trả về");
+  assert.equal(hs.ball.x, hs.rest.x);
+});
+
+test("pixel-golf: cổng trượt chặn bóng khi thanh bar che đường", () => {
+  const def = COURSES[4]; // CỔNG TRƯỢT tại x=500, span y 240..360, bar 64
+  const hs = createHole(def);
+  // đặt thời điểm để bar che tâm (k=0 → bar 240..304 che y=300)
+  hs.time = 2.6 * 0.75; // sin = -1 → k = 0
+  hs.ball.x = 420;
+  hs.ball.y = 300;
+  hs.rest = { x: 420, y: 300 };
+  golfShoot(hs, 0, 0.5);
+  let bounced = false;
+  for (let i = 0; i < 60; i++) {
+    stepHole(hs, 1 / 240); // dt nhỏ để bar gần như đứng yên
+    if (hs.ball.vx < 0) {
+      bounced = true;
+      break;
+    }
+    assert.ok(hs.ball.x < 520, "bóng không được xuyên thanh cổng");
+  }
+  assert.ok(bounced, "bóng phải bật khỏi cổng đang đóng");
+});
+
+test("pixel-golf: vào lỗ khi chậm, lăn QUA lỗ khi quá nhanh", () => {
+  const def = COURSES[0];
+  const slow = createHole(def);
+  slow.ball.x = def.hole.x - 60;
+  slow.ball.y = def.hole.y;
+  slow.rest = { x: slow.ball.x, y: slow.ball.y };
+  golfShoot(slow, 0, 0.18);
+  golfStep(slow, 5);
+  assert.ok(slow.sunk, "cú nhẹ thẳng lỗ phải vào");
+
+  const fast = createHole(def);
+  fast.ball.x = def.hole.x - 60;
+  fast.ball.y = def.hole.y;
+  fast.rest = { x: fast.ball.x, y: fast.ball.y };
+  golfShoot(fast, 0, 1);
+  // bước qua vùng lỗ với tốc độ > SINK_SPEED
+  let passed = false;
+  for (let i = 0; i < 40; i++) {
+    stepHole(fast, 1 / 120);
+    if (fast.ball.x > def.hole.x + 30 && !fast.sunk) {
+      passed = true;
+      break;
+    }
+  }
+  assert.ok(passed, `bóng nhanh (> ${SINK_SPEED}) phải lăn qua lỗ`);
+});
+
+test("pixel-golf: gateSegment trượt trong đúng khoảng 2 mốc", () => {
+  const gate = { x1: 500, y1: 240, x2: 500, y2: 360, bar: 64, period: 2.6, phase: 0 };
+  for (const t of [0, 0.5, 1, 1.7, 2.3]) {
+    const [x1, y1, x2, y2] = gateSegment(gate, t);
+    assert.equal(x1, 500);
+    assert.equal(x2, 500);
+    assert.ok(y1 >= 240 - 0.01 && y2 <= 360 + 0.01, `bar vượt mốc tại t=${t}: ${y1}..${y2}`);
+    assert.ok(Math.abs(y2 - y1 - 64) < 0.01, "độ dài bar không đổi");
+  }
+});
+
+test("pixel-golf: scoring — tên kết quả + điểm arcade", () => {
+  assert.equal(scoreName(1, 3), "HOLE-IN-ONE!");
+  assert.equal(scoreName(2, 4), "EAGLE!");
+  assert.equal(scoreName(2, 3), "BIRDIE!");
+  assert.equal(scoreName(3, 3), "PAR");
+  assert.equal(scoreName(4, 3), "BOGEY");
+  assert.ok(holePoints(1, 3) > holePoints(3, 3), "ít gậy hơn phải nhiều điểm hơn");
+  assert.equal(holePoints(9, 3), 0, "điểm không âm");
 });

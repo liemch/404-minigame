@@ -1633,6 +1633,147 @@ function laserMazeArt(ctx) {
   ctx.fill();
 }
 
+/* ---------- Pixel Golf 404: sân cỏ ca-rô + tường tím + cờ ---------- */
+function pixelGolfArt(ctx) {
+  const rand = seededRand(3600);
+  ctx.fillStyle = "#0a0a24";
+  ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 26; i++) {
+    ctx.fillStyle = rand() > 0.75 ? "rgba(122,63,212,.5)" : "rgba(160,175,235,.3)";
+    ctx.fillRect(rand() * W, rand() * H, 2, 2);
+  }
+  // sân cỏ ca-rô hình L
+  const poly = [[36, 60], [200, 60], [200, 108], [292, 108], [292, 172], [36, 172]];
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(poly[0][0], poly[0][1]);
+  for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]);
+  ctx.closePath();
+  ctx.clip();
+  ctx.fillStyle = "#157f6d";
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#1b937e";
+  const t = 18;
+  for (let y = 0; y < H / t; y++) {
+    for (let x = 0; x < W / t; x++) {
+      if ((x + y) % 2 === 0) ctx.fillRect(x * t, y * t, t, t);
+    }
+  }
+  // hố cát
+  ctx.fillStyle = "#dfb977";
+  ctx.beginPath();
+  ctx.arc(120, 150, 26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#8a6a33";
+  ctx.stroke();
+  ctx.restore();
+  // tường tím
+  const wall = (x1, y1, x2, y2) => {
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    const a = Math.atan2(y2 - y1, x2 - x1);
+    ctx.save();
+    ctx.translate(x1, y1);
+    ctx.rotate(a);
+    const wg = ctx.createLinearGradient(0, -5, 0, 5);
+    wg.addColorStop(0, "#9a5ae8");
+    wg.addColorStop(1, "#4a1f8a");
+    ctx.fillStyle = wg;
+    ctx.fillRect(-4, -5, len + 8, 10);
+    ctx.strokeStyle = "rgba(30,10,60,.6)";
+    for (let d = 0; d < len; d += 16) {
+      ctx.beginPath();
+      ctx.moveTo(d, -5);
+      ctx.lineTo(d, 5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  };
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i];
+    const b = poly[(i + 1) % poly.length];
+    wall(a[0], a[1], b[0], b[1]);
+  }
+  // portal đôi
+  for (const [x, y, col] of [[178, 140, "#ff2ee6"], [232, 140, "#20e3ff"]]) {
+    ctx.save();
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 7, 11, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.fillStyle = "rgba(120,230,255,.8)";
+  for (const dx of [0, 9]) {
+    ctx.beginPath();
+    ctx.moveTo(196 + dx, 135);
+    ctx.lineTo(202 + dx, 140);
+    ctx.lineTo(196 + dx, 145);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // lỗ + cờ
+  ctx.fillStyle = "#04101c";
+  ctx.beginPath();
+  ctx.ellipse(258, 132, 8, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(32,227,255,.7)";
+  ctx.stroke();
+  ctx.strokeStyle = "#e8f0ff";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(258, 130);
+  ctx.lineTo(258, 100);
+  ctx.stroke();
+  ctx.fillStyle = "#f4f7ff";
+  ctx.beginPath();
+  ctx.moveTo(258, 100);
+  ctx.lineTo(242, 106);
+  ctx.lineTo(258, 112);
+  ctx.closePath();
+  ctx.fill();
+  // bóng + khung ngắm + mũi tên
+  ctx.strokeStyle = "rgba(255,255,255,.9)";
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath();
+  ctx.moveTo(86, 118);
+  ctx.lineTo(150, 96);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "#fff";
+  ctx.save();
+  ctx.translate(150, 96);
+  ctx.rotate(Math.atan2(-22, 64));
+  ctx.beginPath();
+  ctx.moveTo(8, 0);
+  ctx.lineTo(-3, -5);
+  ctx.lineTo(-3, 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+  const bg2 = ctx.createRadialGradient(74, 116, 1, 76, 118, 7);
+  bg2.addColorStop(0, "#fff");
+  bg2.addColorStop(1, "#9fb2cc");
+  ctx.fillStyle = bg2;
+  ctx.beginPath();
+  ctx.arc(76, 118, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#3dff9c";
+  ctx.lineWidth = 1.6;
+  ctx.strokeRect(66, 108, 20, 20);
+  // cây pixel trang trí
+  ctx.fillStyle = "#2fbf71";
+  ctx.fillRect(310, 60, 4, 14);
+  ctx.fillRect(306, 64, 4, 4);
+  ctx.fillStyle = "#ff5ad2";
+  ctx.fillRect(310, 56, 4, 4);
+  ctx.fillStyle = "#20e3ff";
+  ctx.fillRect(16, 190, 5, 5);
+  ctx.fillRect(20, 185, 5, 5);
+}
+
 const PAINTERS = {
   runner: runnerArt,
   "bug-hunter": bugArt,
@@ -1647,6 +1788,7 @@ const PAINTERS = {
   "void-runner": voidRunnerArt,
   "brick-breaker": brickBreakerArt,
   "laser-maze": laserMazeArt,
+  "pixel-golf": pixelGolfArt,
 };
 
 /** Vẽ preview của một game lên canvas trong card. */

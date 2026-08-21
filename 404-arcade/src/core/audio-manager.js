@@ -151,6 +151,14 @@ export function createAudio(storage, { defaultOn = false } = {}) {
     bb_power:  () => { tone({ from: 520, to: 880, dur: 0.11, vol: 0.26 }); tone({ from: 1100, dur: 0.07, vol: 0.2, delay: 0.1 }); },
     bb_laser:  () => tone({ type: "sawtooth", from: 1500, to: 500, dur: 0.07, vol: 0.14 }),
     bb_lose:   () => { tone({ type: "sine", from: 320, to: 90, dur: 0.32, vol: 0.34 }); noise({ dur: 0.16, vol: 0.16, from: 800, to: 150, delay: 0.05 }); },
+
+    /* Expansion 11–15 — Pixel Golf */
+    pg_hit:    () => { noise({ dur: 0.05, vol: 0.24, from: 2400, to: 900 }); tone({ type: "sine", from: 210, to: 150, dur: 0.07, vol: 0.3 }); },
+    pg_wall:   () => tone({ type: "square", from: 300, to: 240, dur: 0.05, vol: 0.16 }),
+    pg_sand:   () => noise({ dur: 0.14, vol: 0.22, from: 900, to: 200 }),
+    pg_bumper: () => { tone({ from: 620, to: 900, dur: 0.07, vol: 0.26 }); tone({ from: 1200, dur: 0.05, vol: 0.18, delay: 0.05 }); },
+    pg_sink:   () => { tone({ type: "sine", from: 500, to: 250, dur: 0.1, vol: 0.26 }); tone({ from: 660, dur: 0.08, vol: 0.24, delay: 0.1 }); tone({ from: 880, dur: 0.14, vol: 0.24, delay: 0.18 }); },
+    pg_oob:    () => { tone({ type: "sawtooth", from: 240, to: 110, dur: 0.2, vol: 0.26 }); },
   };
 
   return {

@@ -221,6 +221,23 @@ export const GAMES = [
     fullBleed: true,
     ownResults: true,
   },
+  {
+    id: "pixel-golf",
+    title: "Pixel Golf 404",
+    accent: "violet",
+    kind: "2d",
+    goal: "Mini golf pixel 9 hố: kéo để ngắm, thả để đánh. Né hố cát, cổng laser trượt, dùng trụ bật và cổng không gian — về đích với số gậy thấp nhất!",
+    hint: { keys: [], text: "kéo ngược hướng đánh · thả để đánh" },
+    controls: [
+      { keys: ["Kéo", "Chạm"], text: "kéo ngược hướng muốn đánh, thả để đánh" },
+      { keys: ["← →"], text: "chỉnh góc bằng phím" },
+      { keys: ["SPACE"], text: "giữ tụ lực — thả để đánh" },
+      { keys: ["Esc"], text: "tạm dừng" },
+    ],
+    loader: () => import("../games/pixel-golf/index.js"),
+    fullBleed: true,
+    ownResults: true,
+  },
 ];
 
 const byId = new Map(GAMES.map((g) => [g.id, g]));
