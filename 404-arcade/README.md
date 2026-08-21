@@ -20,6 +20,11 @@ Trang 404 dạng arcade đóng gói thành **một Web Component độc lập**:
 | **Pixel Golf 404** | 2D mini golf 9 hố | Kéo ngược hướng đánh (lực theo độ dài) · ←→ + Space fallback · cát/bumper/cổng trượt/portal/gió |
 | **Typing Rush 404** | 2D gõ phím (desktop-first) | Gõ từ đang rơi (tiếng Việt có/không dấu) · ⌫ lùi ký tự · 3 độ khó + adaptive · WPM chuẩn ký tự/5 |
 | **Astro Patrol 404** | 2D bắn phi thuyền dọc | WASD/chuột di chuyển · Space/click bắn (auto-fire tùy chọn) · 5 wave + boss 2 phase · joystick mobile |
+| **Neon Pinball 404** | 2D pinball 3 bi | ←/A →/D flipper · giữ Space phóng bi · multiplier x2→x8 · mobile: nút FLIPPER + vùng plunger |
+| **Gravity Flip 404** | 2D runner một chạm | Chạm/click/Space đảo trọng lực · combo x6 · khiên đỡ một va chạm · tốc độ tăng dần |
+| **Memory Matrix 404** | 2D lật thẻ tìm cặp | Click/chạm lật thẻ · bàn 4×3 → 6×4 · mũi tên + Enter trên bàn phím · H gợi ý (trừ điểm) |
+| **Cyber Goal 404** | 2D sút luân lưu 5 lượt | Kéo ngắm — thả sút (dài = mạnh) · quẹt ngang tạo spin · thủ môn AI đoán thói quen · sudden death |
+| **Stealth Escape 404** | 2D puzzle lén lút 15 màn | Mũi tên/WASD đi từng ô · Space chờ 1 lượt · U hoàn tác · H gợi ý · chạm ô kề |
 
 Điểm cao + cài đặt lưu bằng `localStorage` (có namespace). CSS cô lập trong shadow DOM. Không backend, không CDN, không đăng nhập. Nhạc nền Rhythm Hack + toàn bộ SFX **tổng hợp trực tiếp bằng WebAudio** — không file audio ngoài.
 
@@ -72,14 +77,14 @@ error_page 404 /404/index.html;   # Nginx
   home-url="/"
   home-label="Về trang chủ"
   default-game=""
-  enabled-games="runner,bug-hunter,stack-tower,snake,strike,portal-puzzle,void-runner,neon-drift,cyber-defense,rogue-arena,rhythm-hack"
+  enabled-games="runner,bug-hunter,stack-tower,snake,strike,portal-puzzle,void-runner,neon-drift,cyber-defense,rogue-arena,rhythm-hack,brick-breaker,laser-maze,pixel-golf,typing-rush,astro-patrol,neon-pinball,gravity-flip,memory-matrix,cyber-goal,stealth-escape"
   sound="off"
   locale="vi"
   storage-prefix="arcade404"
 ></arcade-404>
 ```
 
-**Bật/tắt game:** bỏ trống `enabled-games` để hiện TẤT CẢ game trong registry; hoặc liệt kê id (phân tách bằng dấu phẩy) để chỉ bật một phần, ví dụ `enabled-games="snake,portal-puzzle,rhythm-hack"`. Id hợp lệ: `runner`, `bug-hunter`, `stack-tower`, `snake`, `strike`, `portal-puzzle`, `void-runner`, `neon-drift`, `cyber-defense`, `rogue-arena`, `rhythm-hack`, `brick-breaker`, `laser-maze`, `pixel-golf`, `typing-rush`, `astro-patrol`.
+**Bật/tắt game:** bỏ trống `enabled-games` để hiện TẤT CẢ game trong registry; hoặc liệt kê id (phân tách bằng dấu phẩy) để chỉ bật một phần, ví dụ `enabled-games="snake,portal-puzzle,rhythm-hack"`. Id hợp lệ: `runner`, `bug-hunter`, `stack-tower`, `snake`, `strike`, `portal-puzzle`, `void-runner`, `neon-drift`, `cyber-defense`, `rogue-arena`, `rhythm-hack`, `brick-breaker`, `laser-maze`, `pixel-golf`, `typing-rush`, `astro-patrol`, `neon-pinball`, `gravity-flip`, `memory-matrix`, `cyber-goal`, `stealth-escape`.
 
 ### Properties / Methods
 
@@ -129,7 +134,7 @@ src/
 ├── index.js               # đăng ký <arcade-404> (initial bundle KHÔNG chứa game)
 ├── arcade-404.js          # Web Component: config, API, events
 ├── core/
-│   ├── game-registry.js   # 5 game + dynamic import (lazy-load)
+│   ├── game-registry.js   # 21 game + dynamic import (lazy-load)
 │   ├── game-controller.js # vòng đời: 1 game/lúc, await destroy() trước khi mount
 │   ├── storage.js         # localStorage namespace: điểm + prefs
 │   ├── audio-manager.js   # WebAudio synth, unlock sau tương tác thật
@@ -213,14 +218,18 @@ src/
     │   ├── dictionary.js difficulty.js    # từ điển vi 3 nhóm + 3 độ khó + adaptive
     │   └── keyboard.js styles.js index.js # bàn phím QWERTY ảo sáng phím kế tiếp,
     │                       # HEAT MAP tần suất, mưa ký tự matrix theo lane
-    └── astro-patrol/       # Astro Patrol 404 — bắn phi thuyền dọc
-        ├── engine.js       # OBJECT POOL đạn + SPATIAL GRID va chạm + trần
-        │                   # projectile; khiên hấp thụ trước HP + i-frame;
-        │                   # boss 2 phase (chuyển đúng 1 lần) 3 pattern có
-        │                   # telegraph, wall/spiral luôn chừa khe né
-        ├── waves.js        # 5 wave (scout/shooter/charger) + boss def
-        └── render.js styles.js index.js  # parallax sao + asteroid tinh thể,
-                            # thanh máu boss đầu lâu, joystick + NÚT BẮN
+    ├── astro-patrol/       # Astro Patrol 404 — bắn phi thuyền dọc
+    │   ├── engine.js       # OBJECT POOL đạn + SPATIAL GRID va chạm + trần
+    │   │                   # projectile; khiên hấp thụ trước HP + i-frame;
+    │   │                   # boss 2 phase (chuyển đúng 1 lần) 3 pattern có
+    │   │                   # telegraph, wall/spiral luôn chừa khe né
+    │   ├── waves.js        # 5 wave (scout/shooter/charger) + boss def
+    │   └── render.js styles.js index.js  # parallax sao + asteroid tinh thể,
+    │                       # thanh máu boss đầu lâu, joystick + NÚT BẮN
+    └── neon-pinball | gravity-flip | memory-matrix | cyber-goal | stealth-escape/
+                            # 5 game expansion 16–20 (cùng khung _shared/frame.js):
+                            # pinball neon 3 bi · runner đảo trọng lực · lật thẻ
+                            # tìm cặp · sút luân lưu vs AI · puzzle lén lút 15 màn
 ```
 
 **Interface bắt buộc của mỗi game** (game-controller gọi):
