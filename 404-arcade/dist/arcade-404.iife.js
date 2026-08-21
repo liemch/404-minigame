@@ -4421,6 +4421,7 @@ function createGame() {
   let paused = false;
 
   let locked = false;
+  let expectUnlock = false; // chờ unlock do exitLock() chủ động (không phải Esc)
   let lockHintAt = 0; // chống spam toast "nhấp để khóa chuột"
 
   let firing = false;
@@ -4517,10 +4518,14 @@ function createGame() {
 
   function exitLock() {
     if (document.pointerLockElement) {
+      // Thoát lock CHỦ ĐỘNG (pause/kết thúc trận): sự kiện pointerlockchange
+      // tương ứng có thể về trễ một task — đánh dấu để handler không hiểu
+      // nhầm là người chơi Esc rồi tự pause lại ngay sau khi resume.
+      expectUnlock = true;
       try {
         document.exitPointerLock();
       } catch {
-        /* bỏ qua */
+        expectUnlock = false;
       }
     }
   }
@@ -4946,7 +4951,19 @@ function createGame() {
         "pointerlockchange",
         () => {
           locked = document.pointerLockElement === canvas;
-          if (!locked && mode === "match" && !paused) pauseMatch();
+          if (locked) {
+            expectUnlock = false;
+            return;
+          }
+          // Unlock do chính game gọi exitLock(). Nếu người chơi đã kịp bấm
+          // "Tiếp tục" trước khi sự kiện về (double-tap P, frame nặng...),
+          // không được auto-pause lại — chỉ thử khóa lại cho trận đang chạy.
+          if (expectUnlock) {
+            expectUnlock = false;
+            if (mode === "match" && !paused) requestLock();
+            return;
+          }
+          if (mode === "match" && !paused) pauseMatch();
         },
         sig
       );
