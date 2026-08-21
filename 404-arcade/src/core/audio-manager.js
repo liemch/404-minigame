@@ -141,6 +141,16 @@ export function createAudio(storage, { defaultOn = false } = {}) {
     vr_fall:     () => { tone({ type: "sine", from: 420, to: 90, dur: 0.4, vol: 0.3 }); noise({ dur: 0.2, vol: 0.14, from: 900, to: 150, delay: 0.1 }); },
     vr_respawn:  () => { tone({ type: "sine", from: 300, to: 620, dur: 0.14, vol: 0.2 }); tone({ from: 830, dur: 0.07, vol: 0.16, delay: 0.12 }); },
     vr_finish:   () => { tone({ from: 587, dur: 0.09, vol: 0.28 }); tone({ from: 740, dur: 0.09, vol: 0.28, delay: 0.09 }); tone({ from: 988, dur: 0.09, vol: 0.28, delay: 0.18 }); tone({ from: 1319, dur: 0.24, vol: 0.3, delay: 0.27 }); },
+
+    /* Expansion 11–15 — Brick Breaker */
+    bb_paddle: () => tone({ type: "square", from: 340, to: 430, dur: 0.06, vol: 0.24 }),
+    bb_wall:   () => tone({ type: "sine", from: 260, to: 220, dur: 0.04, vol: 0.12 }),
+    bb_brick:  () => { tone({ from: 760, to: 900, dur: 0.06, vol: 0.24 }); noise({ dur: 0.06, vol: 0.14, from: 2600, to: 700 }); },
+    bb_crack:  () => { tone({ type: "triangle", from: 420, to: 330, dur: 0.06, vol: 0.2 }); noise({ dur: 0.05, vol: 0.1, from: 1800, to: 500 }); },
+    bb_steel:  () => tone({ type: "square", from: 190, to: 160, dur: 0.07, vol: 0.2 }),
+    bb_power:  () => { tone({ from: 520, to: 880, dur: 0.11, vol: 0.26 }); tone({ from: 1100, dur: 0.07, vol: 0.2, delay: 0.1 }); },
+    bb_laser:  () => tone({ type: "sawtooth", from: 1500, to: 500, dur: 0.07, vol: 0.14 }),
+    bb_lose:   () => { tone({ type: "sine", from: 320, to: 90, dur: 0.32, vol: 0.34 }); noise({ dur: 0.16, vol: 0.16, from: 800, to: 150, delay: 0.05 }); },
   };
 
   return {

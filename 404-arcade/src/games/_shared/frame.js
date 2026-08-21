@@ -45,6 +45,9 @@ export function createExpansionFrame(container, ctx, opts) {
     buttonLabels = {},
     onPauseToggle = () => {},
     handleEscape = true,
+    // false: không gắn topbar vào root — game tự re-parent .exp-title /
+    // .exp-btns vào bố cục riêng (Brick Breaker: cụm nút nằm sidebar phải).
+    attachTopbar = true,
   } = opts;
 
   ensureExpansionStyles(container);
@@ -124,7 +127,8 @@ export function createExpansionFrame(container, ctx, opts) {
   const screenLayer = el("div");
   playfield.appendChild(screenLayer);
 
-  root.append(topbar, playfield);
+  if (attachTopbar) root.append(topbar, playfield);
+  else root.append(playfield);
   container.appendChild(root);
 
   let currentScreen = null;

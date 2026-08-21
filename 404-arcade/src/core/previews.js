@@ -1376,6 +1376,133 @@ function rhythmArt(ctx) {
   }
 }
 
+/* ---------- Brick Breaker 404: tường gạch neon + bóng + paddle ---------- */
+function brickBreakerArt(ctx) {
+  const rand = seededRand(1111);
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#0a0e2e");
+  bg.addColorStop(1, "#070a22");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  // trace mạch mờ
+  ctx.strokeStyle = "rgba(32,120,220,.12)";
+  for (let i = 0; i < 8; i++) {
+    let x = rand() * W;
+    let y = 90 + rand() * 100;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    for (let k = 0; k < 2; k++) {
+      const len = 20 + rand() * 50;
+      if (rand() > 0.5) x += rand() > 0.5 ? len : -len;
+      else y += rand() > 0.5 ? len : -len;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  // khung neon
+  ctx.strokeStyle = "rgba(32,227,255,.75)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(6, 6, W - 12, H - 12, 10);
+  ctx.stroke();
+
+  // tường gạch: hàng thép + cyan/tím/hồng
+  const bw = 28;
+  const bh = 12;
+  const x0 = 16;
+  const drawBrick = (gx, gy, colA, colB, icon) => {
+    const x = x0 + gx * (bw + 2);
+    const y = 16 + gy * (bh + 3);
+    const g2 = ctx.createLinearGradient(0, y, 0, y + bh);
+    g2.addColorStop(0, colA);
+    g2.addColorStop(1, colB);
+    ctx.fillStyle = g2;
+    ctx.beginPath();
+    ctx.roundRect(x, y, bw, bh, 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.3)";
+    ctx.fillRect(x + 2, y + 1.5, bw - 4, 2);
+    if (icon === "x") {
+      ctx.strokeStyle = "rgba(150,160,185,.8)";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(x + 5, y + 2);
+      ctx.lineTo(x + bw - 5, y + bh - 2);
+      ctx.moveTo(x + bw - 5, y + 2);
+      ctx.lineTo(x + 5, y + bh - 2);
+      ctx.stroke();
+    } else if (icon === "s") {
+      ctx.fillStyle = "rgba(255,255,255,.85)";
+      ctx.beginPath();
+      ctx.arc(x + bw / 2, y + bh / 2, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+  for (let gx = 0; gx < 10; gx++) drawBrick(gx, 0, "#4a5168", "#262b3d", "x");
+  const pat = [
+    [1, "c"], [2, "v"], [3, "c"], [5, "p"], [6, "c"], [8, "v"], [9, "c"],
+  ];
+  const tones = { c: ["#4fe3ff", "#1490c2", null], v: ["#9a6bff", "#5c2bd9", "s"], p: ["#ff4fae", "#c9186e", "s"] };
+  for (let gy = 1; gy < 4; gy++) {
+    for (const [gx, t] of pat) {
+      if ((gx + gy) % 3 === 2) continue;
+      const [a, b, ic] = tones[t];
+      drawBrick(gx, gy, a, b, ic);
+    }
+  }
+
+  // vệt bóng + bóng
+  const trail = [[70, 158], [92, 138], [116, 120], [142, 105]];
+  trail.forEach(([tx, ty], i) => {
+    ctx.fillStyle = `rgba(90,210,255,${0.16 + i * 0.12})`;
+    ctx.beginPath();
+    ctx.arc(tx, ty, 3 + i * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.save();
+  ctx.shadowColor = "#7ce6ff";
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = "#eaf9ff";
+  ctx.beginPath();
+  ctx.arc(160, 92, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // power-up rơi
+  ctx.strokeStyle = "#4df77f";
+  ctx.fillStyle = "rgba(6,10,26,.95)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(226, 130, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#fff";
+  ctx.font = "800 9px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("x2", 226, 133);
+  ctx.strokeStyle = "rgba(77,247,127,.8)";
+  ctx.beginPath();
+  ctx.moveTo(221, 146);
+  ctx.lineTo(226, 151);
+  ctx.lineTo(231, 146);
+  ctx.stroke();
+
+  // paddle tím lõi cyan
+  ctx.save();
+  ctx.shadowColor = "#8a5cff";
+  ctx.shadowBlur = 12;
+  const pg = ctx.createLinearGradient(0, 176, 0, 188);
+  pg.addColorStop(0, "#8a5cff");
+  pg.addColorStop(1, "#4d21a8");
+  ctx.fillStyle = pg;
+  ctx.beginPath();
+  ctx.roundRect(118, 176, 84, 12, 6);
+  ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = "#20e3ff";
+  ctx.fillRect(146, 180, 28, 4);
+}
+
 const PAINTERS = {
   runner: runnerArt,
   "bug-hunter": bugArt,
@@ -1388,6 +1515,7 @@ const PAINTERS = {
   "rogue-arena": rogueArt,
   "rhythm-hack": rhythmArt,
   "void-runner": voidRunnerArt,
+  "brick-breaker": brickBreakerArt,
 };
 
 /** Vẽ preview của một game lên canvas trong card. */

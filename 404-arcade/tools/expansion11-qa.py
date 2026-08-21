@@ -1,0 +1,417 @@
+"""
+expansion11-qa.py — integration test cho 5 game expansion 11–15 trên
+Chrome headless CDP (PORT 9223).
+
+Chuẩn bị:
+  1) python3 -m http.server 8404 (tại workspace root)
+  2) google-chrome --headless=new --remote-debugging-port=9223 \
+       --user-data-dir=/tmp/chrome-exp11 --no-first-run --window-size=1440,900 \
+       --mute-audio --enable-unsafe-swiftshader about:blank
+  3) python3 tools/expansion11-qa.py [brick|laser|golf|typing|astro|old|all]
+
+Ảnh chụp lưu tại tools/shots-exp11/ (không dùng /tmp).
+"""
+
+import base64
+import json
+import os
+import socket
+import struct
+import sys
+import time
+import urllib.request
+
+BASE = os.environ.get("ARCADE_QA_BASE", "http://127.0.0.1:8404/404-arcade/")
+PORT = int(os.environ.get("EXP11_CDP_PORT", "9223"))
+SHOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shots-exp11")
+
+
+class WS:
+    def __init__(self, url):
+        rest = url[5:]
+        hostport, path = rest.split("/", 1)
+        host, port = hostport.split(":")
+        self.sock = socket.create_connection((host, int(port)))
+        self.sock.settimeout(30)
+        key = base64.b64encode(os.urandom(16)).decode()
+        req = (
+            f"GET /{path} HTTP/1.1\r\nHost: {hostport}\r\n"
+            "Upgrade: websocket\r\nConnection: Upgrade\r\n"
+            f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n"
+        )
+        self.sock.sendall(req.encode())
+        buf = b""
+        while b"\r\n\r\n" not in buf:
+            buf += self.sock.recv(4096)
+        self.buf = buf.split(b"\r\n\r\n", 1)[1]
+
+    def send(self, data):
+        payload = data.encode()
+        mask = os.urandom(4)
+        n = len(payload)
+        head = b"\x81"
+        if n < 126:
+            head += bytes([0x80 | n])
+        elif n < 65536:
+            head += bytes([0x80 | 126]) + struct.pack(">H", n)
+        else:
+            head += bytes([0x80 | 127]) + struct.pack(">Q", n)
+        self.sock.sendall(head + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(payload)))
+
+    def _read(self, n):
+        while len(self.buf) < n:
+            chunk = self.sock.recv(65536)
+            if not chunk:
+                raise ConnectionError("closed")
+            self.buf += chunk
+        out, self.buf = self.buf[:n], self.buf[n:]
+        return out
+
+    def recv(self):
+        while True:
+            b1, b2 = self._read(2)
+            op = b1 & 0x0F
+            masked = b2 & 0x80
+            ln = b2 & 0x7F
+            if ln == 126:
+                ln = struct.unpack(">H", self._read(2))[0]
+            elif ln == 127:
+                ln = struct.unpack(">Q", self._read(8))[0]
+            mask = self._read(4) if masked else b""
+            payload = self._read(ln)
+            if mask:
+                payload = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
+            if op == 0x9:
+                m2 = os.urandom(4)
+                self.sock.sendall(b"\x8a" + bytes([0x80 | len(payload)]) + m2 + bytes(b ^ m2[i % 4] for i, b in enumerate(payload)))
+                continue
+            if op == 0x8:
+                raise ConnectionError("ws closed")
+            if op in (0x0, 0x1, 0x2):
+                return payload.decode("utf-8", "replace")
+
+
+class CDP:
+    def __init__(self, port=PORT):
+        targets = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/json"))
+        page = next(t for t in targets if t["type"] == "page")
+        self.ws = WS(page["webSocketDebuggerUrl"])
+        self.mid = 0
+        self.events = []
+
+    def cmd(self, method, params=None, timeout=25):
+        self.mid += 1
+        mid = self.mid
+        self.ws.send(json.dumps({"id": mid, "method": method, "params": params or {}}))
+        end = time.time() + timeout
+        while time.time() < end:
+            msg = json.loads(self.ws.recv())
+            if msg.get("id") == mid:
+                if "error" in msg:
+                    raise RuntimeError(f"{method}: {msg['error']}")
+                return msg.get("result", {})
+            self.events.append(msg)
+        raise TimeoutError(method)
+
+    def drain(self, dur=0.35):
+        old = self.ws.sock.gettimeout()
+        end = time.time() + dur
+        try:
+            while time.time() < end:
+                self.ws.sock.settimeout(max(0.05, end - time.time()))
+                try:
+                    self.events.append(json.loads(self.ws.recv()))
+                except socket.timeout:
+                    break
+        finally:
+            self.ws.sock.settimeout(old)
+
+    def js(self, expr):
+        r = self.cmd("Runtime.evaluate", {"expression": expr, "returnByValue": True, "awaitPromise": True})
+        if r.get("exceptionDetails"):
+            raise RuntimeError(json.dumps(r["exceptionDetails"])[:500])
+        return r.get("result", {}).get("value")
+
+    def shot(self, name):
+        os.makedirs(SHOT_DIR, exist_ok=True)
+        with open(os.path.join(SHOT_DIR, name), "wb") as f:
+            f.write(base64.b64decode(self.cmd("Page.captureScreenshot", {"format": "png"})["data"]))
+
+    def issues(self):
+        out = []
+        for e in self.events:
+            m = e.get("method")
+            if m == "Runtime.exceptionThrown":
+                d = e["params"]["exceptionDetails"]
+                out.append("EXCEPTION: " + (d.get("exception", {}).get("description", d.get("text", ""))[:240]))
+            elif m == "Runtime.consoleAPICalled" and e["params"]["type"] in ("error", "warning", "assert"):
+                out.append("CONSOLE: " + " ".join(str(a.get("value", "?")) for a in e["params"].get("args", []))[:240])
+            elif m == "Log.entryAdded":
+                entry = e["params"]["entry"]
+                if "GPU stall due to ReadPixels" in entry.get("text", ""):
+                    continue
+                if entry.get("level") in ("error", "warning"):
+                    out.append(f"LOG.{entry['level']}: {entry.get('text','')[:240]}")
+        self.events = []
+        return out
+
+
+PASS = []
+FAIL = []
+
+
+def check(name, ok, extra=""):
+    (PASS if ok else FAIL).append(name)
+    print(("  PASS " if ok else "  FAIL ") + name + (f" — {extra}" if extra else ""))
+
+
+def sr(expr):
+    return f"(() => {{ const sr = document.querySelector('arcade-404').shadowRoot; return {expr}; }})()"
+
+
+def console_clean(c, label):
+    c.drain(0.35)
+    issues = c.issues()
+    check(f"console sạch [{label}]", len(issues) == 0, "; ".join(issues[:3]))
+
+
+def wait_for(c, expr, timeout=15, step=0.3):
+    end = time.time() + timeout
+    while time.time() < end:
+        try:
+            if c.js(sr(expr)):
+                return True
+        except RuntimeError:
+            pass
+        time.sleep(step)
+    return False
+
+
+def wait_state(c, var, cond, timeout=15, step=0.4):
+    end = time.time() + timeout
+    last = None
+    while time.time() < end:
+        last = c.js(f"window.{var} || null")
+        if last and cond(last):
+            return last
+        time.sleep(step)
+    return last
+
+
+def key(c, code, key_name=None):
+    c.js(
+        f"window.dispatchEvent(new KeyboardEvent('keydown', {{code:'{code}', key:'{key_name or code}', bubbles:true}}));"
+        f"window.dispatchEvent(new KeyboardEvent('keyup', {{code:'{code}', key:'{key_name or code}', bubbles:true}})); true"
+    )
+
+
+def key_down(c, code, key_name=None):
+    c.js(f"window.dispatchEvent(new KeyboardEvent('keydown', {{code:'{code}', key:'{key_name or code}', bubbles:true}})); true")
+
+
+def key_up(c, code, key_name=None):
+    c.js(f"window.dispatchEvent(new KeyboardEvent('keyup', {{code:'{code}', key:'{key_name or code}', bubbles:true}})); true")
+
+
+def open_game(c, title):
+    ok = c.js(sr(
+        "(() => { const cards = [...sr.querySelectorAll('.game-card')];"
+        f"const card = cards.find(x => x.querySelector('.card-title')?.textContent === '{title}');"
+        "if (!card) return false; card.querySelector('.card-play').click(); return true; })()"
+    ))
+    return bool(ok)
+
+
+def go_home(c, fresh_storage=False):
+    c.cmd("Page.navigate", {"url": BASE})
+    time.sleep(1.4)
+    if fresh_storage:
+        c.js("localStorage.clear(); true")
+
+
+def close_via_switch(c):
+    c.js(sr("sr.querySelector('.exp-btns button[aria-label=\"Đổi game\"]')?.click(); true"))
+    time.sleep(0.6)
+
+
+def resume_via_menu(c):
+    c.js(sr("[...sr.querySelectorAll('.exp-menu-btn')].find(b=>b.textContent==='TIẾP TỤC')?.click(); true"))
+    time.sleep(0.3)
+
+
+def open_close_leak_check(c, title, times=3):
+    for i in range(times):
+        open_game(c, title)
+        wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'", 8)
+        roots = c.js(sr("sr.querySelectorAll('.exp-root').length"))
+        check(f"lần mở {i + 1}: đúng 1 exp-root", roots == 1, f"= {roots}")
+        close_via_switch(c)
+    check("surface sạch sau các lần mở/đóng", c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0")))
+
+
+def canvas_pointer(c, selector, fx, fy, etype="pointermove", world_w=1, world_h=1):
+    """Gửi PointerEvent vào canvas theo tọa độ tỉ lệ (0..1) hoặc thế giới."""
+    c.js(sr(
+        "(() => {"
+        f"const cv = sr.querySelector('{selector}');"
+        "if (!cv) return false;"
+        "const r = cv.getBoundingClientRect();"
+        f"const x = r.left + ({fx} / {world_w}) * r.width;"
+        f"const y = r.top + ({fy} / {world_h}) * r.height;"
+        f"cv.dispatchEvent(new PointerEvent('{etype}', {{clientX: x, clientY: y, button: 0, bubbles: true, composed: true, pointerId: 7}}));"
+        "return true; })()"
+    ))
+
+
+# ============================= BRICK BREAKER =============================
+
+def bb_stat(c, label):
+    return c.js(f"window.__BB_STATE__ ? window.__BB_STATE__.{label} : null")
+
+
+def test_brick(c):
+    print("\n== Brick Breaker 404 ==")
+    go_home(c, fresh_storage=True)
+    c.js("window.__ARCADE_EXP11_TEST__ = true; true")
+    total = c.js(sr("sr.querySelectorAll('.game-card').length"))
+    check("card Brick Breaker hiển thị", open_game(c, "Brick Breaker 404"), f"tổng {total} card")
+    check("intro hiện", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'"))
+    c.shot("brick-intro.png")
+
+    c.js(sr("sr.querySelector('.exp-cta').click(); true"))
+    time.sleep(0.8)
+    check("vào màn 1 (overlay đóng)", c.js(sr("!sr.querySelector('.exp-screen')")))
+    check("sidebar: 4 nút hệ thống + panel ĐIỂM/MẠNG/MÀN/COMBO + chú giải",
+          c.js(sr("sr.querySelectorAll('.bb-side .exp-btn').length")) == 4
+          and c.js(sr("sr.querySelectorAll('.bb-panel').length")) == 5)
+    check("3 tim MẠNG hiển thị", c.js(sr("[...sr.querySelectorAll('.bb-hearts canvas')].filter(c=>c.style.display!=='none').length")) == 3)
+    check("chú giải 4 loại gạch", c.js(sr("sr.querySelectorAll('.bb-legend-row').length")) == 4)
+
+    st = wait_state(c, "__BB_STATE__", lambda s: s.get("mode") == "play", 6)
+    check("telemetry hoạt động", bool(st) and st.get("level") == 1, f"state={st}")
+    check("bóng đang dính paddle", bool(st) and st.get("ballStuck") is True)
+
+    # Chuột lái paddle
+    canvas_pointer(c, ".bb-stage canvas", 0.15, 0.9)
+    time.sleep(0.5)
+    px1 = bb_stat(c, "paddleX")
+    canvas_pointer(c, ".bb-stage canvas", 0.85, 0.9)
+    time.sleep(0.5)
+    px2 = bb_stat(c, "paddleX")
+    check("chuột lái paddle qua trái/phải", px1 is not None and px2 is not None and px2 - px1 > 300, f"{px1} → {px2}")
+
+    # Thả bóng bằng Space → phá được gạch
+    key(c, "Space", " ")
+    st = wait_state(c, "__BB_STATE__", lambda s: not s.get("ballStuck"), 5)
+    check("SPACE thả bóng", bool(st) and not st.get("ballStuck"))
+    st0 = bb_stat(c, "bricksLeft")
+    # đưa paddle về giữa cho bóng sống lâu
+    canvas_pointer(c, ".bb-stage canvas", 0.5, 0.9)
+    st = wait_state(c, "__BB_STATE__", lambda s: s.get("bricksLeft", 99) < st0, 25)
+    check("bóng phá được gạch", bool(st) and st.get("bricksLeft", 99) < st0, f"{st0} → {st and st.get('bricksLeft')}")
+    check("điểm tăng", bool(st) and st.get("score", 0) > 0, f"score={st and st.get('score')}")
+    c.shot("brick-play.png")
+
+    # Esc pause + resume
+    key(c, "Escape")
+    time.sleep(0.4)
+    check("Esc mở pause", c.js(sr("sr.querySelector('.exp-screen')?.dataset.screen === 'pause'")))
+    b1 = bb_stat(c, "bricksLeft")
+    time.sleep(1.0)
+    b2 = bb_stat(c, "bricksLeft")
+    check("gameplay dừng khi pause", b1 == b2)
+    c.shot("brick-pause.png")
+    resume_via_menu(c)
+    check("resume xóa overlay", c.js(sr("!sr.querySelector('.exp-screen')")))
+
+    # Mất bóng → trừ mạng
+    lives0 = bb_stat(c, "lives")
+    c.js("window.__BB_TEST__.dropBalls(); true")
+    st = wait_state(c, "__BB_STATE__", lambda s: s.get("lives", 9) < lives0, 6)
+    check("rơi hết bóng → trừ đúng 1 mạng", bool(st) and st.get("lives") == lives0 - 1, f"{lives0} → {st and st.get('lives')}")
+    check("bóng hồi sinh dính paddle", bool(st) and st.get("ballStuck") is True)
+
+    # Clear màn bằng hook test → màn kết quả
+    c.js("window.__BB_TEST__.clearTo(0); true")
+    check("hết gạch → màn kết quả", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'over'", 8))
+    heading = c.js(sr("sr.querySelector('.exp-h1')?.textContent || ''"))
+    check("heading SẠCH GẠCH", "SẠCH GẠCH" in heading, heading)
+    score_txt = c.js(sr("sr.querySelector('.exp-over-score .num')?.textContent"))
+    check("điểm hiển thị > 0", bool(score_txt) and score_txt not in ("0", ""), f"= {score_txt}")
+    c.shot("brick-complete.png")
+
+    # Màn tiếp theo
+    c.js(sr("[...sr.querySelectorAll('.exp-ghostbtn')].find(b=>b.textContent.includes('MÀN TIẾP THEO')).click(); true"))
+    time.sleep(0.8)
+    st = wait_state(c, "__BB_STATE__", lambda s: s.get("level") == 2, 5)
+    check("sang màn 2", bool(st) and st.get("level") == 2)
+    check("HUD MÀN = 02", c.js(sr("[...sr.querySelectorAll('.bb-panel')].find(p=>p.querySelector('.lbl')?.textContent==='MÀN')?.querySelector('.val')?.textContent")) == "02")
+    console_clean(c, "brick gameplay")
+
+    # Tiến trình lưu qua đóng/mở
+    close_via_switch(c)
+    check("đóng game dọn sạch surface", c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0")))
+    check("mở lại được", open_game(c, "Brick Breaker 404"))
+    check("intro hiện lại", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'"))
+    cta = c.js(sr("sr.querySelector('.exp-cta')?.textContent"))
+    check("tiến trình lưu (TIẾP TỤC — MÀN 02)", cta is not None and "MÀN 02" in cta, f"CTA = {cta}")
+    close_via_switch(c)
+
+    open_close_leak_check(c, "Brick Breaker 404", 3)
+    console_clean(c, "brick open/close")
+
+
+# ==================== REGRESSION game cũ (smoke) ====================
+
+def test_old_games(c):
+    print("\n== Regression game cũ (smoke) ==")
+    go_home(c, fresh_storage=True)
+    total = c.js(sr("sr.querySelectorAll('.game-card').length"))
+    check("trang chọn game đủ card", isinstance(total, int) and total >= 12, f"= {total}")
+    for title in ["Endless Runner", "404 Strike", "Portal Puzzle 404", "Neon Drift 404"]:
+        ok = open_game(c, title)
+        time.sleep(1.6)
+        stage = c.js(sr("!sr.querySelector('[data-ref=stage]')?.hidden"))
+        check(f"{title}: mở được", bool(ok) and bool(stage))
+        c.js(sr("sr.querySelector('.exp-btns button[aria-label=\"Đổi game\"]')?.click(); true"))
+        time.sleep(0.4)
+        key(c, "Escape")
+        time.sleep(0.6)
+        clean = c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0"))
+        if not clean:
+            c.js(sr("sr.querySelector('[data-ref=stage] .btn-switch')?.click(); true"))
+            time.sleep(0.5)
+            clean = c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0"))
+        check(f"{title}: đóng sạch", bool(clean))
+    console_clean(c, "old games smoke")
+
+
+SECTIONS = {
+    "brick": test_brick,
+    "old": test_old_games,
+}
+
+
+def main():
+    which = sys.argv[1] if len(sys.argv) > 1 else "all"
+    c = CDP()
+    c.cmd("Page.enable")
+    c.cmd("Runtime.enable")
+    c.cmd("Log.enable")
+    c.cmd("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 900, "deviceScaleFactor": 1, "mobile": False})
+
+    if which == "all":
+        for fn in SECTIONS.values():
+            fn(c)
+    else:
+        SECTIONS[which](c)
+
+    print("\n========== KẾT QUẢ ==========")
+    print(f"PASS: {len(PASS)}  FAIL: {len(FAIL)}")
+    for f in FAIL:
+        print("  FAIL:", f)
+    sys.exit(1 if FAIL else 0)
+
+
+if __name__ == "__main__":
+    main()

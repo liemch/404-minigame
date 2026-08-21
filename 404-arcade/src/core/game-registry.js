@@ -185,6 +185,25 @@ export const GAMES = [
     fullBleed: true,
     ownResults: true,
   },
+
+  /* ---------- Expansion 11–15 ---------- */
+  {
+    id: "brick-breaker",
+    title: "Brick Breaker 404",
+    accent: "cyan",
+    kind: "2d",
+    goal: "Phá sạch gạch qua 10 màn: phản xạ quả cầu bằng paddle, hứng power-up (bóng x2, paddle rộng, laser, +1 mạng). Gạch nổ phá lan, gạch thép bất hoại!",
+    hint: { keys: ["← →"], text: "lái paddle · SPACE thả bóng" },
+    controls: [
+      { keys: ["Chuột"], text: "rê để lái paddle chính xác" },
+      { keys: ["← →", "A D"], text: "di chuyển bằng phím" },
+      { keys: ["SPACE", "Click"], text: "thả bóng" },
+      { keys: ["Chạm"], text: "kéo paddle trực tiếp trên mobile" },
+    ],
+    loader: () => import("../games/brick-breaker/index.js"),
+    fullBleed: true,
+    ownResults: true,
+  },
 ];
 
 const byId = new Map(GAMES.map((g) => [g.id, g]));
