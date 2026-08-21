@@ -194,6 +194,54 @@ void main() {
   gl_FragColor = vec4(col, uOpacity * texel.a);
 }`;
 
+/* ---- Shader post-processing (bloom, opt-in) ---- */
+
+const POST_VS = `
+attribute vec2 aPos;
+varying vec2 vUv;
+void main() {
+  vUv = aPos * 0.5 + 0.5;
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}`;
+
+// Tách vùng sáng: đo theo kênh lớn nhất (neon tím/magenta bão hòa có
+// luminance thấp nhưng vẫn phải bloom) + soft knee để không gắt.
+const POST_FS_BRIGHT = `
+precision mediump float;
+varying vec2 vUv;
+uniform sampler2D uTex;
+uniform vec2 uThreshold; // x = ngưỡng, y = knee
+void main() {
+  vec3 c = texture2D(uTex, vUv).rgb;
+  float b = max(c.r, max(c.g, c.b));
+  float k = smoothstep(uThreshold.x, uThreshold.x + uThreshold.y, b);
+  gl_FragColor = vec4(c * k, 1.0);
+}`;
+
+// Gaussian 9-tap tách chiều (dùng 5 lần sample nhờ linear filtering)
+const POST_FS_BLUR = `
+precision mediump float;
+varying vec2 vUv;
+uniform sampler2D uTex;
+uniform vec2 uDir; // texel step theo chiều blur
+void main() {
+  vec3 acc = texture2D(uTex, vUv).rgb * 0.227027;
+  vec2 o1 = uDir * 1.3846153846;
+  vec2 o2 = uDir * 3.2307692308;
+  acc += (texture2D(uTex, vUv + o1).rgb + texture2D(uTex, vUv - o1).rgb) * 0.3162162162;
+  acc += (texture2D(uTex, vUv + o2).rgb + texture2D(uTex, vUv - o2).rgb) * 0.0702702703;
+  gl_FragColor = vec4(acc, 1.0);
+}`;
+
+const POST_FS_ADD = `
+precision mediump float;
+varying vec2 vUv;
+uniform sampler2D uTex;
+uniform float uStrength;
+void main() {
+  gl_FragColor = vec4(texture2D(uTex, vUv).rgb * uStrength, 1.0);
+}`;
+
 /* ============================ Geometry ============================ */
 
 function boxData() {
@@ -365,13 +413,21 @@ export function createEngine(canvas, opts = {}) {
     return sh;
   }
 
-  const prog = gl.createProgram();
-  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
-  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
-  gl.linkProgram(prog);
-  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-    throw new Error(`Link shader lỗi: ${gl.getProgramInfoLog(prog)}`);
+  function makeProgram(vsSrc, fsSrc, attribs) {
+    const p = gl.createProgram();
+    gl.attachShader(p, compile(gl.VERTEX_SHADER, vsSrc));
+    gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fsSrc));
+    // Chốt vị trí attribute trước khi link → quản lý enable/disable
+    // vertex array giữa pass chính và pass bloom được xác định.
+    attribs.forEach((name, i) => gl.bindAttribLocation(p, i, name));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      throw new Error(`Link shader lỗi: ${gl.getProgramInfoLog(p)}`);
+    }
+    return p;
   }
+
+  const prog = makeProgram(VS, FS, ["aPos", "aNormal", "aUv"]);
   gl.useProgram(prog);
 
   const A = {
@@ -472,6 +528,152 @@ export function createEngine(canvas, opts = {}) {
     canvas.style.width = `${cssW}px`;
     canvas.style.height = `${cssH}px`;
     gl.viewport(0, 0, width, height);
+  }
+
+  /* --- Bloom (opt-in qua opts.bloom; bật/tắt runtime bằng setBloom) ---
+   * Pipeline giữ nguyên MSAA của canvas: render cảnh như cũ → chép khung
+   * hình vào texture (copyTexSubImage2D) → bright-pass ở 1/4 độ phân giải
+   * → blur Gaussian tách 2 chiều (ping-pong) → cộng additive lên canvas.
+   */
+  const bloomCfg = {
+    threshold: opts.bloomThreshold ?? 0.6,
+    knee: opts.bloomKnee ?? 0.34,
+    strength: opts.bloomStrength ?? 0.9,
+  };
+  const bloomAllowed = !!opts.bloom;
+  let bloomOn = bloomAllowed;
+  let post = null; // tài nguyên post (tạo lười khi cần lần đầu)
+
+  function buildPost() {
+    try {
+      const mkTex = () => {
+        const t = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        return t;
+      };
+      const vbo = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+      // Tam giác phủ toàn màn hình
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+      const progBright = makeProgram(POST_VS, POST_FS_BRIGHT, ["aPos"]);
+      const progBlur = makeProgram(POST_VS, POST_FS_BLUR, ["aPos"]);
+      const progAdd = makeProgram(POST_VS, POST_FS_ADD, ["aPos"]);
+      post = {
+        vbo,
+        progBright,
+        progBlur,
+        progAdd,
+        sceneTex: mkTex(),
+        ping: { tex: mkTex(), fbo: gl.createFramebuffer() },
+        pong: { tex: mkTex(), fbo: gl.createFramebuffer() },
+        w: 0,
+        h: 0,
+        qw: 1,
+        qh: 1,
+        broken: false,
+        u: {
+          brightTex: gl.getUniformLocation(progBright, "uTex"),
+          brightThr: gl.getUniformLocation(progBright, "uThreshold"),
+          blurTex: gl.getUniformLocation(progBlur, "uTex"),
+          blurDir: gl.getUniformLocation(progBlur, "uDir"),
+          addTex: gl.getUniformLocation(progAdd, "uTex"),
+          addStrength: gl.getUniformLocation(progAdd, "uStrength"),
+        },
+      };
+      gl.useProgram(prog);
+    } catch {
+      post = { broken: true };
+      bloomOn = false;
+    }
+  }
+
+  function allocPost() {
+    const qw = Math.max(1, Math.round(width / 4));
+    const qh = Math.max(1, Math.round(height / 4));
+    // Canvas tạo với alpha:false → nguồn copy là RGB; texture đích phải
+    // là RGB, nếu RGBA thì copyTexSubImage2D báo INVALID_OPERATION.
+    gl.bindTexture(gl.TEXTURE_2D, post.sceneTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
+    for (const t of [post.ping, post.pong]) {
+      gl.bindTexture(gl.TEXTURE_2D, t.tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, qw, qh, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t.tex, 0);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        post.broken = true; // GPU không hỗ trợ → tắt bloom vĩnh viễn, game vẫn chạy
+        bloomOn = false;
+        return;
+      }
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    post.w = width;
+    post.h = height;
+    post.qw = qw;
+    post.qh = qh;
+  }
+
+  function postDraw(fbo, w, h, tex) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.viewport(0, 0, w, h);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  function applyBloom() {
+    if (post.w !== width || post.h !== height) allocPost();
+    if (post.broken) return;
+
+    // Chép khung hình đã render (đã resolve MSAA) vào texture nguồn
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, post.sceneTex);
+    gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, width, height);
+
+    // State fullscreen-pass: chỉ attrib 0 (aPos vec2), không depth/blend
+    gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.BLEND);
+    gl.disableVertexAttribArray(1);
+    gl.disableVertexAttribArray(2);
+    gl.bindBuffer(gl.ARRAY_BUFFER, post.vbo);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(0);
+
+    // 1) Bright-pass xuống 1/4 độ phân giải
+    gl.useProgram(post.progBright);
+    gl.uniform1i(post.u.brightTex, 0);
+    gl.uniform2f(post.u.brightThr, bloomCfg.threshold, bloomCfg.knee);
+    postDraw(post.ping.fbo, post.qw, post.qh, post.sceneTex);
+
+    // 2) Blur tách chiều ×2 lượt (bán kính tăng dần → quầng rộng, mượt)
+    gl.useProgram(post.progBlur);
+    gl.uniform1i(post.u.blurTex, 0);
+    const tx = 1 / post.qw;
+    const ty = 1 / post.qh;
+    for (const r of [1, 1.85]) {
+      gl.uniform2f(post.u.blurDir, tx * r, 0);
+      postDraw(post.pong.fbo, post.qw, post.qh, post.ping.tex);
+      gl.uniform2f(post.u.blurDir, 0, ty * r);
+      postDraw(post.ping.fbo, post.qw, post.qh, post.pong.tex);
+    }
+
+    // 3) Cộng bloom lên canvas
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    gl.useProgram(post.progAdd);
+    gl.uniform1i(post.u.addTex, 0);
+    gl.uniform1f(post.u.addStrength, bloomCfg.strength);
+    postDraw(null, width, height, post.ping.tex);
+
+    // Khôi phục state cho pass cảnh của frame sau
+    gl.disable(gl.BLEND);
+    gl.enable(gl.DEPTH_TEST);
+    gl.useProgram(prog);
+    boundGeo = null;
   }
 
   /* --- Duyệt cây node và vẽ --- */
@@ -582,6 +784,12 @@ export function createEngine(canvas, opts = {}) {
       gl.depthMask(true);
       gl.disable(gl.BLEND);
     }
+
+    // Post-processing bloom (nếu được bật)
+    if (bloomOn) {
+      if (!post) buildPost();
+      if (post && !post.broken) applyBloom();
+    }
   }
 
   return {
@@ -595,6 +803,13 @@ export function createEngine(canvas, opts = {}) {
       fogNear = near;
       fogFar = far;
     },
+    /** Bật/tắt bloom runtime (chỉ có tác dụng khi engine tạo với opts.bloom). */
+    setBloom(on) {
+      bloomOn = bloomAllowed && !!on && post?.broken !== true;
+    },
+    get bloom() {
+      return bloomOn;
+    },
     get size() {
       return { width, height };
     },
@@ -607,6 +822,18 @@ export function createEngine(canvas, opts = {}) {
       for (const t of textures) gl.deleteTexture(t);
       textures.length = 0;
       gl.deleteProgram(prog);
+      if (post && !post.broken) {
+        gl.deleteBuffer(post.vbo);
+        gl.deleteProgram(post.progBright);
+        gl.deleteProgram(post.progBlur);
+        gl.deleteProgram(post.progAdd);
+        gl.deleteTexture(post.sceneTex);
+        for (const t of [post.ping, post.pong]) {
+          gl.deleteTexture(t.tex);
+          gl.deleteFramebuffer(t.fbo);
+        }
+        post = null;
+      }
       const lose = gl.getExtension("WEBGL_lose_context");
       lose?.loseContext();
     },

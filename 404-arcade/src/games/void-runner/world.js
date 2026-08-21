@@ -27,37 +27,91 @@ function canvas2d(w, h) {
 }
 
 function platTexture(engine) {
-  const [cv, g] = canvas2d(256, 256);
+  const [cv, g] = canvas2d(512, 512);
   const rand = seededRand(4041);
   g.fillStyle = C.slab;
-  g.fillRect(0, 0, 256, 256);
-  // Panel 4×4 với sắc thái lệch nhẹ + mối ghép tối
+  g.fillRect(0, 0, 512, 512);
+  // Panel 4×4 với sắc thái lệch nhẹ + bevel + greeble bên trong
+  const cell = 128;
   for (let py = 0; py < 4; py++) {
     for (let px = 0; px < 4; px++) {
+      const x0 = px * cell;
+      const y0 = py * cell;
       const v = rand();
       if (v > 0.55) {
         g.fillStyle = `rgba(210,225,255,${(v - 0.55) * 0.1})`;
-        g.fillRect(px * 64, py * 64, 64, 64);
+        g.fillRect(x0, y0, cell, cell);
       } else if (v < 0.2) {
         g.fillStyle = "rgba(0,0,0,0.18)";
-        g.fillRect(px * 64, py * 64, 64, 64);
+        g.fillRect(x0, y0, cell, cell);
+      }
+      // Bevel: mép trên sáng, mép dưới tối (panel nổi khối)
+      g.fillStyle = "rgba(210,225,255,0.06)";
+      g.fillRect(x0 + 3, y0 + 3, cell - 6, 3);
+      g.fillStyle = "rgba(0,0,0,0.26)";
+      g.fillRect(x0 + 3, y0 + cell - 6, cell - 6, 3);
+      // Greeble: khe thoát khí / hộp kỹ thuật + LED / vạch mã
+      const r2 = rand();
+      if (r2 > 0.72) {
+        g.fillStyle = "rgba(0,0,0,0.42)";
+        for (let s = 0; s < 4; s++) g.fillRect(x0 + 26, y0 + 34 + s * 18, 76, 7);
+      } else if (r2 > 0.5) {
+        g.fillStyle = "rgba(0,0,0,0.3)";
+        g.fillRect(x0 + 32, y0 + 36, 64, 54);
+        g.fillStyle = "rgba(210,225,255,0.06)";
+        g.fillRect(x0 + 32, y0 + 36, 64, 3);
+        g.fillStyle = rand() > 0.5 ? "rgba(34,228,255,0.4)" : "rgba(228,44,255,0.32)";
+        g.fillRect(x0 + 40, y0 + 44, 9, 9);
+      } else if (r2 > 0.34) {
+        g.fillStyle = "rgba(210,225,255,0.12)";
+        g.fillRect(x0 + 30, y0 + 58, 52, 8);
+        g.fillStyle = "rgba(34,228,255,0.2)";
+        g.fillRect(x0 + 30, y0 + 72, 24, 5);
       }
     }
   }
-  g.strokeStyle = "rgba(0,0,0,0.45)";
-  g.lineWidth = 3;
+  // Mối ghép panel
+  g.strokeStyle = "rgba(0,0,0,0.5)";
+  g.lineWidth = 5;
   for (let i = 0; i <= 4; i++) {
-    g.beginPath(); g.moveTo(i * 64, 0); g.lineTo(i * 64, 256); g.stroke();
-    g.beginPath(); g.moveTo(0, i * 64); g.lineTo(256, i * 64); g.stroke();
+    g.beginPath(); g.moveTo(i * cell, 0); g.lineTo(i * cell, 512); g.stroke();
+    g.beginPath(); g.moveTo(0, i * cell); g.lineTo(512, i * cell); g.stroke();
   }
-  // Hairline cyan mờ + đinh tán
+  // Hairline cyan mờ chia đôi panel
   g.strokeStyle = "rgba(34,228,255,0.07)";
-  g.lineWidth = 1;
+  g.lineWidth = 2;
   for (let i = 0; i <= 8; i++) {
-    g.beginPath(); g.moveTo(i * 32, 0); g.lineTo(i * 32, 256); g.stroke();
+    g.beginPath(); g.moveTo(i * 64, 0); g.lineTo(i * 64, 512); g.stroke();
   }
-  g.fillStyle = "rgba(0,0,0,0.55)";
-  for (let i = 0; i < 14; i++) g.fillRect(8 + rand() * 240, 8 + rand() * 240, 4, 4);
+  // Đinh tán 4 góc mỗi panel (có highlight)
+  for (let py = 0; py < 4; py++) {
+    for (let px = 0; px < 4; px++) {
+      for (const [dx, dy] of [[12, 12], [cell - 18, 12], [12, cell - 18], [cell - 18, cell - 18]]) {
+        g.fillStyle = "rgba(0,0,0,0.6)";
+        g.fillRect(px * cell + dx, py * cell + dy, 7, 7);
+        g.fillStyle = "rgba(210,225,255,0.16)";
+        g.fillRect(px * cell + dx + 1, py * cell + dy + 1, 2, 2);
+      }
+    }
+  }
+  // Vết xước + hạt noise mịn
+  g.strokeStyle = "rgba(210,225,255,0.1)";
+  g.lineWidth = 1.6;
+  for (let i = 0; i < 12; i++) {
+    const sx = rand() * 512;
+    const sy = rand() * 512;
+    g.beginPath();
+    g.moveTo(sx, sy);
+    g.lineTo(sx + (rand() - 0.5) * 110, sy + (rand() - 0.5) * 50);
+    g.stroke();
+  }
+  for (let i = 0; i < 2400; i++) {
+    const v = rand();
+    g.fillStyle = v > 0.5
+      ? `rgba(210,225,255,${0.02 + (v - 0.5) * 0.07})`
+      : `rgba(0,0,0,${0.03 + (0.5 - v) * 0.12})`;
+    g.fillRect(rand() * 512, rand() * 512, 1 + rand() * 2, 1 + rand() * 2);
+  }
   return engine.makeTexture(cv);
 }
 
@@ -164,6 +218,12 @@ function windowsTexture(engine, seed) {
       }
     }
   }
+  // Lớp tint tím mờ phủ toàn mặt (tòa nhà "ngập" ánh tím như reference)
+  const tint = g.createLinearGradient(0, 0, 0, 512);
+  tint.addColorStop(0, "rgba(122,80,255,0.05)");
+  tint.addColorStop(1, "rgba(150,92,255,0.13)");
+  g.fillStyle = tint;
+  g.fillRect(0, 0, 256, 512);
   return engine.makeTexture(cv);
 }
 
@@ -321,6 +381,18 @@ function portalGlowTexture(engine) {
   grad.addColorStop(0, "rgba(210,160,255,0.85)");
   grad.addColorStop(0.55, "rgba(139,91,255,0.4)");
   grad.addColorStop(1, "rgba(139,91,255,0)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  return engine.makeTexture(cv);
+}
+
+/** Đĩa bóng mờ (blob shadow) chiếu xuống mặt platform dưới người chơi. */
+function blobTexture(engine) {
+  const [cv, g] = canvas2d(128, 128);
+  const grad = g.createRadialGradient(64, 64, 6, 64, 64, 62);
+  grad.addColorStop(0, "rgba(0,0,0,0.6)");
+  grad.addColorStop(0.55, "rgba(0,0,0,0.34)");
+  grad.addColorStop(1, "rgba(0,0,0,0)");
   g.fillStyle = grad;
   g.fillRect(0, 0, 128, 128);
   return engine.makeTexture(cv);
@@ -897,38 +969,40 @@ export function createWorld(engine) {
       cullables.push({ node: g, x: cx, z: cz, r: 2 });
     }
 
-    // Quầng sáng tím "biển đèn" dưới vực (3 khúc chữ U)
+    // Quầng sáng tím "biển đèn" dưới vực (3 khúc chữ U) — 2 lớp cho dày
     for (const [ux, uz, ur] of [[0, -60, 120], [-48, -126, 120], [-95, -80, 120], [0, 0, 90]]) {
-      const glow = meshNode("plane", {
-        pos: [ux, -26, uz],
-        rot: [-Math.PI / 2, 0, 0],
-        scale: [ur * 2, ur * 2, 1],
-        color: [1, 1, 1],
-        tex: texAbyss,
-        emissive: 1,
-        opacity: 0.85,
-        additive: true,
-        nofog: true,
-      });
-      addChild(root, glow);
+      for (const [gy, k, op] of [[-26, 1, 1], [-16, 0.6, 0.4]]) {
+        const glow = meshNode("plane", {
+          pos: [ux, gy, uz],
+          rot: [-Math.PI / 2, 0, 0],
+          scale: [ur * 2 * k, ur * 2 * k, 1],
+          color: [1, 1, 1],
+          tex: texAbyss,
+          emissive: 1,
+          opacity: op,
+          additive: true,
+          nofog: true,
+        });
+        addChild(root, glow);
+      }
     }
 
     // Cột sáng dữ liệu bay lên từ vực (điểm nhấn dọc như ảnh)
-    for (let i = 0; i < 22; i++) {
+    for (let i = 0; i < 30; i++) {
       const t = rand();
       let x;
       let z;
       if (t < 0.4) { x = (rand() > 0.5 ? 1 : -1) * (10 + rand() * 26); z = 6 - rand() * 140; }
       else if (t < 0.7) { x = -6 - rand() * 92; z = -126.5 + (rand() > 0.5 ? 1 : -1) * (10 + rand() * 26); }
       else { x = -95 + (rand() > 0.5 ? 1 : -1) * (10 + rand() * 24); z = -34 - rand() * 84; }
-      const hh = 10 + rand() * 22;
+      const hh = 10 + rand() * 24;
       const nc = rand() > 0.6 ? C.magenta : rand() > 0.3 ? C.violet : C.cyan;
       const beam = meshNode("box", {
         pos: [x, -20 + hh / 2, z],
         scale: [0.14, hh, 0.14],
         color: hex(nc),
         emissive: 1,
-        opacity: 0.35,
+        opacity: 0.45,
         additive: true,
       });
       addChild(root, beam);
@@ -974,6 +1048,52 @@ export function createWorld(engine) {
   markerNode.visible = false;
   addChild(root, markerNode);
   anim.marker = markerNode;
+
+  /* ------------------- Bóng blob người chơi ------------------- */
+
+  const texBlob = blobTexture(engine);
+  const shadowNode = meshNode("plane", {
+    pos: [0, 0, 0],
+    rot: [-Math.PI / 2, 0, 0],
+    scale: [1, 1, 1],
+    color: [1, 1, 1],
+    opacity: 0.5,
+    tex: texBlob,
+  });
+  shadowNode.visible = false;
+  addChild(root, shadowNode);
+
+  /**
+   * Bóng đổ mềm của người chơi lên mặt platform ngay bên dưới (bám đất
+   * khi chạy, tách xa + nhạt dần khi nhảy — depth cue rẻ, không shadow map).
+   */
+  function setPlayerShadow(pos) {
+    if (!pos) {
+      shadowNode.visible = false;
+      return;
+    }
+    let top = null;
+    for (const c of colliders) {
+      if (c.wallRun || c.ceiling) continue;
+      if (pos[0] < c.min[0] - 0.2 || pos[0] > c.max[0] + 0.2) continue;
+      if (pos[2] < c.min[2] - 0.2 || pos[2] > c.max[2] + 0.2) continue;
+      if (c.max[1] > pos[1] + 0.05) continue;
+      if (top === null || c.max[1] > top) top = c.max[1];
+    }
+    const d = top === null ? Infinity : pos[1] - top;
+    if (d > 8) {
+      shadowNode.visible = false;
+      return;
+    }
+    shadowNode.visible = true;
+    shadowNode.pos[0] = pos[0];
+    shadowNode.pos[1] = top + 0.045;
+    shadowNode.pos[2] = pos[2];
+    const k = 0.95 + d * 0.16;
+    shadowNode.scale[0] = k;
+    shadowNode.scale[1] = k;
+    shadowNode.mesh.opacity = Math.max(0.1, 0.52 - d * 0.055);
+  }
 
   /* ------------------- Dựng toàn bộ ------------------- */
 
@@ -1349,6 +1469,7 @@ export function createWorld(engine) {
     checkPortal,
     setPortalActive,
     setMarker,
+    setPlayerShadow,
     setBackdrop,
     setLaserScale(s) { laserScale = s; },
     shardTotal: course.shards.length,
