@@ -26,13 +26,33 @@ export function createCourse() {
   const gates = [];  // {x,y,z, axis, index}
   const pads = [];   // {x,y,z, axis, dir} jump pad boost
   const arrows = []; // {x,y,z, yaw} biển chevron chỉ hướng ở khúc quẹo
-  // Chevron cyan mờ trên mặt track (chỉ hướng chạy — ảnh gameplay)
+  // Làn chevron cyan trên mặt track (chỉ hướng chạy — ảnh gameplay)
   const floorArrows = [
-    { x: 0, y: 0, z: -12, yaw: 0 },
-    { x: 0, y: 0, z: -22, yaw: 0 },
+    // Zone A (chạy -Z)
+    { x: 0, y: 0, z: -7, yaw: 0 },
+    { x: 0, y: 0, z: -13, yaw: 0 },
+    { x: 0, y: 0, z: -19, yaw: 0 },
+    { x: 0, y: 0, z: -25, yaw: 0 },
+    { x: 0, y: 0, z: -70, yaw: 0 },
+    { x: 0, y: 0, z: -116, yaw: 0 },
+    { x: 0, y: 0, z: -126.5, yaw: Math.PI / 2 }, // khúc quẹo → -X
+    // Zone B (chạy -X)
     { x: -8, y: 0, z: -126.5, yaw: Math.PI / 2 },
+    { x: -16, y: 0, z: -126.5, yaw: Math.PI / 2 },
     { x: -28, y: 0, z: -126.5, yaw: Math.PI / 2 },
+    { x: -38, y: 0, z: -126.5, yaw: Math.PI / 2 },
+    { x: -44, y: 0, z: -126.5, yaw: Math.PI / 2 },
+    { x: -75.5, y: 0, z: -126.5, yaw: Math.PI / 2 },
+    { x: -82, y: 0, z: -126.5, yaw: Math.PI / 2 },
+    { x: -95, y: 0, z: -126.5, yaw: Math.PI }, // khúc quẹo → +Z
+    // Zone C (chạy +Z)
     { x: -95, y: 0, z: -119, yaw: Math.PI },
+    { x: -95, y: 0, z: -113, yaw: Math.PI },
+    { x: -95, y: 0, z: -107, yaw: Math.PI },
+    { x: -95, y: 0, z: -101, yaw: Math.PI },
+    { x: -95, y: 0, z: -95, yaw: Math.PI },
+    { x: -95, y: 0, z: -64, yaw: Math.PI },
+    { x: -95, y: 0, z: -56, yaw: Math.PI },
     { x: -95, y: 0, z: -50, yaw: Math.PI },
   ];
 

@@ -55,6 +55,8 @@ export const RH_CSS = /* css */ `
 .rh-panel[data-tone="pink"]  { --tone: var(--pink); }
 .rh-panel[data-tone="lime"]  { --tone: var(--lime); }
 
+.rh-panel { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--tone, var(--cyan)) 28%, transparent)); }
+
 .rh-panel > .in {
   clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
   background: rgba(7, 11, 28, 0.94);
@@ -71,7 +73,7 @@ export const RH_CSS = /* css */ `
 }
 
 .rh-panel .val {
-  font-size: 1.7rem;
+  font-size: 1.9rem;
   font-weight: 800;
   line-height: 1.05;
   color: var(--tone);
@@ -182,26 +184,28 @@ export const RH_CSS = /* css */ `
 }
 
 .rh-key {
-  width: 64px;
-  height: 56px;
+  width: 76px;
+  height: 64px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 34%, 100% 100%, 0 100%, 0 34%);
+  clip-path: polygon(24% 0, 76% 0, 100% 26%, 100% 74%, 76% 100%, 24% 100%, 0 74%, 0 26%);
   border: none;
-  outline: 2px solid var(--tone);
-  outline-offset: -2px;
-  background: linear-gradient(180deg, rgba(14, 20, 46, 0.95), rgba(7, 10, 26, 0.95));
+  outline: 3px solid var(--tone);
+  outline-offset: -3px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--tone) 16%, rgba(14, 20, 46, 0.95)), rgba(6, 9, 24, 0.97));
   color: var(--tone);
   font-family: inherit;
-  font-size: 1.3rem;
+  font-size: 1.55rem;
   font-weight: 800;
+  text-shadow: 0 0 12px color-mix(in srgb, var(--tone) 75%, transparent);
   cursor: pointer;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
-  transition: transform 0.06s ease, box-shadow 0.06s ease;
+  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--tone) 45%, transparent));
+  transition: transform 0.06s ease, filter 0.06s ease;
 }
 
 .rh-key[data-tone="cyan"]  { --tone: var(--cyan); }
@@ -212,8 +216,8 @@ export const RH_CSS = /* css */ `
 .rh-key.held,
 .rh-key:active {
   transform: translateY(3px);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5), 0 0 22px color-mix(in srgb, var(--tone) 55%, transparent);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--tone) 24%, rgba(14, 20, 46, 0.95)), rgba(7, 10, 26, 0.95));
+  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--tone) 80%, transparent));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone) 34%, rgba(14, 20, 46, 0.95)), rgba(7, 10, 26, 0.95));
 }
 
 @media (max-width: 920px) {

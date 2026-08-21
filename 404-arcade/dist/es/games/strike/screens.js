@@ -11,7 +11,26 @@
  */
 
 import { el, svgIcon, formatNumber } from "../../core/utils.js";
-import { renderStrikeLogo } from "../../core/pixel-text.js";
+import { renderPixelLogo } from "../../core/pixel-text.js";
+
+const NS = "http://www.w3.org/2000/svg";
+
+/** Cánh chevron hai bên chữ STRIKE (theo logo reference). */
+function wingSvg(cls) {
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("class", cls);
+  svg.setAttribute("viewBox", "0 0 44 22");
+  svg.setAttribute("aria-hidden", "true");
+  for (const [i, w] of [[0, 40], [1, 30], [2, 20]].map((v) => v)) {
+    const p = document.createElementNS(NS, "path");
+    const y = 3 + i * 7;
+    p.setAttribute("d", `M44 ${y} L${44 - w} ${y} L${48 - w} ${y + 4} L44 ${y + 4} Z`);
+    p.setAttribute("fill", "currentColor");
+    p.setAttribute("opacity", String(1 - i * 0.28));
+    svg.appendChild(p);
+  }
+  return svg;
+}
 
 const QUALITY_OPTIONS = [
   ["auto", "Tự động"],
@@ -68,7 +87,20 @@ export function createScreens(rootEl, { settings, actions }) {
     /* Cột trái */
     const left = el("div");
     const logo = el("div", "sk-logo");
-    renderStrikeLogo(logo);
+    // Logo theo reference: "404" tím pixel + "STRIKE" trắng + cánh chevron
+    renderPixelLogo(
+      logo,
+      [
+        { text: "404", scale: 1, fill: [["0%", "#a06bff"], ["100%", "#7d43ff"]] },
+        { text: "STRIKE", scale: 0.52, fill: [["0%", "#ffffff"], ["100%", "#dbe6ff"]] },
+      ],
+      "404 Strike"
+    );
+    logo.appendChild(wingSvg("sk-wing l"));
+    logo.appendChild(wingSvg("sk-wing r"));
+    const divider = el("div", "sk-logo-divider");
+    divider.appendChild(el("i"));
+    logo.appendChild(divider);
     left.appendChild(logo);
 
     const objective = el("div", "sk-objective");

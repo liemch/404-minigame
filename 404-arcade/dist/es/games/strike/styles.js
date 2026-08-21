@@ -97,6 +97,18 @@ export const STRIKE_CSS = /* css */ `
 .sk-timer .sk-cut { background: color-mix(in srgb, var(--cyan) 45%, transparent); }
 .sk-timer .sk-cut-in { padding: 6px 26px 8px; }
 
+/* Vạch trang trí nhỏ dưới đồng hồ (theo reference) */
+.sk-timer::after {
+  content: "";
+  display: block;
+  margin: 4px auto 0;
+  width: 92px;
+  height: 3px;
+  background: repeating-linear-gradient(90deg,
+    color-mix(in srgb, var(--cyan) 65%, transparent) 0 10px,
+    transparent 10px 16px);
+}
+
 .sk-wave-label {
   font-size: 0.66rem;
   font-weight: 700;
@@ -288,8 +300,8 @@ export const STRIKE_CSS = /* css */ `
 
 .sk-cross i {
   position: absolute;
-  background: var(--text-0);
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.55);
+  background: #c8f4ff;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--cyan) 75%, transparent);
 }
 
 .sk-cross .n { left: -1px; top: calc(-1 * (var(--gap) + var(--len))); width: 2px; height: var(--len); }
@@ -439,8 +451,40 @@ export const STRIKE_CSS = /* css */ `
   align-items: center;
 }
 
-.sk-logo { width: min(330px, 72%); margin-bottom: 14px; }
-.sk-logo svg { width: 100%; filter: drop-shadow(0 0 18px color-mix(in srgb, var(--violet) 45%, transparent)); }
+.sk-logo { width: min(330px, 72%); margin-bottom: 20px; position: relative; }
+.sk-logo > svg:first-child { width: 100%; filter: drop-shadow(0 0 18px color-mix(in srgb, var(--violet) 55%, transparent)); }
+
+/* Cánh chevron hai bên chữ STRIKE (theo logo reference) */
+.sk-wing {
+  position: absolute;
+  top: 63%;
+  width: 40px;
+  height: 20px;
+  color: var(--cyan);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--cyan) 55%, transparent));
+}
+
+.sk-wing.l { left: -50px; }
+.sk-wing.r { right: -50px; transform: scaleX(-1); }
+
+/* Vạch ngăn + kim cương dưới logo */
+.sk-logo-divider {
+  position: relative;
+  margin-top: 14px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--violet) 70%, transparent) 20%, color-mix(in srgb, var(--violet) 70%, transparent) 80%, transparent);
+}
+
+.sk-logo-divider i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  background: var(--violet);
+  transform: translate(-50%, -50%) rotate(45deg);
+  box-shadow: 0 0 10px var(--violet);
+}
 
 .sk-objective {
   display: flex;

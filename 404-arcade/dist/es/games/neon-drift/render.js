@@ -1,13 +1,16 @@
 /**
- * render.js — vẽ thế giới Neon Drift 404: thành phố neon tối, mặt đường
- * asphalt với 2 mép phát sáng hồng/cyan, vạch giữa đứt, chevron chỉ
- * hướng, cổng CHECKPOINT lime, pickup lục giác năng lượng, xe người
- * chơi cyan-hồng với vệt drift, xe cản vàng, minimap góc trái.
+ * render.js — vẽ thế giới Neon Drift 404 theo ảnh reference: thành phố
+ * neon tối với các khối nhà đầy cửa sổ sáng, mặt đường asphalt có kết
+ * cấu với 2 mép phát sáng hồng/cyan nhiều lớp, vạch giữa trắng đứt,
+ * chevron đôi hồng/cyan chỉ hướng, cổng CHECKPOINT trụ ca-rô + banner
+ * lime, pickup lục giác năng lượng, xe người chơi neon với vệt drift
+ * rực hồng, xe cản vàng biển cảnh báo, minimap góc trái.
  */
 
+import { seededRand } from "../../core/utils.js";
 import { TRACK_WIDTH, HALF_W } from "./track.js";
 
-const ROAD = "#131120";
+const ROAD = "#15121f";
 const ROAD_EDGE_PINK = "#ff2ee6";
 const ROAD_EDGE_CYAN = "#20e3ff";
 const LIME = "#a8ff3e";
@@ -39,73 +42,134 @@ export function createDriftRenderer(canvas, container, track) {
   /* ---------- lớp TĨNH pre-render (decor + đường + mép neon + mũi tên) ----------
      Vẽ một lần vào offscreen canvas — mỗi frame chỉ drawImage, giữ 60 FPS. */
 
+  let staticOX = 0;
+  let staticOY = 0;
+
   function buildStatic() {
-    staticW = track.bbox.maxX + 90;
-    staticH = track.bbox.maxY + 90;
+    const b = track.decorBounds || { x0: 0, y0: 0, x1: track.bbox.maxX + 90, y1: track.bbox.maxY + 90 };
+    staticOX = b.x0;
+    staticOY = b.y0;
+    staticW = b.x1 - b.x0;
+    staticH = b.y1 - b.y0;
     staticLayer = document.createElement("canvas");
     staticLayer.width = Math.round(staticW * STATIC_SCALE);
     staticLayer.height = Math.round(staticH * STATIC_SCALE);
     const s = staticLayer.getContext("2d");
     s.scale(STATIC_SCALE, STATIC_SCALE);
+    s.translate(-staticOX, -staticOY);
 
-    // decor thành phố
+    // decor thành phố: khối nhà tối + viền neon glow + lưới cửa sổ sáng
+    const wrand = seededRand(1313);
     for (const b of track.decor) {
-      s.fillStyle = "#0d0a20";
+      // bóng khối
+      s.fillStyle = "rgba(0,0,0,0.5)";
+      s.fillRect(b.x + 5, b.y + 6, b.w, b.h);
+      // thân nhà
+      const grad = s.createLinearGradient(b.x, b.y, b.x, b.y + b.h);
+      grad.addColorStop(0, "#100d24");
+      grad.addColorStop(1, "#0a081a");
+      s.fillStyle = grad;
       s.fillRect(b.x, b.y, b.w, b.h);
+      // viền neon 2 lớp
       s.strokeStyle = b.color;
-      s.globalAlpha = 0.5;
-      s.lineWidth = 2;
+      s.globalAlpha = 0.16;
+      s.lineWidth = 6;
       s.strokeRect(b.x, b.y, b.w, b.h);
-      s.globalAlpha = 0.38;
-      s.fillStyle = b.color;
-      if (b.vertical) {
-        for (let i = 0; i < b.windows; i++) {
-          const wx = b.x + 10 + (i * (b.w - 20)) / Math.max(1, b.windows - 1);
-          s.fillRect(wx - 2, b.y + 8, 4, b.h - 16);
-        }
-      } else {
-        for (let i = 0; i < b.windows; i++) {
-          const wy = b.y + 10 + (i * (b.h - 20)) / Math.max(1, b.windows - 1);
-          s.fillRect(b.x + 8, wy - 2, b.w - 16, 4);
+      s.globalAlpha = 0.85;
+      s.lineWidth = 1.8;
+      s.strokeRect(b.x, b.y, b.w, b.h);
+      s.globalAlpha = 1;
+      // lưới cửa sổ nhỏ phát sáng
+      const cell = 15;
+      const cols = Math.max(1, Math.floor((b.w - 12) / cell));
+      const rows = Math.max(1, Math.floor((b.h - 12) / cell));
+      const ox = b.x + (b.w - cols * cell) / 2 + 3;
+      const oy = b.y + (b.h - rows * cell) / 2 + 3;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const roll = wrand();
+          if (roll < 0.42) continue; // cửa tắt đèn
+          const lit = roll > 0.86;
+          s.fillStyle = b.color;
+          s.globalAlpha = lit ? 0.95 : 0.32;
+          s.fillRect(ox + c * cell, oy + r * cell, cell - 6, cell - 6);
         }
       }
       s.globalAlpha = 1;
+      // vạch neon ngang trên nóc vài nhà
+      if (wrand() > 0.55) {
+        s.strokeStyle = b.color;
+        s.globalAlpha = 0.9;
+        s.lineWidth = 3;
+        s.beginPath();
+        s.moveTo(b.x + 4, b.y - 4);
+        s.lineTo(b.x + b.w * (0.4 + wrand() * 0.5), b.y - 4);
+        s.stroke();
+        s.globalAlpha = 1;
+      }
     }
 
-    // mặt đường + mép glow
+    // gờ tối dưới mặt đường (tạo khối)
     s.lineJoin = "round";
     s.lineCap = "round";
+    s.strokeStyle = "rgba(0,0,0,0.55)";
+    s.lineWidth = TRACK_WIDTH + 18;
+    s.stroke(track.paths.road);
+    // mặt đường asphalt
     s.strokeStyle = ROAD;
     s.lineWidth = TRACK_WIDTH;
     s.stroke(track.paths.road);
-    s.strokeStyle = "rgba(255,255,255,0.03)";
-    s.lineWidth = TRACK_WIDTH - 26;
+    // kết cấu: dải sáng mờ giữa đường + gờ tối gần mép
+    s.strokeStyle = "rgba(255,255,255,0.045)";
+    s.lineWidth = TRACK_WIDTH - 34;
     s.stroke(track.paths.road);
-    s.lineWidth = 9;
-    s.strokeStyle = "rgba(255,46,230,0.28)";
-    s.stroke(track.paths.edgeL);
-    s.lineWidth = 3;
-    s.strokeStyle = ROAD_EDGE_PINK;
-    s.stroke(track.paths.edgeL);
-    s.lineWidth = 9;
-    s.strokeStyle = "rgba(32,227,255,0.26)";
-    s.stroke(track.paths.edgeR);
-    s.lineWidth = 3;
-    s.strokeStyle = ROAD_EDGE_CYAN;
-    s.stroke(track.paths.edgeR);
+    s.strokeStyle = "rgba(0,0,0,0.35)";
+    s.lineWidth = TRACK_WIDTH - 8;
+    s.setLineDash([3, 90]);
+    s.stroke(track.paths.road);
+    s.setLineDash([]);
 
-    // mũi tên chỉ hướng
+    // mép neon nhiều lớp: TRÁI hồng, PHẢI cyan
+    const edgeGlow = (path, rgb, core) => {
+      s.strokeStyle = `rgba(${rgb},0.1)`;
+      s.lineWidth = 22;
+      s.stroke(path);
+      s.strokeStyle = `rgba(${rgb},0.3)`;
+      s.lineWidth = 10;
+      s.stroke(path);
+      s.strokeStyle = core;
+      s.lineWidth = 3.2;
+      s.stroke(path);
+      s.strokeStyle = "rgba(255,255,255,0.55)";
+      s.lineWidth = 1;
+      s.stroke(path);
+    };
+    edgeGlow(track.paths.edgeL, "255,46,230", ROAD_EDGE_PINK);
+    edgeGlow(track.paths.edgeR, "32,227,255", ROAD_EDGE_CYAN);
+
+    // mũi tên chevron đôi chỉ hướng (xen kẽ cyan / hồng như ảnh)
+    let ai = 0;
     for (const a of track.arrows) {
+      const color = ai % 3 === 2 ? "255,46,230" : "32,227,255";
+      ai += 1;
       s.save();
       s.translate(a.x, a.y);
       s.rotate(a.angle);
-      s.fillStyle = "rgba(32,227,255,0.5)";
       for (let k = 0; k < 2; k++) {
+        s.fillStyle = `rgba(${color},0.18)`;
         s.beginPath();
-        s.moveTo(k * 14 - 4, -10);
-        s.lineTo(k * 14 + 8, 0);
-        s.lineTo(k * 14 - 4, 10);
-        s.lineTo(k * 14, 0);
+        s.moveTo(k * 18 - 7, -14);
+        s.lineTo(k * 18 + 10, 0);
+        s.lineTo(k * 18 - 7, 14);
+        s.lineTo(k * 18 - 1, 0);
+        s.closePath();
+        s.fill();
+        s.fillStyle = `rgba(${color},0.85)`;
+        s.beginPath();
+        s.moveTo(k * 18 - 5, -11);
+        s.lineTo(k * 18 + 8, 0);
+        s.lineTo(k * 18 - 5, 11);
+        s.lineTo(k * 18, 0);
         s.closePath();
         s.fill();
       }
@@ -114,10 +178,10 @@ export function createDriftRenderer(canvas, container, track) {
   }
 
   function drawDashes(time) {
-    g.strokeStyle = "rgba(240,244,255,0.5)";
-    g.lineWidth = 4;
+    g.strokeStyle = "rgba(238,243,255,0.62)";
+    g.lineWidth = 4.5;
     g.lineJoin = "round";
-    g.setLineDash([26, 34]);
+    g.setLineDash([30, 36]);
     g.lineDashOffset = -time * 40;
     g.stroke(track.paths.road);
     g.setLineDash([]);
@@ -128,16 +192,16 @@ export function createDriftRenderer(canvas, container, track) {
     const i = cp.si;
     const p = track.pts[i];
     const n = track.normals[i];
-    const lx = p[0] + n[0] * (HALF_W + 8);
-    const ly = p[1] + n[1] * (HALF_W + 8);
-    const rx = p[0] - n[0] * (HALF_W + 8);
-    const ry = p[1] - n[1] * (HALF_W + 8);
+    const lx = p[0] + n[0] * (HALF_W + 10);
+    const ly = p[1] + n[1] * (HALF_W + 10);
+    const rx = p[0] - n[0] * (HALF_W + 10);
+    const ry = p[1] - n[1] * (HALF_W + 10);
     const color = state === "next" ? LIME : state === "done" ? "rgba(120,140,190,0.5)" : "#9a5cff";
     const glow = state === "next" ? 0.9 + Math.sin(time * 5) * 0.1 : 0.55;
 
     // vạch ngang đường
     g.strokeStyle = color;
-    g.globalAlpha = state === "next" ? 0.75 : 0.3;
+    g.globalAlpha = state === "next" ? 0.8 : 0.3;
     g.lineWidth = state === "next" ? 7 : 4;
     g.setLineDash(state === "next" ? [16, 10] : [8, 12]);
     g.beginPath();
@@ -147,24 +211,46 @@ export function createDriftRenderer(canvas, container, track) {
     g.setLineDash([]);
     g.globalAlpha = 1;
 
-    // hai trụ cổng
+    // hai trụ cổng ca-rô
     for (const [px, py] of [[lx, ly], [rx, ry]]) {
-      g.fillStyle = "#151230";
-      g.fillRect(px - 9, py - 24, 18, 34);
+      // bóng
+      g.fillStyle = "rgba(0,0,0,0.5)";
+      g.beginPath();
+      g.ellipse(px, py + 8, 14, 6, 0, 0, Math.PI * 2);
+      g.fill();
+      // thân trụ
+      g.fillStyle = "#12102a";
+      g.fillRect(px - 11, py - 34, 22, 44);
+      // hoa văn ca-rô
+      const on = state === "next" ? "rgba(168,255,62,0.9)" : state === "done" ? "rgba(120,140,190,0.45)" : "rgba(154,92,255,0.75)";
+      for (let ry2 = 0; ry2 < 5; ry2++) {
+        for (let rx2 = 0; rx2 < 2; rx2++) {
+          if ((rx2 + ry2) % 2 === 0) continue;
+          g.fillStyle = on;
+          g.fillRect(px - 10 + rx2 * 10, py - 33 + ry2 * 8.6, 9.5, 8);
+        }
+      }
+      // viền glow
+      g.save();
+      if (state === "next") {
+        g.shadowColor = LIME;
+        g.shadowBlur = 12 * glow;
+      }
       g.strokeStyle = color;
       g.globalAlpha = glow;
       g.lineWidth = 2;
-      g.strokeRect(px - 9, py - 24, 18, 34);
+      g.strokeRect(px - 11, py - 34, 22, 44);
+      g.restore();
       g.globalAlpha = 1;
-      g.fillStyle = color;
-      g.globalAlpha = glow;
+      // đèn đỉnh trụ
+      g.save();
+      g.shadowColor = state === "next" ? LIME : "#9a5cff";
+      g.shadowBlur = 10;
+      g.fillStyle = state === "next" ? LIME : "#9a5cff";
       g.beginPath();
-      g.moveTo(px - 4, py - 16);
-      g.lineTo(px + 5, py - 10);
-      g.lineTo(px - 4, py - 4);
-      g.closePath();
+      g.arc(px, py - 38, 3.4, 0, Math.PI * 2);
       g.fill();
-      g.globalAlpha = 1;
+      g.restore();
     }
 
     // banner CHECKPOINT (luôn nằm ngang để dễ đọc, như ảnh reference)
@@ -172,31 +258,46 @@ export function createDriftRenderer(canvas, container, track) {
       const mx = (lx + rx) / 2;
       const my = (ly + ry) / 2;
       const label = cp.order === 8 ? "FINISH" : "CHECKPOINT";
-      const bw = label.length * 11 + 26;
+      const bw = label.length * 12 + 34;
       g.save();
-      g.translate(mx, my - 52);
-      g.fillStyle = "rgba(10,14,8,0.92)";
-      g.fillRect(-bw / 2, -12, bw, 24);
+      g.translate(mx, my - 60);
+      // hai chân nối xuống trụ
+      g.strokeStyle = "rgba(168,255,62,0.5)";
+      g.lineWidth = 1.8;
+      g.beginPath();
+      g.moveTo(lx - mx, 60 - 34);
+      g.lineTo(-bw / 2 + 8, 13);
+      g.moveTo(rx - mx, 60 - 34);
+      g.lineTo(bw / 2 - 8, 13);
+      g.stroke();
+      // khung banner
+      g.save();
+      g.shadowColor = LIME;
+      g.shadowBlur = 18 * glow;
+      g.fillStyle = "rgba(9,14,6,0.94)";
+      g.beginPath();
+      g.roundRect(-bw / 2, -15, bw, 30, 5);
+      g.fill();
       g.strokeStyle = LIME;
-      g.lineWidth = 2;
-      g.strokeRect(-bw / 2, -12, bw, 24);
+      g.lineWidth = 2.4;
+      g.stroke();
+      g.restore();
+      // hoa văn ca-rô 2 đầu banner
+      g.fillStyle = "rgba(168,255,62,0.8)";
+      for (let k = 0; k < 2; k++) {
+        for (let r = 0; r < 3; r++) {
+          if ((k + r) % 2 === 0) continue;
+          g.fillRect(-bw / 2 + 4 + k * 5, -13 + r * 9, 5, 8);
+          g.fillRect(bw / 2 - 14 + k * 5, -13 + r * 9, 5, 8);
+        }
+      }
       g.fillStyle = LIME;
-      g.font = "800 15px 'JetBrains Mono', monospace";
+      g.font = "800 16px 'JetBrains Mono', monospace";
       g.textAlign = "center";
       g.textBaseline = "middle";
       g.shadowColor = LIME;
-      g.shadowBlur = 12;
+      g.shadowBlur = 14;
       g.fillText(label, 0, 1);
-      g.shadowBlur = 0;
-      // hai chân nối xuống trụ
-      g.strokeStyle = "rgba(168,255,62,0.5)";
-      g.lineWidth = 1.6;
-      g.beginPath();
-      g.moveTo(lx - mx, 52 - 24);
-      g.lineTo(-bw / 2 + 8, 12);
-      g.moveTo(rx - mx, 52 - 24);
-      g.lineTo(bw / 2 - 8, 12);
-      g.stroke();
       g.restore();
     }
   }
@@ -204,10 +305,9 @@ export function createDriftRenderer(canvas, container, track) {
   function drawPickup(p, time) {
     if (p.taken) return;
     const bob = Math.sin(time * 3 + p.pulse) * 3;
-    const r = 16 + Math.sin(time * 4 + p.pulse) * 1.5;
+    const r = 17 + Math.sin(time * 4 + p.pulse) * 1.5;
     g.save();
     g.translate(p.x, p.y + bob);
-    g.fillStyle = "rgba(28,46,8,0.92)";
     const hex = (rr) => {
       g.beginPath();
       for (let i = 0; i < 6; i++) {
@@ -220,26 +320,40 @@ export function createDriftRenderer(canvas, container, track) {
       g.closePath();
     };
     // glow rẻ: viền dày mờ thay cho shadowBlur
-    g.strokeStyle = "rgba(168,255,62,0.28)";
-    g.lineWidth = 8;
+    g.strokeStyle = "rgba(168,255,62,0.14)";
+    g.lineWidth = 14;
     hex(r);
     g.stroke();
+    g.strokeStyle = "rgba(168,255,62,0.4)";
+    g.lineWidth = 7;
+    hex(r);
+    g.stroke();
+    // lõi tối + viền sáng
+    g.fillStyle = "rgba(20,34,6,0.95)";
     g.strokeStyle = LIME;
     g.lineWidth = 3;
     hex(r);
     g.fill();
     g.stroke();
+    g.strokeStyle = "rgba(220,255,170,0.5)";
+    g.lineWidth = 1.2;
+    hex(r * 0.72);
+    g.stroke();
     // tia sét
+    g.save();
+    g.shadowColor = LIME;
+    g.shadowBlur = 8;
     g.fillStyle = LIME;
     g.beginPath();
-    g.moveTo(2, -9);
-    g.lineTo(-5, 2);
-    g.lineTo(-0.5, 2);
-    g.lineTo(-2, 9);
-    g.lineTo(5, -2);
-    g.lineTo(0.5, -2);
+    g.moveTo(2.5, -10);
+    g.lineTo(-5.5, 2.4);
+    g.lineTo(-0.5, 2.4);
+    g.lineTo(-2.5, 10);
+    g.lineTo(5.5, -2.4);
+    g.lineTo(0.5, -2.4);
     g.closePath();
     g.fill();
+    g.restore();
     g.restore();
   }
 
@@ -247,32 +361,67 @@ export function createDriftRenderer(canvas, container, track) {
     g.save();
     g.translate(t.x, t.y);
     g.rotate(t.angle);
-    g.fillStyle = "rgba(0,0,0,0.4)";
+    // bóng
+    g.fillStyle = "rgba(0,0,0,0.45)";
     g.beginPath();
-    g.ellipse(0, 3, 20, 12, 0, 0, Math.PI * 2);
+    g.ellipse(0, 4, 22, 13, 0, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = "#e8b616";
+    // bánh xe
+    g.fillStyle = "#0a0a12";
+    g.fillRect(-14, -12.5, 9, 4);
+    g.fillRect(6, -12.5, 9, 4);
+    g.fillRect(-14, 8.5, 9, 4);
+    g.fillRect(6, 8.5, 9, 4);
+    // thân vàng gradient
+    const grad = g.createLinearGradient(0, -11, 0, 11);
+    grad.addColorStop(0, "#ffd94d");
+    grad.addColorStop(0.5, "#e8b616");
+    grad.addColorStop(1, "#a67f0e");
+    g.fillStyle = grad;
     g.beginPath();
-    g.roundRect(-18, -10, 36, 20, 6);
+    g.roundRect(-19, -11, 38, 22, 7);
     g.fill();
-    g.fillStyle = "#1a1406";
+    g.strokeStyle = "rgba(60,44,4,0.8)";
+    g.lineWidth = 1.4;
+    g.stroke();
+    // kính trước + sau
+    g.fillStyle = "#141006";
     g.beginPath();
-    g.roundRect(-6, -8, 14, 16, 4);
+    g.roundRect(3, -8.5, 8, 17, 3);
     g.fill();
-    g.fillStyle = "#fff2b0";
-    g.fillRect(15, -8, 4, 5);
-    g.fillRect(15, 3, 4, 5);
-    g.fillStyle = "#b3140a";
-    g.fillRect(-19, -8, 3, 5);
-    g.fillRect(-19, 3, 3, 5);
-    // tam giác cảnh báo trên nóc
+    g.beginPath();
+    g.roundRect(-11, -8.5, 7, 17, 3);
+    g.fill();
+    // nóc + biển cảnh báo tam giác
+    g.fillStyle = "#c79a10";
+    g.beginPath();
+    g.roundRect(-4, -7.5, 7, 15, 2.5);
+    g.fill();
     g.fillStyle = "#241c04";
     g.beginPath();
-    g.moveTo(-13, 6);
-    g.lineTo(-5, 6);
-    g.lineTo(-9, -1);
+    g.moveTo(-3.5, 5);
+    g.lineTo(3.5, 5);
+    g.lineTo(0, -1.5);
     g.closePath();
     g.fill();
+    g.strokeStyle = "#ffd94d";
+    g.lineWidth = 1;
+    g.stroke();
+    // đèn pha + đèn hậu glow
+    g.save();
+    g.shadowColor = "#fff2b0";
+    g.shadowBlur = 8;
+    g.fillStyle = "#fff2b0";
+    g.fillRect(17, -8.5, 3.4, 5);
+    g.fillRect(17, 3.5, 3.4, 5);
+    g.restore();
+    g.save();
+    g.shadowColor = "#ff3b2a";
+    g.shadowBlur = 8;
+    g.fillStyle = "#ff4b30";
+    g.fillRect(-20, -8.5, 3, 5);
+    g.fillRect(-20, 3.5, 3, 5);
+    g.restore();
     g.restore();
   }
 
@@ -280,76 +429,153 @@ export function createDriftRenderer(canvas, container, track) {
     g.save();
     g.translate(car.x, car.y);
     g.rotate(car.heading + car.steerVisual * 0.1);
-    // bóng + underglow hồng
-    g.shadowColor = "#ff2ee6";
-    g.shadowBlur = 18;
-    g.fillStyle = "rgba(255,46,230,0.32)";
+    // bóng
+    g.fillStyle = "rgba(0,0,0,0.5)";
     g.beginPath();
-    g.ellipse(0, 0, 22, 13, 0, 0, Math.PI * 2);
+    g.ellipse(0, 3, 23, 13, 0, 0, Math.PI * 2);
     g.fill();
-    g.shadowBlur = 0;
-    // thân xe
+    // underglow hồng
+    g.save();
+    g.shadowColor = "#ff2ee6";
+    g.shadowBlur = 22;
+    g.fillStyle = "rgba(255,46,230,0.4)";
+    g.beginPath();
+    g.ellipse(0, 0, 23, 14, 0, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+    // bánh xe
+    g.fillStyle = "#05060c";
+    g.fillRect(-15, -13, 10, 4.5);
+    g.fillRect(6, -13, 10, 4.5);
+    g.fillRect(-15, 8.5, 10, 4.5);
+    g.fillRect(6, 8.5, 10, 4.5);
+    // thân xe tối
+    const grad = g.createLinearGradient(0, -11, 0, 11);
+    grad.addColorStop(0, "#1c2547");
+    grad.addColorStop(0.5, "#101731");
+    grad.addColorStop(1, "#0a0f22");
+    g.fillStyle = grad;
+    g.beginPath();
+    g.roundRect(-20, -11, 40, 22, 8);
+    g.fill();
+    g.strokeStyle = "rgba(32,227,255,0.6)";
+    g.lineWidth = 1.2;
+    g.stroke();
+    // mui sáng
     g.fillStyle = "#dfe8ff";
     g.beginPath();
-    g.roundRect(-19, -10, 38, 20, 7);
+    g.roundRect(-8, -8, 15, 16, 5);
     g.fill();
-    // mui + kính
+    // kính chắn gió tối
     g.fillStyle = "#0b1226";
     g.beginPath();
-    g.roundRect(-4, -7.5, 13, 15, 5);
+    g.roundRect(4, -7, 9, 14, 4);
     g.fill();
-    // sọc cyan
+    g.beginPath();
+    g.roundRect(-11, -7, 5, 14, 2.5);
+    g.fill();
+    // sọc cyan phát sáng dọc mui
+    g.save();
+    g.shadowColor = "#20e3ff";
+    g.shadowBlur = 7;
     g.fillStyle = "#20e3ff";
-    g.fillRect(-19, -10, 30, 2.6);
-    g.fillRect(-19, 7.4, 30, 2.6);
+    g.fillRect(-8, -1.4, 15, 2.8);
+    g.restore();
+    // viền hông cyan
+    g.fillStyle = "rgba(32,227,255,0.85)";
+    g.fillRect(-18, -11.4, 30, 2);
+    g.fillRect(-18, 9.4, 30, 2);
     // mũi hồng
+    g.save();
+    g.shadowColor = "#ff2ee6";
+    g.shadowBlur = 9;
     g.fillStyle = "#ff2ee6";
     g.beginPath();
-    g.roundRect(12, -9, 7, 18, 3);
+    g.roundRect(13, -9.5, 7, 19, 3);
     g.fill();
+    g.restore();
+    // cánh gió sau
+    g.fillStyle = "#151d3c";
+    g.beginPath();
+    g.roundRect(-21, -10, 4, 20, 2);
+    g.fill();
+    g.strokeStyle = "rgba(255,46,230,0.7)";
+    g.lineWidth = 1;
+    g.stroke();
     // đèn pha
+    g.save();
+    g.shadowColor = "#eafcff";
+    g.shadowBlur = 10;
     g.fillStyle = "#eafcff";
-    g.fillRect(17, -8, 3, 4.6);
-    g.fillRect(17, 3.4, 3, 4.6);
+    g.fillRect(18, -8, 3, 4.6);
+    g.fillRect(18, 3.4, 3, 4.6);
+    g.restore();
     // đèn hậu
+    g.save();
+    g.shadowColor = "#ff3b57";
+    g.shadowBlur = 8;
     g.fillStyle = "#ff3b57";
-    g.fillRect(-20, -8, 3, 4.6);
-    g.fillRect(-20, 3.4, 3, 4.6);
+    g.fillRect(-21.5, -8, 3, 4.6);
+    g.fillRect(-21.5, 3.4, 3, 4.6);
+    g.restore();
     // lửa nitro
     if (car.nitroActive) {
-      const f = 10 + Math.sin(time * 40) * 4;
+      const f = 12 + Math.sin(time * 40) * 5;
+      g.save();
+      g.shadowColor = "#20e3ff";
+      g.shadowBlur = 14;
       g.fillStyle = "rgba(32,227,255,0.9)";
       g.beginPath();
-      g.moveTo(-20, -4);
-      g.lineTo(-20 - f, 0);
-      g.lineTo(-20, 4);
+      g.moveTo(-21, -4.5);
+      g.lineTo(-21 - f, 0);
+      g.lineTo(-21, 4.5);
       g.closePath();
       g.fill();
-      g.fillStyle = "rgba(255,255,255,0.9)";
+      g.fillStyle = "rgba(255,255,255,0.95)";
       g.beginPath();
-      g.moveTo(-20, -2);
-      g.lineTo(-20 - f * 0.55, 0);
-      g.lineTo(-20, 2);
+      g.moveTo(-21, -2.2);
+      g.lineTo(-21 - f * 0.55, 0);
+      g.lineTo(-21, 2.2);
       g.closePath();
       g.fill();
+      g.restore();
     }
     g.restore();
   }
 
   function drawTrails(trails) {
-    // vệt drift: các đoạn nối tiếp mờ dần (hồng → cyan theo tuổi)
+    // vệt drift liền mạch: nối các điểm neo (có x1b) thành 2 polyline
+    // song song, mỗi đoạn 2 lớp — quầng rộng mờ + lõi sáng (nitro = cyan)
+    g.lineCap = "round";
+    let prev = null;
     for (const tr of trails) {
-      const a = Math.max(0, tr.life);
-      if (a <= 0) continue;
-      g.strokeStyle = tr.nitro
-        ? `rgba(32,227,255,${0.5 * a})`
-        : `rgba(255,46,230,${0.55 * a})`;
-      g.lineWidth = 5 * a + 1;
-      g.lineCap = "round";
-      g.beginPath();
-      g.moveTo(tr.x0, tr.y0);
-      g.lineTo(tr.x1, tr.y1);
-      g.stroke();
+      if (tr.x1b === undefined) continue; // bỏ segment nối cũ, chỉ dùng neo
+      if (prev) {
+        const a = Math.max(0, tr.life);
+        const gap = Math.hypot(tr.x1 - prev.x1, tr.y1 - prev.y1);
+        if (a > 0 && gap < 46) {
+          const glow = tr.nitro ? `rgba(32,227,255,${0.16 * a})` : `rgba(255,46,230,${0.2 * a})`;
+          const core = tr.nitro ? `rgba(110,240,255,${0.75 * a})` : `rgba(255,90,238,${0.8 * a})`;
+          for (const [x0, y0, x1, y1] of [
+            [prev.x1, prev.y1, tr.x1, tr.y1],
+            [prev.x1b, prev.y1b, tr.x1b, tr.y1b],
+          ]) {
+            g.strokeStyle = glow;
+            g.lineWidth = 13 * a + 3;
+            g.beginPath();
+            g.moveTo(x0, y0);
+            g.lineTo(x1, y1);
+            g.stroke();
+            g.strokeStyle = core;
+            g.lineWidth = 4.5 * a + 1;
+            g.beginPath();
+            g.moveTo(x0, y0);
+            g.lineTo(x1, y1);
+            g.stroke();
+          }
+        }
+      }
+      prev = tr;
     }
   }
 
@@ -357,7 +583,9 @@ export function createDriftRenderer(canvas, container, track) {
     for (const s of sparks) {
       if (s.life <= 0) continue;
       g.fillStyle = `rgba(255,210,80,${s.life})`;
-      g.fillRect(s.x - 1.5, s.y - 1.5, 3, 3);
+      g.fillRect(s.x - 2, s.y - 2, 4, 4);
+      g.fillStyle = `rgba(255,255,255,${s.life * 0.7})`;
+      g.fillRect(s.x - 1, s.y - 1, 2, 2);
     }
   }
 
@@ -370,8 +598,9 @@ export function createDriftRenderer(canvas, container, track) {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     // nền
     const bg = g.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, "#0c0722");
-    bg.addColorStop(1, "#060414");
+    bg.addColorStop(0, "#0d0824");
+    bg.addColorStop(0.55, "#080617");
+    bg.addColorStop(1, "#05040f");
     g.fillStyle = bg;
     g.fillRect(0, 0, W, H);
 
@@ -381,7 +610,7 @@ export function createDriftRenderer(canvas, container, track) {
     g.setTransform(dpr * z, 0, 0, dpr * z, dpr * (W / 2 - (cam.x + sx) * z), dpr * (H / 2 - (cam.y + sy) * z));
 
     // lưới nền mờ (chỉ vùng nhìn thấy)
-    g.strokeStyle = "rgba(90,80,180,0.08)";
+    g.strokeStyle = "rgba(90,80,180,0.09)";
     g.lineWidth = 1;
     const gs = 130;
     const halfVW = W / (2 * z) + gs;
@@ -400,7 +629,7 @@ export function createDriftRenderer(canvas, container, track) {
     g.stroke();
 
     // lớp tĩnh pre-render (decor + đường + mép + mũi tên)
-    g.drawImage(staticLayer, 0, 0, staticW, staticH);
+    g.drawImage(staticLayer, staticOX, staticOY, staticW, staticH);
     drawDashes(time);
 
     for (const cp of track.checkpoints) {
@@ -412,6 +641,14 @@ export function createDriftRenderer(canvas, container, track) {
     for (const t of traffic) drawTrafficCar(t);
     drawSparks(sparks);
     drawPlayerCar(car, time);
+
+    // vignette nhẹ cho chiều sâu (vẽ trong hệ tọa độ màn hình)
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const vig = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.42, W / 2, H / 2, Math.max(W, H) * 0.75);
+    vig.addColorStop(0, "rgba(0,0,0,0)");
+    vig.addColorStop(1, "rgba(2,2,10,0.42)");
+    g.fillStyle = vig;
+    g.fillRect(0, 0, W, H);
   }
 
   return { fit, draw, get size() { return { W, H }; } };
@@ -442,9 +679,13 @@ export function createMinimap(canvas, track) {
   function draw(car, traffic, nextCp, time) {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, CW, CH);
+    g.save();
+    g.shadowColor = "#ff2ee6";
+    g.shadowBlur = 5;
     g.strokeStyle = "rgba(255,46,230,0.9)";
     g.lineWidth = 2.4;
     g.stroke(outline);
+    g.restore();
     // checkpoint kế tiếp nhấp nháy lime
     for (const cp of track.checkpoints) {
       const p = track.pts[cp.si];

@@ -42,8 +42,10 @@ export function createBots(sceneRoot, world, audio, fx, { onPlayerHit, onKilled,
   }
 
   function buildBot() {
-    const DARK_A = "#161c3a";
-    const DARK_B = "#10142c";
+    // Giáp ghi-xanh sáng rõ (theo asset sheet — không phải bóng đen)
+    const DARK_A = "#2b3352";
+    const DARK_B = "#1d2540";
+    const JOINT = "#141a30";
 
     const root = createNode();
     root.visible = false;
@@ -63,25 +65,40 @@ export function createBots(sceneRoot, world, audio, fx, { onPlayerHit, onKilled,
     const trunk = createNode();
     addChild(root, trunk);
 
-    const legL = addChild(trunk, meshNode("box", { pos: [-0.17, 0.31, 0], scale: [0.24, 0.62, 0.28], color: hex(DARK_B) }));
-    const legR = addChild(trunk, meshNode("box", { pos: [0.17, 0.31, 0], scale: [0.24, 0.62, 0.28], color: hex(DARK_B) }));
-    addChild(trunk, meshNode("box", { pos: [0, 0.72, 0], scale: [0.56, 0.22, 0.36], color: hex(DARK_A) }));
-    addChild(trunk, meshNode("box", { pos: [0, 1.09, 0], scale: [0.7, 0.55, 0.44], color: hex(DARK_A) }));
-    // Sọc ngực tím + đèn bụng
-    addChild(trunk, meshNode("box", { pos: [0, 1.13, 0.225], scale: [0.4, 0.08, 0.02], color: hex("#9a5cff"), emissive: 1 }));
-    addChild(trunk, meshNode("box", { pos: [0, 0.9, 0.19], scale: [0.1, 0.06, 0.02], color: hex("#20e3ff"), emissive: 0.8 }));
-    // Vai
-    addChild(trunk, meshNode("box", { pos: [-0.5, 1.32, 0], scale: [0.26, 0.2, 0.32], color: hex(DARK_B) }));
-    addChild(trunk, meshNode("box", { pos: [0.5, 1.32, 0], scale: [0.26, 0.2, 0.32], color: hex(DARK_B) }));
-    const armL = addChild(trunk, meshNode("box", { pos: [-0.5, 1.0, 0.06], scale: [0.16, 0.46, 0.2], color: hex(DARK_A) }));
-    const armR = addChild(trunk, meshNode("box", { pos: [0.5, 1.0, 0.06], scale: [0.16, 0.46, 0.2], color: hex(DARK_A) }));
+    // Chân: ống to + đèn tím ống chân + bàn chân
+    const legL = addChild(trunk, meshNode("box", { pos: [-0.19, 0.31, 0], scale: [0.26, 0.62, 0.3], color: hex(DARK_B) }));
+    const legR = addChild(trunk, meshNode("box", { pos: [0.19, 0.31, 0], scale: [0.26, 0.62, 0.3], color: hex(DARK_B) }));
+    addChild(legL, meshNode("box", { pos: [0, -0.05, 0.16], scale: [0.07, 0.3, 0.02], color: hex("#9a5cff"), emissive: 1 }));
+    addChild(legR, meshNode("box", { pos: [0, -0.05, 0.16], scale: [0.07, 0.3, 0.02], color: hex("#9a5cff"), emissive: 1 }));
+    addChild(legL, meshNode("box", { pos: [0, -0.29, 0.05], scale: [0.28, 0.1, 0.4], color: hex(JOINT) }));
+    addChild(legR, meshNode("box", { pos: [0, -0.29, 0.05], scale: [0.28, 0.1, 0.4], color: hex(JOINT) }));
+    // Hông + thân giáp
+    addChild(trunk, meshNode("box", { pos: [0, 0.72, 0], scale: [0.58, 0.22, 0.38], color: hex(JOINT) }));
+    addChild(trunk, meshNode("box", { pos: [0, 1.09, 0], scale: [0.76, 0.56, 0.46], color: hex(DARK_A) }));
+    // Tấm giáp ngực nổi + sọc ngực tím + đèn bụng cyan
+    addChild(trunk, meshNode("box", { pos: [0, 1.16, 0.13], scale: [0.6, 0.36, 0.24], color: hex(DARK_B) }));
+    addChild(trunk, meshNode("box", { pos: [0, 1.16, 0.26], scale: [0.42, 0.09, 0.02], color: hex("#9a5cff"), emissive: 1 }));
+    addChild(trunk, meshNode("box", { pos: [0, 0.92, 0.24], scale: [0.12, 0.07, 0.02], color: hex("#20e3ff"), emissive: 0.9 }));
+    // Vai lớn (asset sheet) + đèn vai
+    addChild(trunk, meshNode("box", { pos: [-0.54, 1.34, 0], scale: [0.3, 0.24, 0.36], color: hex(DARK_B) }));
+    addChild(trunk, meshNode("box", { pos: [0.54, 1.34, 0], scale: [0.3, 0.24, 0.36], color: hex(DARK_B) }));
+    addChild(trunk, meshNode("box", { pos: [-0.54, 1.44, 0], scale: [0.24, 0.03, 0.28], color: hex("#9a5cff"), emissive: 0.9 }));
+    addChild(trunk, meshNode("box", { pos: [0.54, 1.44, 0], scale: [0.24, 0.03, 0.28], color: hex("#9a5cff"), emissive: 0.9 }));
+    const armL = addChild(trunk, meshNode("box", { pos: [-0.54, 1.0, 0.06], scale: [0.18, 0.48, 0.22], color: hex(DARK_A) }));
+    const armR = addChild(trunk, meshNode("box", { pos: [0.54, 1.0, 0.06], scale: [0.18, 0.48, 0.22], color: hex(DARK_A) }));
+    addChild(armL, meshNode("box", { pos: [0, -0.1, 0.12], scale: [0.05, 0.2, 0.02], color: hex("#20e3ff"), emissive: 0.8 }));
+    addChild(armR, meshNode("box", { pos: [0, -0.1, 0.12], scale: [0.05, 0.2, 0.02], color: hex("#20e3ff"), emissive: 0.8 }));
     // Súng cầm tay phải, chĩa về +Z
-    addChild(trunk, meshNode("box", { pos: [0.34, 1.02, 0.32], scale: [0.12, 0.13, 0.5], color: hex(DARK_B) }));
-    const gunTip = addChild(trunk, meshNode("box", { pos: [0.34, 1.04, 0.6], scale: [0.06, 0.06, 0.06], color: hex("#ff4fd8"), emissive: 1 }));
-    // Đầu + visor tam giác đỏ (asset sheet) + dải cyan
-    addChild(trunk, meshNode("box", { pos: [0, 1.62, 0], scale: [0.34, 0.32, 0.34], color: hex(DARK_A) }));
-    const visor = addChild(trunk, meshNode("tri", { pos: [0, 1.62, 0.18], scale: [0.2, 0.17, 1], color: hex("#ff4f64"), emissive: 1 }));
-    addChild(trunk, meshNode("box", { pos: [0, 1.75, 0.17], scale: [0.3, 0.03, 0.02], color: hex("#20e3ff"), emissive: 0.8 }));
+    addChild(trunk, meshNode("box", { pos: [0.36, 1.02, 0.32], scale: [0.13, 0.14, 0.52], color: hex(JOINT) }));
+    const gunTip = addChild(trunk, meshNode("box", { pos: [0.36, 1.04, 0.61], scale: [0.07, 0.07, 0.07], color: hex("#ff4fd8"), emissive: 1 }));
+    // Đầu to + visor tam giác đỏ lớn (asset sheet) + dải cyan
+    addChild(trunk, meshNode("box", { pos: [0, 1.63, 0], scale: [0.4, 0.34, 0.38], color: hex(DARK_A) }));
+    addChild(trunk, meshNode("box", { pos: [0, 1.63, 0.11], scale: [0.32, 0.28, 0.2], color: hex(JOINT) }));
+    const visor = addChild(trunk, meshNode("tri", { pos: [0, 1.63, 0.22], scale: [0.24, 0.2, 1], color: hex("#ff4655"), emissive: 1 }));
+    addChild(trunk, meshNode("box", { pos: [0, 1.78, 0.19], scale: [0.34, 0.035, 0.02], color: hex("#20e3ff"), emissive: 0.9 }));
+    // Ăng-ten nhỏ
+    addChild(trunk, meshNode("box", { pos: [0.16, 1.9, -0.08], scale: [0.03, 0.2, 0.03], color: hex(JOINT) }));
+    addChild(trunk, meshNode("box", { pos: [0.16, 2.02, -0.08], scale: [0.045, 0.045, 0.045], color: hex("#ff4655"), emissive: 1 }));
 
     // Marker cảnh báo đỏ trên đầu (billboard)
     const marker = addChild(root, meshNode("tri", { pos: [0, 2.32, 0], scale: [0.5, 0.5, 1], color: hex("#ff4f64"), emissive: 1, opacity: 0.9 }));
@@ -96,7 +113,7 @@ export function createBots(sceneRoot, world, audio, fx, { onPlayerHit, onKilled,
       alive: false, state: "FREE",
       hp: 0, diff: DIFFICULTY.normal,
       waypoints: [], wpIdx: 0,
-      yaw: 0, legPhase: 0,
+      yaw: 0, legPhase: 0, detourSign: 0,
       losTimer: 0, hasLos: false, loseLos: 0,
       telegraphT: 0, burstLeft: 0, burstTimer: 0, fireCd: 0,
       spawnT: 0, deadT: 0, flashT: 0,
@@ -148,7 +165,9 @@ export function createBots(sceneRoot, world, audio, fx, { onPlayerHit, onKilled,
     return true;
   }
 
-  /** Di chuyển có né vật cản: thử hướng thẳng rồi xoay dần hai bên. */
+  /** Di chuyển có né vật cản: thử hướng thẳng rồi xoay dần hai bên.
+   *  Giữ "hướng né" đã chọn (detourSign) để không dao động và kẹt góc
+   *  khi phải vòng qua tường ngăn dài (đường tới cửa vòm). */
   function steer(bot, tx, tz, speed, dt) {
     const px = pos(bot)[0];
     const pz = pos(bot)[2];
@@ -158,9 +177,11 @@ export function createBots(sceneRoot, world, audio, fx, { onPlayerHit, onKilled,
     if (dist < 0.05) return;
     const baseAngle = Math.atan2(dx, dz);
 
-    let moveAngle = baseAngle;
+    const s = bot.detourSign || 1;
+    const candidates = [0, 0.7 * s, -0.7 * s, 1.3 * s, -1.3 * s, 1.9 * s, -1.9 * s, 2.5 * s, -2.5 * s];
+    let moveAngle = baseAngle + (Math.PI / 2) * s; // fallback: trượt ngang theo tường
     const probeOrigin = [px, pos(bot)[1] + 0.8, pz];
-    for (const offset of [0, 0.7, -0.7, 1.3, -1.3]) {
+    for (const offset of candidates) {
       const a = baseAngle + offset;
       const dir = [Math.sin(a), 0, Math.cos(a)];
       let blocked = false;
@@ -168,7 +189,11 @@ export function createBots(sceneRoot, world, audio, fx, { onPlayerHit, onKilled,
         const t = rayAABB(probeOrigin, dir, c);
         if (t !== null && t < 1.4) { blocked = true; break; }
       }
-      if (!blocked) { moveAngle = a; break; }
+      if (!blocked) {
+        moveAngle = a;
+        bot.detourSign = offset === 0 ? 0 : Math.sign(offset);
+        break;
+      }
     }
 
     pos(bot)[0] += Math.sin(moveAngle) * speed * dt;
@@ -235,13 +260,23 @@ export function createBots(sceneRoot, world, audio, fx, { onPlayerHit, onKilled,
     bot.flashT = 0;
     bot.deadT = 0;
     bot.fireCd = randRange(0.4, 1.2);
-    bot.waypoints = world.patrols[loopOverride || gate.loop] || world.patrols.court;
+    bot.detourSign = 0;
+    const loopKey = loopOverride || gate.loop;
     pos(bot)[0] = gate.pos[0];
     pos(bot)[1] = 0;
     pos(bot)[2] = gate.pos[2];
     bot.yaw = gate.side < 0 ? Math.PI / 2 : -Math.PI / 2; // quay vào arena
     bot.root.rot[1] = bot.yaw;
-    bot.wpIdx = nearestWpIndex(bot);
+    if (loopKey === "court") {
+      // Vào sân trung tâm: dẫn đường qua đúng cửa vòm (z=0) để không kẹt
+      // ở tường ngăn, sau đó nhập vòng tuần tra quanh sân.
+      const s = gate.side;
+      bot.waypoints = [[s * 20, 0], [s * 12.5, 0], ...world.patrols.court];
+      bot.wpIdx = 0;
+    } else {
+      bot.waypoints = world.patrols[loopKey] || world.patrols.court;
+      bot.wpIdx = nearestWpIndex(bot);
+    }
     bot.trunk.rot[0] = 0;
     bot.trunk.pos[1] = 0;
     bot.trunk.scale[1] = 0.05;

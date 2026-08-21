@@ -61,7 +61,8 @@ export function createGame() {
   let lookDy = 0;
 
   const TEST = typeof window !== "undefined" && window.__ARCADE_STRIKE_TEST__;
-  const MATCH_TIME = TEST ? 12 : 90;
+  // Hook QA: true → trận 12s; { time: n } → tùy chỉnh thời lượng trận test
+  const MATCH_TIME = TEST ? (typeof TEST === "object" && TEST.time > 0 ? TEST.time : 12) : 90;
 
   const settings = {
     difficulty: "normal",
@@ -124,6 +125,20 @@ export function createGame() {
   /* ================= Pointer lock ================= */
 
   /**
+   * Canvas nằm trong Shadow DOM của <arcade-404>. Theo spec Pointer Lock 2.0,
+   * document.pointerLockElement bị retarget về shadow HOST (<arcade-404>)
+   * chứ không phải canvas — so sánh trực tiếp với canvas luôn sai và game
+   * sẽ tự pause ngay sau khi khóa chuột thành công. Phải đọc thêm
+   * pointerLockElement của ShadowRoot chứa canvas.
+   */
+  function isLockedToCanvas() {
+    if (!canvas) return false;
+    if (document.pointerLockElement === canvas) return true; // không shadow DOM / môi trường mock
+    const root = canvas.getRootNode();
+    return root instanceof ShadowRoot && root.pointerLockElement === canvas;
+  }
+
+  /**
    * Yêu cầu khóa chuột. KHÔNG latch trạng thái thất bại: Chrome có
    * cooldown ~1,3s sau khi người chơi thoát lock bằng Esc, nên yêu cầu
    * ngay sau đó (bấm "Tiếp tục") có thể bị từ chối. Khi đó game vẫn chạy
@@ -177,7 +192,8 @@ export function createGame() {
       spawnQueue.push({
         delay: TEST ? i * 0.15 : 0.4 + i * 0.55,
         gate,
-        loop: wave >= 2 && i % 3 === 2 ? "court" : gate.loop,
+        // 1/3 số bot tiến vào sân trung tâm (arena sống động như reference)
+        loop: i % 3 === 2 ? "court" : gate.loop,
       });
     }
   }
@@ -366,15 +382,15 @@ export function createGame() {
     const cam = engine.camera;
 
     if (mode === "idle") {
-      // Camera bay chậm quanh sân — nền sống cho start screen
-      idleAngle += dt * 0.07;
-      const r = 16.5;
-      cam.pos[0] = Math.sin(idleAngle) * r;
-      cam.pos[1] = 4.8;
-      cam.pos[2] = Math.cos(idleAngle) * r;
-      cam.yaw = Math.atan2(cam.pos[0], cam.pos[2]);
-      cam.pitch = -0.18;
-      cam.fov = 70;
+      // Nền sống cho start screen: góc nhìn thứ nhất từ điểm xuất phát
+      // (đúng bố cục ảnh reference — thấy súng + sân + bảng 404)
+      idleAngle += dt;
+      cam.pos[0] = Math.sin(idleAngle * 0.3) * 0.35;
+      cam.pos[1] = 1.66 + Math.sin(idleAngle * 0.55) * 0.03;
+      cam.pos[2] = 15.2;
+      cam.yaw = Math.sin(idleAngle * 0.17) * 0.05;
+      cam.pitch = -0.02 + Math.sin(idleAngle * 0.4) * 0.012;
+      cam.fov = 72;
       bots.update(dt, null, { camX: cam.pos[0], camZ: cam.pos[2] });
     } else if (mode === "match" && !paused) {
       matchTime -= dt;
@@ -469,7 +485,7 @@ export function createGame() {
     lookDx = 0;
     lookDy = 0;
 
-    engine.render(world.root, mode === "match" ? weapon.viewmodel : null);
+    engine.render(world.root, mode === "match" || mode === "idle" ? weapon.viewmodel : null);
   }
 
   /* ================= Interface vòng đời ================= */
@@ -518,7 +534,13 @@ export function createGame() {
       wrap.insertBefore(canvas, wrap.firstChild);
 
       try {
-        engine = createEngine(canvas, { fogNear: 26, fogFar: 74 });
+        // Ambient/hướng nắng opt-in: arena sáng rõ như gameplay reference
+        engine = createEngine(canvas, {
+          fogNear: 30,
+          fogFar: 88,
+          ambient: 0.62,
+          lightDir: [-0.3, -0.85, -0.42],
+        });
       } catch {
         engine = null;
       }
@@ -581,7 +603,7 @@ export function createGame() {
       document.addEventListener(
         "pointerlockchange",
         () => {
-          locked = document.pointerLockElement === canvas;
+          locked = isLockedToCanvas();
           if (locked) {
             expectUnlock = false;
             return;
@@ -666,6 +688,21 @@ export function createGame() {
       ro.observe(wrap);
       applyQuality();
 
+      /* ----- Hook QA headless (chỉ bật khi có __ARCADE_STRIKE_TEST__) ----- */
+      if (TEST) {
+        window.__STRIKE_DEBUG__ = {
+          bots: () =>
+            bots.slots
+              .filter((b) => b.alive)
+              .map((b) => ({ state: b.state, pos: [...b.root.pos] })),
+          place: (x, z, yaw = 0) => {
+            player.reset({ pos: [x, 0, z], yaw });
+            hud.setHp(player.hp);
+          },
+          spawnAt: (i, loop = null) => bots.spawn(world.botGates[i], settings.difficulty, loop),
+        };
+      }
+
       /* ----- Màn hình chờ: cảnh live + 3 bot tuần tra ----- */
       mode = "idle";
       bots.spawn(world.botGates[1], "normal", "left");
@@ -710,6 +747,7 @@ export function createGame() {
       screens?.destroy();
       engine?.dispose();
       wrap?.remove();
+      if (TEST && window.__STRIKE_DEBUG__) delete window.__STRIKE_DEBUG__;
       wrap = null;
       engine = null;
       world = null;

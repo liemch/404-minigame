@@ -57,8 +57,8 @@ export const VOID_RUNNER_CSS = /* css */ `
   letter-spacing: 0.14em;
   color: #fff;
   text-shadow:
-    0 0 14px color-mix(in srgb, var(--vr-violet) 85%, transparent),
-    0 0 34px color-mix(in srgb, var(--vr-magenta) 45%, transparent);
+    0 0 14px color-mix(in srgb, var(--vr-cyan) 80%, transparent),
+    0 0 34px color-mix(in srgb, var(--vr-violet) 50%, transparent);
 }
 
 .vr-time {
@@ -113,7 +113,7 @@ export const VOID_RUNNER_CSS = /* css */ `
   display: flex;
   flex-direction: column;
   gap: 9px;
-  width: 148px;
+  width: 158px;
 }
 
 .vr-panel {

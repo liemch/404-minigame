@@ -169,6 +169,37 @@ export function createAudio(storage, { defaultOn = false } = {}) {
     /* Expansion 11–15 — Astro Patrol */
     ap_shoot: () => { tone({ type: "square", from: 880, to: 320, dur: 0.07, vol: 0.13 }); noise({ dur: 0.04, vol: 0.07, from: 3200, to: 900 }); },
     ap_alarm: () => { tone({ type: "square", from: 620, dur: 0.12, vol: 0.24 }); tone({ type: "square", from: 470, dur: 0.12, vol: 0.24, delay: 0.14 }); tone({ type: "square", from: 620, dur: 0.16, vol: 0.24, delay: 0.28 }); },
+
+    /* Expansion 16–20 — Memory Matrix */
+    mm_flip:  () => tone({ type: "triangle", from: 520, to: 640, dur: 0.06, vol: 0.2 }),
+    mm_match: () => { tone({ from: 780, dur: 0.06, vol: 0.24 }); tone({ from: 1170, dur: 0.1, vol: 0.22, delay: 0.06 }); },
+    mm_wrong: () => tone({ type: "sawtooth", from: 240, to: 150, dur: 0.14, vol: 0.22 }),
+    mm_hint:  () => { tone({ type: "sine", from: 620, to: 990, dur: 0.12, vol: 0.2 }); tone({ type: "sine", from: 990, to: 620, dur: 0.12, vol: 0.16, delay: 0.12 }); },
+
+    /* Expansion 16–20 — Gravity Flip */
+    gf_flip: () => { tone({ type: "sine", from: 330, to: 620, dur: 0.11, vol: 0.26 }); noise({ dur: 0.05, vol: 0.08, from: 1800, to: 600 }); },
+    gf_land: () => { noise({ dur: 0.06, vol: 0.14, from: 900, to: 260 }); tone({ type: "sine", from: 180, to: 130, dur: 0.06, vol: 0.18 }); },
+
+    /* Expansion 16–20 — Cyber Goal */
+    cg_kick:    () => { noise({ dur: 0.07, vol: 0.3, from: 2600, to: 700 }); tone({ type: "sine", from: 190, to: 120, dur: 0.09, vol: 0.32 }); },
+    cg_goal:    () => { tone({ from: 523, dur: 0.09, vol: 0.28 }); tone({ from: 659, dur: 0.09, vol: 0.28, delay: 0.08 }); tone({ from: 880, dur: 0.16, vol: 0.3, delay: 0.16 }); },
+    cg_save:    () => { noise({ dur: 0.12, vol: 0.26, from: 1400, to: 300 }); tone({ type: "square", from: 300, to: 190, dur: 0.12, vol: 0.22 }); },
+    cg_post:    () => { tone({ type: "square", from: 940, to: 620, dur: 0.09, vol: 0.26 }); noise({ dur: 0.06, vol: 0.12, from: 3000, to: 900 }); },
+    cg_whistle: () => { tone({ type: "square", from: 2100, dur: 0.1, vol: 0.14 }); tone({ type: "square", from: 2100, dur: 0.18, vol: 0.14, delay: 0.14 }); },
+
+    /* Expansion 16–20 — Stealth Escape */
+    se_key:    () => { tone({ from: 700, to: 1000, dur: 0.07, vol: 0.24 }); tone({ from: 1330, dur: 0.06, vol: 0.18, delay: 0.07 }); },
+    se_alert:  () => { tone({ type: "square", from: 880, dur: 0.08, vol: 0.2 }); tone({ type: "square", from: 660, dur: 0.1, vol: 0.2, delay: 0.09 }); },
+    se_caught: () => { tone({ type: "sawtooth", from: 300, to: 90, dur: 0.34, vol: 0.34 }); noise({ dur: 0.22, vol: 0.2, from: 900, to: 140, delay: 0.05 }); },
+
+    /* Expansion 16–20 — Neon Pinball */
+    pb_flip:   () => { tone({ type: "square", from: 240, to: 320, dur: 0.045, vol: 0.2 }); noise({ dur: 0.03, vol: 0.08, from: 2200, to: 800 }); },
+    pb_launch: () => { noise({ dur: 0.2, vol: 0.26, from: 700, to: 2800 }); tone({ type: "sawtooth", from: 180, to: 520, dur: 0.2, vol: 0.18 }); },
+    pb_bumper: () => { tone({ from: 660, to: 880, dur: 0.06, vol: 0.26 }); tone({ from: 1320, dur: 0.04, vol: 0.14, delay: 0.04 }); },
+    pb_sling:  () => tone({ type: "square", from: 420, to: 560, dur: 0.05, vol: 0.2 }),
+    pb_spin:   () => tone({ type: "square", from: 1040, to: 940, dur: 0.03, vol: 0.09 }),
+    pb_target: () => { tone({ from: 880, dur: 0.05, vol: 0.22 }); tone({ from: 1245, dur: 0.07, vol: 0.18, delay: 0.05 }); },
+    pb_drain:  () => { tone({ type: "sine", from: 340, to: 90, dur: 0.36, vol: 0.32 }); noise({ dur: 0.18, vol: 0.16, from: 700, to: 120, delay: 0.08 }); },
   };
 
   return {

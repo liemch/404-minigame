@@ -350,6 +350,7 @@ export function createEngine(canvas, opts = {}) {
   const fogColor = opts.fogColor || [0.03, 0.052, 0.125];
   let fogNear = opts.fogNear ?? 24;
   let fogFar = opts.fogFar ?? 70;
+  const farPlane = opts.far ?? 120; // opt-in: cảnh cần vẽ backdrop rất xa
 
   /* --- Chương trình shader --- */
   function compile(type, src) {
@@ -390,8 +391,11 @@ export function createEngine(canvas, opts = {}) {
   gl.disable(gl.CULL_FACE); // hình khối mỏng/tam giác nhìn được 2 mặt
   gl.uniform3fv(U.uFogColor, fogColor);
   gl.uniform2f(U.uFogRange, fogNear, fogFar);
-  gl.uniform3f(U.uLightDir, -0.35, -0.8, -0.45);
-  gl.uniform1f(U.uAmbient, 0.58);
+  // Tùy chọn opt-in: game có thể chỉnh hướng nắng/ambient riêng
+  // (mặc định giữ nguyên giá trị cũ để không đổi hình ảnh game khác).
+  const lightDir = opts.lightDir || [-0.35, -0.8, -0.45];
+  gl.uniform3f(U.uLightDir, lightDir[0], lightDir[1], lightDir[2]);
+  gl.uniform1f(U.uAmbient, opts.ambient ?? 0.58);
   gl.uniform1i(U.uTex, 0);
 
   /* --- Geometry cache --- */
@@ -499,6 +503,7 @@ export function createEngine(canvas, opts = {}) {
   }
 
   let boundGeo = null;
+  let passFog = 1; // 1 = pass cảnh chính (có fog), 0 = pass viewmodel
   function drawNode(node) {
     const m = node.mesh;
     const geo = geos.get(m.geo);
@@ -512,6 +517,8 @@ export function createEngine(canvas, opts = {}) {
     gl.uniform1f(U.uEmissive, m.emissive || 0);
     gl.uniform1f(U.uOpacity, m.opacity === undefined ? 1 : m.opacity);
     gl.uniform1f(U.uUseTex, m.tex ? 1 : 0);
+    // Mesh có thể opt-out fog (backdrop bầu trời...) qua m.nofog
+    gl.uniform1f(U.uFogOn, passFog && !m.nofog ? 1 : 0);
     if (m.tex) {
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, m.tex);
@@ -524,12 +531,12 @@ export function createEngine(canvas, opts = {}) {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     const aspect = width / height;
-    mat4Perspective(proj, (camera.fov * Math.PI) / 180, aspect, 0.08, 120);
+    mat4Perspective(proj, (camera.fov * Math.PI) / 180, aspect, 0.08, farPlane);
     mat4FpsView(view, camera.pos, camera.yaw, camera.pitch, camera.roll || 0);
     gl.uniformMatrix4fv(U.uProj, false, proj);
     gl.uniformMatrix4fv(U.uView, false, view);
     gl.uniform2f(U.uFogRange, fogNear, fogFar);
-    gl.uniform1f(U.uFogOn, 1);
+    passFog = 1;
 
     const lists = { opaque: opaqueList, blend: blendList };
     opaqueList.length = 0;
@@ -558,7 +565,7 @@ export function createEngine(canvas, opts = {}) {
       mat4Perspective(vmProj, (58 * Math.PI) / 180, aspect, 0.01, 10);
       gl.uniformMatrix4fv(U.uProj, false, vmProj);
       gl.uniformMatrix4fv(U.uView, false, vmView);
-      gl.uniform1f(U.uFogOn, 0); // súng không bị fog
+      passFog = 0; // súng không bị fog
 
       opaqueList.length = 0;
       blendList.length = 0;
@@ -607,12 +614,12 @@ export function createEngine(canvas, opts = {}) {
 }
 
 /** Helper tạo mesh-node nhanh. */
-export function meshNode(geo, { pos, rot, scale, color, emissive = 0, opacity, additive = false, tex = null } = {}) {
+export function meshNode(geo, { pos, rot, scale, color, emissive = 0, opacity, additive = false, tex = null, nofog = false } = {}) {
   return createNode({
     pos,
     rot,
     scale,
-    mesh: { geo, color: color || [1, 1, 1], emissive, opacity, additive, tex },
+    mesh: { geo, color: color || [1, 1, 1], emissive, opacity, additive, tex, nofog },
   });
 }
 

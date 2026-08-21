@@ -13,7 +13,7 @@ export const CELL = { EMPTY: 0, NORMAL: 1, REINFORCED: 2, EXPLOSIVE: 3, UNBREAKA
 
 export const WORLD = { w: 1040, h: 640 };
 export const BALL_R = 8;
-export const BRICK_H = 30;
+export const BRICK_H = 36;
 export const FIELD_PAD = 26;
 export const BRICK_TOP = 54;
 export const PADDLE_BASE_W = 132;
