@@ -1619,6 +1619,34 @@ function createAudio(storage, { defaultOn = false } = {}) {
     vr_fall:     () => { tone({ type: "sine", from: 420, to: 90, dur: 0.4, vol: 0.3 }); noise({ dur: 0.2, vol: 0.14, from: 900, to: 150, delay: 0.1 }); },
     vr_respawn:  () => { tone({ type: "sine", from: 300, to: 620, dur: 0.14, vol: 0.2 }); tone({ from: 830, dur: 0.07, vol: 0.16, delay: 0.12 }); },
     vr_finish:   () => { tone({ from: 587, dur: 0.09, vol: 0.28 }); tone({ from: 740, dur: 0.09, vol: 0.28, delay: 0.09 }); tone({ from: 988, dur: 0.09, vol: 0.28, delay: 0.18 }); tone({ from: 1319, dur: 0.24, vol: 0.3, delay: 0.27 }); },
+
+    /* Expansion 11–15 — Brick Breaker */
+    bb_paddle: () => tone({ type: "square", from: 340, to: 430, dur: 0.06, vol: 0.24 }),
+    bb_wall:   () => tone({ type: "sine", from: 260, to: 220, dur: 0.04, vol: 0.12 }),
+    bb_brick:  () => { tone({ from: 760, to: 900, dur: 0.06, vol: 0.24 }); noise({ dur: 0.06, vol: 0.14, from: 2600, to: 700 }); },
+    bb_crack:  () => { tone({ type: "triangle", from: 420, to: 330, dur: 0.06, vol: 0.2 }); noise({ dur: 0.05, vol: 0.1, from: 1800, to: 500 }); },
+    bb_steel:  () => tone({ type: "square", from: 190, to: 160, dur: 0.07, vol: 0.2 }),
+    bb_power:  () => { tone({ from: 520, to: 880, dur: 0.11, vol: 0.26 }); tone({ from: 1100, dur: 0.07, vol: 0.2, delay: 0.1 }); },
+    bb_laser:  () => tone({ type: "sawtooth", from: 1500, to: 500, dur: 0.07, vol: 0.14 }),
+    bb_lose:   () => { tone({ type: "sine", from: 320, to: 90, dur: 0.32, vol: 0.34 }); noise({ dur: 0.16, vol: 0.16, from: 800, to: 150, delay: 0.05 }); },
+
+    /* Expansion 11–15 — Pixel Golf */
+    pg_hit:    () => { noise({ dur: 0.05, vol: 0.24, from: 2400, to: 900 }); tone({ type: "sine", from: 210, to: 150, dur: 0.07, vol: 0.3 }); },
+    pg_wall:   () => tone({ type: "square", from: 300, to: 240, dur: 0.05, vol: 0.16 }),
+    pg_sand:   () => noise({ dur: 0.14, vol: 0.22, from: 900, to: 200 }),
+    pg_bumper: () => { tone({ from: 620, to: 900, dur: 0.07, vol: 0.26 }); tone({ from: 1200, dur: 0.05, vol: 0.18, delay: 0.05 }); },
+    pg_sink:   () => { tone({ type: "sine", from: 500, to: 250, dur: 0.1, vol: 0.26 }); tone({ from: 660, dur: 0.08, vol: 0.24, delay: 0.1 }); tone({ from: 880, dur: 0.14, vol: 0.24, delay: 0.18 }); },
+    pg_oob:    () => { tone({ type: "sawtooth", from: 240, to: 110, dur: 0.2, vol: 0.26 }); },
+
+    /* Expansion 11–15 — Typing Rush */
+    tr_key:    () => tone({ type: "square", from: 720, to: 660, dur: 0.03, vol: 0.1 }),
+    tr_err:    () => tone({ type: "sawtooth", from: 200, to: 140, dur: 0.08, vol: 0.2 }),
+    tr_word:   () => { tone({ from: 840, dur: 0.05, vol: 0.22 }); tone({ from: 1180, dur: 0.08, vol: 0.2, delay: 0.05 }); },
+    tr_danger: () => { tone({ type: "sawtooth", from: 320, to: 90, dur: 0.3, vol: 0.34 }); noise({ dur: 0.2, vol: 0.2, from: 900, to: 150 }); },
+
+    /* Expansion 11–15 — Astro Patrol */
+    ap_shoot: () => { tone({ type: "square", from: 880, to: 320, dur: 0.07, vol: 0.13 }); noise({ dur: 0.04, vol: 0.07, from: 3200, to: 900 }); },
+    ap_alarm: () => { tone({ type: "square", from: 620, dur: 0.12, vol: 0.24 }); tone({ type: "square", from: 470, dur: 0.12, vol: 0.24, delay: 0.14 }); tone({ type: "square", from: 620, dur: 0.16, vol: 0.24, delay: 0.28 }); },
   };
 
   return {
@@ -2208,6 +2236,92 @@ const GAMES = [
       { keys: ["Esc"], text: "tạm dừng — có chỉnh độ trễ ±ms" },
     ],
     loader: () => Promise.resolve(__req("games/rhythm-hack/index.js")),
+    fullBleed: true,
+    ownResults: true,
+  },
+
+  /* ---------- Expansion 11–15 ---------- */
+  {
+    id: "brick-breaker",
+    title: "Brick Breaker 404",
+    accent: "cyan",
+    kind: "2d",
+    goal: "Phá sạch gạch qua 10 màn: phản xạ quả cầu bằng paddle, hứng power-up (bóng x2, paddle rộng, laser, +1 mạng). Gạch nổ phá lan, gạch thép bất hoại!",
+    hint: { keys: ["← →"], text: "lái paddle · SPACE thả bóng" },
+    controls: [
+      { keys: ["Chuột"], text: "rê để lái paddle chính xác" },
+      { keys: ["← →", "A D"], text: "di chuyển bằng phím" },
+      { keys: ["SPACE", "Click"], text: "thả bóng" },
+      { keys: ["Chạm"], text: "kéo paddle trực tiếp trên mobile" },
+    ],
+    loader: () => Promise.resolve(__req("games/brick-breaker/index.js")),
+    fullBleed: true,
+    ownResults: true,
+  },
+  {
+    id: "laser-maze",
+    title: "Laser Maze 404",
+    accent: "cyan",
+    kind: "2d",
+    goal: "Giải đố 20 màn: đặt và xoay gương dẫn tia laser tới mọi bộ thu. Tách chùm qua splitter, nhuộm màu tia qua kính lọc — bộ thu chỉ nhận đúng màu!",
+    hint: { keys: [], text: "click đặt/xoay gương · U hoàn tác · H gợi ý" },
+    controls: [
+      { keys: ["Click", "Chạm"], text: "ô trống: đặt gương · gương: xoay / gỡ" },
+      { keys: ["U"], text: "hoàn tác" },
+      { keys: ["R"], text: "chơi lại màn" },
+      { keys: ["H"], text: "gợi ý một bước (mất thưởng sao)" },
+    ],
+    loader: () => Promise.resolve(__req("games/laser-maze/index.js")),
+    fullBleed: true,
+    ownResults: true,
+  },
+  {
+    id: "pixel-golf",
+    title: "Pixel Golf 404",
+    accent: "violet",
+    kind: "2d",
+    goal: "Mini golf pixel 9 hố: kéo để ngắm, thả để đánh. Né hố cát, cổng laser trượt, dùng trụ bật và cổng không gian — về đích với số gậy thấp nhất!",
+    hint: { keys: [], text: "kéo ngược hướng đánh · thả để đánh" },
+    controls: [
+      { keys: ["Kéo", "Chạm"], text: "kéo ngược hướng muốn đánh, thả để đánh" },
+      { keys: ["← →"], text: "chỉnh góc bằng phím" },
+      { keys: ["SPACE"], text: "giữ tụ lực — thả để đánh" },
+      { keys: ["Esc"], text: "tạm dừng" },
+    ],
+    loader: () => Promise.resolve(__req("games/pixel-golf/index.js")),
+    fullBleed: true,
+    ownResults: true,
+  },
+  {
+    id: "typing-rush",
+    title: "Typing Rush 404",
+    accent: "cyan",
+    kind: "2d",
+    goal: "Các từ rơi về DANGER LINE — gõ chính xác để phá hủy, giữ combo và đẩy WPM. Hỗ trợ tiếng Việt (gõ dấu hoặc không dấu), 3 độ khó + chế độ thích ứng. Tối ưu cho máy tính.",
+    hint: { keys: ["A–Z"], text: "gõ từ đang rơi — desktop" },
+    controls: [
+      { keys: ["A–Z"], text: "gõ ký tự — ký tự đầu khóa mục tiêu" },
+      { keys: ["⌫"], text: "lùi một ký tự" },
+      { keys: ["Esc"], text: "tạm dừng" },
+    ],
+    loader: () => Promise.resolve(__req("games/typing-rush/index.js")),
+    fullBleed: true,
+    ownResults: true,
+  },
+  {
+    id: "astro-patrol",
+    title: "Astro Patrol 404",
+    accent: "cyan",
+    kind: "2d",
+    goal: "Bắn phi thuyền dọc: sống sót 5 wave địch (trinh sát, xạ thủ, tàu lao), né asteroid và hạ mini-boss 2 phase. Khiên hấp thụ sát thương, nhặt nâng cấp hỏa lực!",
+    hint: { keys: ["WASD"], text: "di chuyển · SPACE bắn" },
+    controls: [
+      { keys: ["WASD", "↑↓←→"], text: "di chuyển (hoặc rê chuột)" },
+      { keys: ["SPACE", "Click"], text: "bắn — có tùy chọn auto-fire" },
+      { keys: ["Chạm"], text: "joystick trái + NÚT BẮN phải" },
+      { keys: ["Esc"], text: "tạm dừng" },
+    ],
+    loader: () => Promise.resolve(__req("games/astro-patrol/index.js")),
     fullBleed: true,
     ownResults: true,
   },
@@ -9842,6 +9956,9 @@ function createExpansionFrame(container, ctx, opts) {
     buttonLabels = {},
     onPauseToggle = () => {},
     handleEscape = true,
+    // false: không gắn topbar vào root — game tự re-parent .exp-title /
+    // .exp-btns vào bố cục riêng (Brick Breaker: cụm nút nằm sidebar phải).
+    attachTopbar = true,
   } = opts;
 
   ensureExpansionStyles(container);
@@ -9921,7 +10038,8 @@ function createExpansionFrame(container, ctx, opts) {
   const screenLayer = el("div");
   playfield.appendChild(screenLayer);
 
-  root.append(topbar, playfield);
+  if (attachTopbar) root.append(topbar, playfield);
+  else root.append(playfield);
   container.appendChild(root);
 
   let currentScreen = null;
@@ -23902,6 +24020,9183 @@ const RH_CSS = /* css */ `
 
 exports.RH_CSS = RH_CSS;
 };
+__defs["games/brick-breaker/index.js"] = function (exports, __req) {
+/**
+ * Brick Breaker 404 — game phá gạch 10 màn (expansion 11–15).
+ *
+ * Theo ảnh reference: tiêu đề hộp góc trái trên; sân chơi khung neon
+ * cyan bên trái; sidebar PHẢI gồm cụm nút TẠM DỪNG / ÂM THANH /
+ * ĐỔI GAME / TRANG CHỦ (lưới 2×2) + panel ĐIỂM / MẠNG (tim pixel) /
+ * MÀN / COMBO (thanh 10 nấc) + chú giải 4 loại gạch.
+ * Điều khiển: chuột rê / A D / mũi tên, SPACE hoặc click thả bóng,
+ * mobile kéo paddle trực tiếp (touch-action none). Esc tạm dừng.
+ * Logic thuần trong engine.js (substep chống xuyên); tiến trình màn
+ * lưu storage.setPref; điểm gửi ctx.onGameOver mỗi khi xong màn.
+ */
+
+const { createExpansionFrame } = __req("games/_shared/frame.js");
+const { createKeyboard } = __req("core/input-manager.js");
+const { createLoop } = __req("core/loop.js");
+const { el, formatScore, formatNumber } = __req("core/utils.js");
+const { createMatch, stepMatch, drainEvents, damageBrick, WORLD, MAX_LIVES, CELL } = __req("games/brick-breaker/engine.js");
+const { LEVELS } = __req("games/brick-breaker/levels.js");
+const { createBrickRenderer, paintBrickLegend } = __req("games/brick-breaker/render.js");
+const { BB_CSS } = __req("games/brick-breaker/styles.js");
+
+const PROGRESS_KEY = "bb-progress";
+const STEP = 1 / 120;
+const POWER_LABEL = {
+  multi: "BÓNG X2!",
+  wide: "PADDLE RỘNG!",
+  slow: "BÓNG CHẬM!",
+  laser: "PADDLE LASER!",
+  life: "+1 MẠNG!",
+};
+
+/** Tim pixel 7×6 vẽ vào canvas nhỏ (image-rendering: pixelated). */
+function paintHeart(canvas, on) {
+  canvas.width = 7;
+  canvas.height = 6;
+  const c = canvas.getContext("2d");
+  c.clearRect(0, 0, 7, 6);
+  const rows = [".XX.XX.", "XXXXXXX", "XXXXXXX", ".XXXXX.", "..XXX..", "...X..."];
+  c.fillStyle = on ? "#ff4f7e" : "rgba(120,60,90,0.35)";
+  for (let y = 0; y < 6; y++) {
+    for (let x = 0; x < 7; x++) {
+      if (rows[y][x] === "X") c.fillRect(x, y, 1, 1);
+    }
+  }
+  if (on) {
+    c.fillStyle = "#ffc4d6";
+    c.fillRect(1, 1, 1, 1);
+  }
+}
+
+function createGame() {
+  let ctx = null;
+  let frame = null;
+  let renderer = null;
+  let keys = null;
+  let loop = null;
+  let ro = null;
+  let canvas = null;
+  let stage = null;
+
+  const TEST = typeof window !== "undefined" && window.__ARCADE_EXP11_TEST__;
+
+  let mode = "intro"; // intro | play | paused | complete | over | finished
+  let levelIdx = 0;
+  let m = null; // match engine
+  let acc = 0;
+  let time = 0;
+  let stateT = 0;
+  let launchQueued = false;
+  let pointerX = null; // tọa độ thế giới theo con trỏ (null = dùng phím)
+
+  const fx = { particles: [], rings: [] };
+  const hud = { score: null, hearts: null, level: null, combo: null, segs: [] };
+
+  /* ---------------- Tiến trình ---------------- */
+
+  function readProgress() {
+    const p = ctx.storage.getPref(PROGRESS_KEY, null);
+    if (
+      p &&
+      typeof p === "object" &&
+      p.v === 1 &&
+      Number.isInteger(p.level) &&
+      p.level >= 0 &&
+      p.level < LEVELS.length
+    ) {
+      return { level: p.level, score: Number.isFinite(p.score) ? p.score : 0 };
+    }
+    return { level: 0, score: 0 };
+  }
+
+  function saveProgress(level, score) {
+    ctx.storage.setPref(PROGRESS_KEY, { v: 1, level, score });
+  }
+
+  /* ---------------- HUD sidebar ---------------- */
+
+  function updateHud() {
+    if (!m) return;
+    hud.score.textContent = formatScore(m.score);
+    hud.level.textContent = String(levelIdx + 1).padStart(2, "0");
+    hud.combo.textContent = `x${m.combo}`;
+    hud.segs.forEach((seg, i) => seg.classList.toggle("on", i < Math.min(m.combo, 10)));
+    const slots = Math.max(3, m.lives);
+    hud.hearts.forEach((cv, i) => {
+      cv.style.display = i < Math.max(slots, 3) && i < MAX_LIVES ? "" : "none";
+      paintHeart(cv, i < m.lives);
+    });
+  }
+
+  /* ---------------- FX ---------------- */
+
+  function burst(x, y, btype) {
+    const color =
+      btype === CELL.EXPLOSIVE ? "#ff7cc0" : btype === CELL.REINFORCED ? "#b48cff" : "#7ce6ff";
+    const n = 12;
+    for (let i = 0; i < n; i++) {
+      if (fx.particles.length > 220) break;
+      const a = Math.random() * Math.PI * 2;
+      const sp = 90 + Math.random() * 240;
+      fx.particles.push({
+        x,
+        y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - 60,
+        rot: Math.random() * 6.3,
+        vr: (Math.random() - 0.5) * 9,
+        size: 3 + Math.random() * 6,
+        life: 0.5 + Math.random() * 0.35,
+        life0: 0.85,
+        color,
+      });
+    }
+  }
+
+  function stepFx(dt) {
+    for (let i = fx.particles.length - 1; i >= 0; i--) {
+      const p = fx.particles[i];
+      p.life -= dt;
+      if (p.life <= 0) {
+        fx.particles.splice(i, 1);
+        continue;
+      }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 420 * dt;
+      p.rot += p.vr * dt;
+    }
+    for (let i = fx.rings.length - 1; i >= 0; i--) {
+      fx.rings[i].life -= dt;
+      if (fx.rings[i].life <= 0) fx.rings.splice(i, 1);
+    }
+  }
+
+  /* ---------------- Sự kiện engine ---------------- */
+
+  function handleEvents(events) {
+    for (const ev of events) {
+      switch (ev.type) {
+        case "paddle":
+          ctx.audio.play("bb_paddle");
+          updateHud();
+          break;
+        case "wall":
+          ctx.audio.play("bb_wall");
+          break;
+        case "crack":
+          ctx.audio.play("bb_crack");
+          burst(ev.x, ev.y, CELL.REINFORCED);
+          updateHud();
+          break;
+        case "break":
+          ctx.audio.play("bb_brick");
+          burst(ev.x, ev.y, ev.btype);
+          updateHud();
+          break;
+        case "boom":
+          ctx.audio.play("boom");
+          fx.rings.push({ x: ev.x, y: ev.y, life: 0.5, life0: 0.5, color: "#ff7cc0" });
+          break;
+        case "steel":
+          ctx.audio.play("bb_steel");
+          break;
+        case "power":
+          ctx.audio.play("bb_power");
+          frame.toast(POWER_LABEL[ev.power] || "POWER-UP!");
+          updateHud();
+          break;
+        case "laserShot":
+          ctx.audio.play("bb_laser");
+          break;
+        case "launch":
+          ctx.audio.play("jump");
+          break;
+        case "ballDrop":
+          if (ev.remaining > 0) ctx.audio.play("drop");
+          break;
+        case "lifeLost":
+          if (ev.lives > 0) {
+            ctx.audio.play("bb_lose");
+            frame.banner("MẤT MẠNG!");
+          }
+          updateHud();
+          break;
+        case "gameOver":
+          finishMatch(false);
+          return;
+        case "cleared":
+          finishLevel();
+          return;
+        default:
+          break;
+      }
+    }
+  }
+
+  /* ---------------- Vòng đời màn ---------------- */
+
+  function beginLevel(idx, { lives = 3, score = 0 } = {}) {
+    levelIdx = idx;
+    m = createMatch(LEVELS[idx], { lives, score });
+    fx.particles.length = 0;
+    fx.rings.length = 0;
+    acc = 0;
+    launchQueued = false;
+    pointerX = null;
+    saveProgress(idx, score);
+    mode = "play";
+    frame.clearScreen();
+    frame.setPaused(false);
+    ctx.onMatchStart();
+    frame.banner(`MÀN ${String(idx + 1).padStart(2, "0")} — ${LEVELS[idx].name}`);
+    ctx.audio.play("start");
+    updateHud();
+    loop.start();
+  }
+
+  function finishLevel() {
+    mode = "complete";
+    loop.stop();
+    const bonus = m.lives * 150;
+    m.score += bonus;
+    ctx.audio.play("win");
+    const isLast = levelIdx === LEVELS.length - 1;
+    if (isLast) saveProgress(0, 0);
+    else saveProgress(levelIdx + 1, m.score);
+    const saved = ctx.onGameOver(m.score, { level: levelIdx + 1, maxCombo: m.maxCombo });
+
+    const statCards = [
+      { label: "GẠCH ĐÃ PHÁ", value: m.bricksBroken, color: "cyan" },
+      { label: "COMBO CAO NHẤT", value: `x${m.maxCombo}`, color: "lime" },
+      { label: "POWER-UP", value: m.powerupsTaken, color: "violet" },
+      { label: "THƯỞNG MẠNG", value: `+${formatNumber(bonus)}`, color: "gold" },
+    ];
+    if (isLast) {
+      mode = "finished";
+      frame.overScreen({
+        kicker: "// CHIẾN DỊCH HOÀN TẤT",
+        heading: "PHÁ ĐẢO 10 MÀN!",
+        score: m.score,
+        saved,
+        statCards,
+        restartLabel: "CHƠI LẠI TỪ ĐẦU",
+        onRestart: () => beginLevel(0, { lives: 3, score: 0 }),
+        scoreLabel: "TỔNG ĐIỂM",
+      });
+    } else {
+      const nextLives = m.lives;
+      const nextScore = m.score;
+      frame.overScreen({
+        kicker: "// MÀN HOÀN THÀNH",
+        heading: `MÀN ${String(levelIdx + 1).padStart(2, "0")} — SẠCH GẠCH!`,
+        score: m.score,
+        saved,
+        statCards,
+        restartLabel: "MÀN TIẾP THEO",
+        onRestart: () => beginLevel(levelIdx + 1, { lives: nextLives, score: nextScore }),
+        extraActions: [["Chơi lại màn", "i-restart", "cyan", () => beginLevel(levelIdx, { lives: 3, score: readProgress().score })]],
+        scoreLabel: "TỔNG ĐIỂM",
+      });
+    }
+    updateHud();
+  }
+
+  function finishMatch() {
+    mode = "over";
+    loop.stop();
+    const saved = ctx.onGameOver(m.score, { level: levelIdx + 1, maxCombo: m.maxCombo });
+    const entryScore = readProgress().score;
+    frame.overScreen({
+      kicker: "// HẾT MẠNG",
+      heading: "GAME OVER!",
+      score: m.score,
+      saved,
+      statCards: [
+        { label: "MÀN ĐẠT ĐƯỢC", value: String(levelIdx + 1).padStart(2, "0"), color: "cyan" },
+        { label: "GẠCH ĐÃ PHÁ", value: m.bricksBroken, color: "violet" },
+        { label: "COMBO CAO NHẤT", value: `x${m.maxCombo}`, color: "lime" },
+      ],
+      restartLabel: "CHƠI LẠI MÀN",
+      onRestart: () => beginLevel(levelIdx, { lives: 3, score: entryScore }),
+    });
+  }
+
+  /* ---------------- Pause ---------------- */
+
+  function pauseGame() {
+    if (mode !== "play") return;
+    mode = "paused";
+    loop.stop();
+    frame.setPaused(true);
+    frame.pauseMenu({
+      onResume: () => resumeGame(),
+      onRestart: () => beginLevel(levelIdx, { lives: 3, score: readProgress().score }),
+      restartLabel: "CHƠI LẠI MÀN",
+      buildExtra: (box) => {
+        const row = el("div", "exp-setrow");
+        row.appendChild(el("span", "", "TIẾN TRÌNH"));
+        row.appendChild(el("span", "val", `MÀN ${levelIdx + 1}/10 · ${formatNumber(m.score)} ĐIỂM · ${m.lives} MẠNG`));
+        box.appendChild(row);
+      },
+    });
+  }
+
+  function resumeGame() {
+    if (mode !== "paused") return;
+    mode = "play";
+    frame.clearScreen();
+    frame.setPaused(false);
+    keys.clearDown();
+    launchQueued = false;
+    loop.start();
+  }
+
+  function togglePause() {
+    if (mode === "play") pauseGame();
+    else if (mode === "paused") resumeGame();
+  }
+
+  /* ---------------- Intro ---------------- */
+
+  function showIntro() {
+    mode = "intro";
+    loop.stop();
+    const progress = readProgress();
+    const extra = [];
+    if (progress.level > 0) {
+      extra.push(["Chơi từ đầu", "i-restart", "gold", () => beginLevel(0, { lives: 3, score: 0 })]);
+    }
+    frame.intro({
+      kicker: "// NHIỆM VỤ PHÁ GẠCH",
+      heading: [["BRICK BREAKER ", "cyan"], ["404", "pink"]],
+      goal:
+        "Phản xạ quả cầu bằng paddle để phá sạch gạch qua 10 màn. Gạch tím cần 2 cú đánh, gạch hồng NỔ lan 8 ô quanh nó, gạch thép không thể phá. Hứng power-up rơi xuống: bóng x2, paddle rộng, bóng chậm, laser, +1 mạng!",
+      rows: [
+        { keys: ["Chuột"], text: "rê để lái paddle (mobile: kéo trực tiếp)" },
+        { keys: ["← →", "A D"], text: "di chuyển bằng phím" },
+        { keys: ["SPACE", "Click"], text: "thả bóng" },
+        { keys: ["ESC"], text: "tạm dừng" },
+      ],
+      startLabel:
+        progress.level > 0 ? `TIẾP TỤC — MÀN ${String(progress.level + 1).padStart(2, "0")}` : "BẮT ĐẦU",
+      onStart: () => {
+        const p = readProgress();
+        beginLevel(p.level, { lives: 3, score: p.score });
+      },
+      extra,
+    });
+    // khung nền tĩnh cho intro
+    m = createMatch(LEVELS[progress.level], { lives: 3, score: progress.score });
+    levelIdx = progress.level;
+    renderer.fit();
+    renderer.draw(m, fx, 0);
+    updateHud();
+  }
+
+  /* ---------------- Vòng lặp ---------------- */
+
+  function gatherInput() {
+    const left = keys.isDown("ArrowLeft") || keys.isDown("KeyA");
+    const right = keys.isDown("ArrowRight") || keys.isDown("KeyD");
+    const move = (right ? 1 : 0) - (left ? 1 : 0);
+    const input = {
+      move,
+      targetX: move !== 0 ? null : pointerX,
+      launch: launchQueued || keys.isDown("Space"),
+    };
+    launchQueued = false;
+    return input;
+  }
+
+  function update(dt) {
+    time += dt;
+    if (mode === "play") {
+      acc = Math.min(acc + dt, 0.1);
+      const input = gatherInput();
+      while (acc >= STEP && mode === "play") {
+        acc -= STEP;
+        stepMatch(m, input, STEP);
+        input.launch = false;
+        if (m.cleared || m.over) break;
+      }
+      // trail bóng
+      for (const ball of m.balls) {
+        if (!ball.trail) ball.trail = [];
+        if (!ball.stuck) {
+          ball.trail.push({ x: ball.x, y: ball.y });
+          if (ball.trail.length > 15) ball.trail.shift();
+        } else {
+          ball.trail.length = 0;
+        }
+      }
+      handleEvents(drainEvents(m));
+    }
+    stepFx(dt);
+    renderer.draw(m, fx, time);
+
+    if (TEST) {
+      stateT += dt;
+      if (stateT > 0.35) {
+        stateT = 0;
+        window.__BB_STATE__ = {
+          mode,
+          score: m ? m.score : 0,
+          lives: m ? m.lives : 0,
+          level: levelIdx + 1,
+          bricksLeft: m ? m.breakableLeft : 0,
+          balls: m ? m.balls.length : 0,
+          ballStuck: m ? m.balls.some((b) => b.stuck) : false,
+          combo: m ? m.combo : 0,
+          paddleX: m ? Math.round(m.paddle.x) : 0,
+          powerups: m ? m.powerups.length : 0,
+        };
+      }
+    }
+  }
+
+  /* ---------------- Interface ---------------- */
+
+  return {
+    async mount(container, context) {
+      ctx = context;
+
+      const rootNode = container.getRootNode();
+      if (rootNode instanceof ShadowRoot && !rootNode.querySelector("#bb-style")) {
+        const style = document.createElement("style");
+        style.id = "bb-style";
+        style.textContent = BB_CSS;
+        rootNode.appendChild(style);
+      }
+
+      frame = createExpansionFrame(container, ctx, {
+        accent: "cyan",
+        title: [["BRICK BREAKER ", "cyan"], ["404", "pink"]],
+        stats: [],
+        attachTopbar: false,
+        onPauseToggle: togglePause,
+      });
+
+      /* Bố cục theo ảnh: main (tiêu đề + sân) trái, sidebar phải */
+      const layout = el("div", "bb-layout");
+      const main = el("div", "bb-main");
+      const head = el("div", "bb-head");
+      const titleBox = el("div", "bb-titlebox");
+      const titleEl = frame.topbar.querySelector(".exp-title");
+      titleBox.appendChild(titleEl);
+      head.appendChild(titleBox);
+      main.appendChild(head);
+
+      stage = el("div", "bb-stage");
+      canvas = document.createElement("canvas");
+      canvas.setAttribute("aria-label", "Sân chơi Brick Breaker");
+      stage.appendChild(canvas);
+      main.appendChild(stage);
+
+      const side = el("aside", "bb-side");
+      side.appendChild(frame.topbar.querySelector(".exp-btns"));
+
+      const mkPanel = (tone, label) => {
+        const p = el("div", "bb-panel");
+        p.dataset.tone = tone;
+        if (label) p.appendChild(el("div", "lbl", label));
+        side.appendChild(p);
+        return p;
+      };
+
+      const scoreP = mkPanel("cyan", "ĐIỂM");
+      hud.score = el("div", "val", "000000");
+      scoreP.appendChild(hud.score);
+
+      const livesP = mkPanel("pink", "MẠNG");
+      const heartsBox = el("div", "bb-hearts");
+      hud.hearts = [];
+      for (let i = 0; i < MAX_LIVES; i++) {
+        const cv = document.createElement("canvas");
+        heartsBox.appendChild(cv);
+        hud.hearts.push(cv);
+      }
+      livesP.appendChild(heartsBox);
+
+      const levelP = mkPanel("cyan", "MÀN");
+      hud.level = el("div", "val", "01");
+      levelP.appendChild(hud.level);
+
+      const comboP = mkPanel("lime", "COMBO");
+      hud.combo = el("div", "val", "x0");
+      comboP.appendChild(hud.combo);
+      const segBox = el("div", "bb-comboseg");
+      hud.segs = [];
+      for (let i = 0; i < 10; i++) {
+        const seg = el("i");
+        segBox.appendChild(seg);
+        hud.segs.push(seg);
+      }
+      comboP.appendChild(segBox);
+
+      const legendP = mkPanel("cyan", "");
+      legendP.classList.add("bb-panel-legend");
+      const legend = el("div", "bb-legend");
+      for (const [kind, label] of [
+        ["normal", "GẠCH THƯỜNG"],
+        ["reinforced", "GẠCH TĂNG CƯỜNG"],
+        ["explosive", "GẠCH NỔ"],
+        ["steel", "GẠCH BẤT HOẠI"],
+      ]) {
+        const row = el("div", "bb-legend-row");
+        const cv = document.createElement("canvas");
+        paintBrickLegend(cv, kind);
+        row.appendChild(cv);
+        row.appendChild(el("span", "", label));
+        legend.appendChild(row);
+      }
+      legendP.appendChild(legend);
+
+      layout.append(main, side);
+      frame.playfield.appendChild(layout);
+
+      renderer = createBrickRenderer(canvas, stage);
+      ro = new ResizeObserver(() => {
+        renderer.fit();
+        if (mode !== "play") renderer.draw(m, fx, time);
+      });
+      ro.observe(stage);
+
+      /* Input */
+      keys = createKeyboard({ signal: ctx.signal });
+      keys.on(["Space"], () => {
+        if (mode === "play") launchQueued = true;
+      });
+      keys.on(["KeyP"], () => togglePause());
+      keys.on(["ArrowLeft", "ArrowRight", "KeyA", "KeyD"], () => {
+        pointerX = null; // phím ưu tiên lại điều khiển
+      });
+
+      const toWorldX = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        return ((e.clientX - rect.left) / rect.width) * WORLD.w;
+      };
+      canvas.addEventListener(
+        "pointermove",
+        (e) => {
+          pointerX = toWorldX(e);
+        },
+        { signal: ctx.signal }
+      );
+      canvas.addEventListener(
+        "pointerdown",
+        (e) => {
+          e.preventDefault();
+          pointerX = toWorldX(e);
+          if (mode === "play") launchQueued = true;
+        },
+        { signal: ctx.signal }
+      );
+
+      loop = createLoop(update);
+
+      if (TEST) {
+        window.__BB_TEST__ = {
+          clearTo: (n) => {
+            if (!m || mode !== "play") return false;
+            const targets = m.lv.bricks.filter((b) => b.alive && b.type !== CELL.UNBREAKABLE);
+            for (const b of targets) {
+              if (m.breakableLeft <= n) break;
+              damageBrick(m, b, 9);
+            }
+            return true;
+          },
+          dropBalls: () => {
+            if (!m) return false;
+            for (const b of m.balls) {
+              b.stuck = false;
+              b.y = WORLD.h + 100;
+              b.vy = 200;
+            }
+            return true;
+          },
+        };
+      }
+
+      showIntro();
+    },
+
+    start() {
+      if (mode !== "intro") return;
+      const p = readProgress();
+      beginLevel(p.level, { lives: 3, score: p.score });
+    },
+
+    pause() {
+      pauseGame();
+    },
+
+    resume() {
+      resumeGame();
+    },
+
+    restart() {
+      if (mode === "intro") return;
+      beginLevel(levelIdx, { lives: 3, score: readProgress().score });
+    },
+
+    resize() {
+      renderer?.fit();
+    },
+
+    destroy() {
+      loop?.stop();
+      keys?.destroy();
+      ro?.disconnect();
+      frame?.destroy();
+      frame = null;
+      renderer = null;
+      m = null;
+      if (typeof window !== "undefined") {
+        delete window.__BB_STATE__;
+        delete window.__BB_TEST__;
+      }
+    },
+  };
+}
+
+exports.createGame = createGame;
+};
+__defs["games/brick-breaker/engine.js"] = function (exports, __req) {
+/**
+ * engine.js — Brick Breaker 404: toàn bộ logic thuần (không DOM/Canvas)
+ * để chạy được unit test trong Node.
+ *
+ * Chống xuyên gạch: tích phân theo SUBSTEP — mỗi substep bóng đi tối đa
+ * ~0.8 bán kính nên không thể nhảy qua gạch/paddle ở tốc độ trần.
+ * Góc nảy paddle phụ thuộc vị trí chạm (không chỉ theo pháp tuyến).
+ * Chống kẹt quỹ đạo: đếm thời gian bóng bay gần-ngang / gần-dọc và
+ * đá nhẹ hướng khi vượt ngưỡng.
+ */
+
+const CELL = { EMPTY: 0, NORMAL: 1, REINFORCED: 2, EXPLOSIVE: 3, UNBREAKABLE: 4 };
+
+const WORLD = { w: 1040, h: 640 };
+const BALL_R = 8;
+const BRICK_H = 30;
+const FIELD_PAD = 26;
+const BRICK_TOP = 54;
+const PADDLE_BASE_W = 132;
+const PADDLE_H = 18;
+const PADDLE_Y = WORLD.h - 44;
+const PADDLE_SPEED = 780;
+const WIDE_SCALE = 1.55;
+const MAX_BALLS = 6;
+const MAX_LIVES = 5;
+const SPEED_CAP = 720;
+const POWER_DUR = { wide: 12, slow: 8, laser: 10 };
+
+const CHAR_CELL = { ".": CELL.EMPTY, N: CELL.NORMAL, R: CELL.REINFORCED, E: CELL.EXPLOSIVE, U: CELL.UNBREAKABLE };
+const MAX_ANGLE = (62 * Math.PI) / 180; // góc lệch tối đa khỏi phương dọc khi nảy paddle
+
+/** Parse level: rows = mảng chuỗi ('.'|N|R|E|U), mỗi ký tự một gạch. */
+function parseLevel(def) {
+  const rows = def.rows;
+  const cols = rows[0].length;
+  const bw = (WORLD.w - FIELD_PAD * 2) / cols;
+  const bricks = [];
+  const grid = new Map(); // "gx,gy" → brick
+  for (let gy = 0; gy < rows.length; gy++) {
+    for (let gx = 0; gx < cols; gx++) {
+      const type = CHAR_CELL[rows[gy][gx]] ?? CELL.EMPTY;
+      if (type === CELL.EMPTY) continue;
+      const b = {
+        gx,
+        gy,
+        type,
+        x: FIELD_PAD + gx * bw,
+        y: BRICK_TOP + gy * BRICK_H,
+        w: bw,
+        h: BRICK_H,
+        hp: type === CELL.REINFORCED ? 2 : 1,
+        alive: true,
+      };
+      bricks.push(b);
+      grid.set(`${gx},${gy}`, b);
+    }
+  }
+  return {
+    bricks,
+    grid,
+    cols,
+    rowsCount: rows.length,
+    bw,
+    ballSpeed: Math.min(def.ballSpeed, SPEED_CAP),
+    powerupChance: def.powerupChance,
+  };
+}
+
+function newBall(speed) {
+  return {
+    x: WORLD.w / 2,
+    y: PADDLE_Y - BALL_R - 1,
+    vx: 0,
+    vy: 0,
+    speed,
+    stuck: true,
+    stickOff: 0,
+    lockH: 0, // thời gian bay gần-ngang liên tục
+    lockV: 0, // thời gian bay gần-dọc liên tục
+  };
+}
+
+/**
+ * Tạo trận cho một level. rand tiêm được để test tất định.
+ * lives truyền từ ngoài (giữ qua các màn).
+ */
+function createMatch(levelDef, { rand = Math.random, lives = 3, score = 0 } = {}) {
+  const lv = parseLevel(levelDef);
+  return {
+    lv,
+    rand,
+    lives,
+    score,
+    paddle: { x: WORLD.w / 2, w: PADDLE_BASE_W, targetW: PADDLE_BASE_W },
+    balls: [newBall(lv.ballSpeed)],
+    powerups: [], // {x,y,vy,type,phase}
+    lasers: [], // {x,y}
+    timers: { wide: 0, slow: 0, laser: 0 },
+    laserCd: 0,
+    combo: 0,
+    maxCombo: 0,
+    bricksBroken: 0,
+    powerupsTaken: 0,
+    breakableLeft: lv.bricks.filter((b) => b.type !== CELL.UNBREAKABLE).length,
+    over: false, // hết mạng
+    cleared: false, // hết gạch phá được
+    events: [],
+  };
+}
+
+/* ---------------- Power-up ---------------- */
+
+const POWER_WEIGHTS = [
+  ["multi", 0.24],
+  ["wide", 0.22],
+  ["slow", 0.2],
+  ["laser", 0.2],
+  ["life", 0.14],
+];
+
+function pickPower(rand) {
+  let r = rand();
+  for (const [type, w] of POWER_WEIGHTS) {
+    r -= w;
+    if (r <= 0) return type;
+  }
+  return "multi";
+}
+
+function applyPower(m, type) {
+  m.powerupsTaken += 1;
+  switch (type) {
+    case "multi": {
+      const src = m.balls.filter((b) => !b.stuck);
+      const base = src[0] || m.balls[0];
+      if (!base) break;
+      const speed = base.speed;
+      const a0 = base.stuck ? -Math.PI / 2 : Math.atan2(base.vy, base.vx);
+      for (const da of [-0.42, 0.42]) {
+        if (m.balls.length >= MAX_BALLS) break;
+        const a = a0 + da;
+        m.balls.push({
+          ...newBall(speed),
+          x: base.x,
+          y: base.y,
+          vx: Math.cos(a) * speed,
+          vy: Math.sin(a) * speed,
+          stuck: false,
+        });
+      }
+      break;
+    }
+    case "wide":
+      m.timers.wide = POWER_DUR.wide; // làm mới, KHÔNG cộng dồn quá 1 nấc
+      break;
+    case "slow":
+      m.timers.slow = POWER_DUR.slow;
+      break;
+    case "laser":
+      m.timers.laser = POWER_DUR.laser;
+      break;
+    case "life":
+      m.lives = Math.min(MAX_LIVES, m.lives + 1);
+      break;
+  }
+  m.events.push({ type: "power", power: type });
+}
+
+/* ---------------- Gạch ---------------- */
+
+/** Gây damage một gạch; nổ lan xử lý bằng hàng đợi (không đệ quy sâu). */
+function damageBrick(m, brick, dmg = 1) {
+  const queue = [[brick, dmg]];
+  while (queue.length) {
+    const [b, d] = queue.shift();
+    if (!b || !b.alive || b.type === CELL.UNBREAKABLE) continue;
+    b.hp -= d;
+    if (b.hp > 0) {
+      m.score += 20;
+      m.events.push({ type: "crack", x: b.x + b.w / 2, y: b.y + b.h / 2 });
+      continue;
+    }
+    b.alive = false;
+    m.lv.grid.delete(`${b.gx},${b.gy}`);
+    m.breakableLeft -= 1;
+    m.bricksBroken += 1;
+    m.combo += 1;
+    if (m.combo > m.maxCombo) m.maxCombo = m.combo;
+    const base = b.type === CELL.EXPLOSIVE ? 100 : b.type === CELL.REINFORCED ? 80 : 50;
+    m.score += base + m.combo * 10;
+    m.events.push({ type: "break", brick: b, x: b.x + b.w / 2, y: b.y + b.h / 2, btype: b.type });
+
+    if (m.rand() < m.lv.powerupChance) {
+      m.powerups.push({ x: b.x + b.w / 2, y: b.y + b.h / 2, vy: 150, type: pickPower(m.rand), phase: m.rand() * 6.28 });
+    }
+
+    if (b.type === CELL.EXPLOSIVE) {
+      m.events.push({ type: "boom", x: b.x + b.w / 2, y: b.y + b.h / 2 });
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const nb = m.lv.grid.get(`${b.gx + dx},${b.gy + dy}`);
+          if (nb && nb.alive && nb.type !== CELL.UNBREAKABLE) queue.push([nb, 2]);
+        }
+      }
+    }
+  }
+  if (m.breakableLeft <= 0 && !m.cleared) {
+    m.cleared = true;
+    m.events.push({ type: "cleared" });
+  }
+}
+
+/** Các gạch có bbox giao với hình tròn (x,y,r) — tra theo lưới. */
+function bricksNear(m, x, y, r) {
+  const lv = m.lv;
+  const gx0 = Math.floor((x - r - FIELD_PAD) / lv.bw);
+  const gx1 = Math.floor((x + r - FIELD_PAD) / lv.bw);
+  const gy0 = Math.floor((y - r - BRICK_TOP) / BRICK_H);
+  const gy1 = Math.floor((y + r - BRICK_TOP) / BRICK_H);
+  const out = [];
+  for (let gy = gy0; gy <= gy1; gy++) {
+    for (let gx = gx0; gx <= gx1; gx++) {
+      const b = m.lv.grid.get(`${gx},${gy}`);
+      if (b && b.alive) out.push(b);
+    }
+  }
+  return out;
+}
+
+function circleHitsRect(x, y, r, b) {
+  const cx = Math.max(b.x, Math.min(x, b.x + b.w));
+  const cy = Math.max(b.y, Math.min(y, b.y + b.h));
+  const dx = x - cx;
+  const dy = y - cy;
+  return dx * dx + dy * dy <= r * r;
+}
+
+/* ---------------- Bóng ---------------- */
+
+function launchBall(m, ball) {
+  if (!ball.stuck) return;
+  ball.stuck = false;
+  const a = -Math.PI / 2 + (m.rand() - 0.5) * 0.5;
+  ball.vx = Math.cos(a) * ball.speed;
+  ball.vy = Math.sin(a) * ball.speed;
+  m.events.push({ type: "launch" });
+}
+
+/** Nảy paddle: vị trí chạm quyết định góc; tăng nhẹ tốc độ tới trần. */
+function bounceOffPaddle(m, ball) {
+  const rel = Math.max(-1, Math.min(1, (ball.x - m.paddle.x) / (m.paddle.w / 2)));
+  const angle = rel * MAX_ANGLE;
+  ball.speed = Math.min(SPEED_CAP, ball.speed + 6);
+  ball.vx = Math.sin(angle) * ball.speed;
+  ball.vy = -Math.cos(angle) * ball.speed;
+  ball.y = PADDLE_Y - BALL_R - 0.5;
+  ball.lockH = 0;
+  ball.lockV = 0;
+  m.combo = 0;
+  m.events.push({ type: "paddle" });
+}
+
+function stepBallSub(m, ball, sdt) {
+  const slowK = m.timers.slow > 0 ? 0.62 : 1;
+  const px = ball.x;
+  const py = ball.y;
+  ball.x += ball.vx * slowK * sdt;
+  ball.y += ball.vy * slowK * sdt;
+
+  // Tường
+  if (ball.x < BALL_R) {
+    ball.x = BALL_R;
+    ball.vx = Math.abs(ball.vx);
+    m.events.push({ type: "wall" });
+  } else if (ball.x > WORLD.w - BALL_R) {
+    ball.x = WORLD.w - BALL_R;
+    ball.vx = -Math.abs(ball.vx);
+    m.events.push({ type: "wall" });
+  }
+  if (ball.y < BALL_R) {
+    ball.y = BALL_R;
+    ball.vy = Math.abs(ball.vy);
+    m.events.push({ type: "wall" });
+  }
+
+  // Paddle
+  if (
+    ball.vy > 0 &&
+    ball.y + BALL_R >= PADDLE_Y &&
+    py + BALL_R <= PADDLE_Y + PADDLE_H &&
+    ball.x >= m.paddle.x - m.paddle.w / 2 - BALL_R &&
+    ball.x <= m.paddle.x + m.paddle.w / 2 + BALL_R
+  ) {
+    bounceOffPaddle(m, ball);
+    return;
+  }
+
+  // Gạch — tối đa 2 va chạm mỗi substep (góc kép)
+  for (let i = 0; i < 2; i++) {
+    const hits = bricksNear(m, ball.x, ball.y, BALL_R).filter((b) => circleHitsRect(ball.x, ball.y, BALL_R, b));
+    if (!hits.length) break;
+    // gạch gần tâm bóng nhất
+    let best = hits[0];
+    let bd = Infinity;
+    for (const b of hits) {
+      const d = Math.hypot(ball.x - (b.x + b.w / 2), ball.y - (b.y + b.h / 2));
+      if (d < bd) {
+        bd = d;
+        best = b;
+      }
+    }
+    // Pháp tuyến theo vị trí TRƯỚC substep (hướng bóng đến)
+    const fromLeft = px <= best.x - 0.01;
+    const fromRight = px >= best.x + best.w + 0.01;
+    const fromTop = py <= best.y - 0.01;
+    const fromBottom = py >= best.y + best.h + 0.01;
+    if ((fromLeft || fromRight) && !(fromTop || fromBottom)) {
+      ball.vx = fromLeft ? -Math.abs(ball.vx) : Math.abs(ball.vx);
+      ball.x = fromLeft ? best.x - BALL_R - 0.1 : best.x + best.w + BALL_R + 0.1;
+    } else if ((fromTop || fromBottom) && !(fromLeft || fromRight)) {
+      ball.vy = fromTop ? -Math.abs(ball.vy) : Math.abs(ball.vy);
+      ball.y = fromTop ? best.y - BALL_R - 0.1 : best.y + best.h + BALL_R + 0.1;
+    } else {
+      // Góc: phản xạ trục có độ xuyên nhỏ hơn
+      const cx = Math.max(best.x, Math.min(ball.x, best.x + best.w));
+      const cy = Math.max(best.y, Math.min(ball.y, best.y + best.h));
+      const ox = ball.x - cx;
+      const oy = ball.y - cy;
+      if (Math.abs(ox) > Math.abs(oy)) {
+        ball.vx = ox > 0 ? Math.abs(ball.vx) : -Math.abs(ball.vx);
+        ball.x = cx + Math.sign(ox || 1) * (BALL_R + 0.1);
+      } else {
+        ball.vy = oy > 0 ? Math.abs(ball.vy) : -Math.abs(ball.vy);
+        ball.y = cy + Math.sign(oy || -1) * (BALL_R + 0.1);
+      }
+    }
+    if (best.type === CELL.UNBREAKABLE) m.events.push({ type: "steel" });
+    else damageBrick(m, best, 1);
+  }
+}
+
+/* ---------------- Step chính ---------------- */
+
+/**
+ * input = { move: -1..1, targetX: number|null, launch: bool }
+ * Trả về m.events tích lũy (caller drain).
+ */
+function stepMatch(m, input, dt) {
+  if (m.over || m.cleared) return;
+
+  // Paddle
+  if (input.targetX !== null && input.targetX !== undefined) {
+    m.paddle.x = input.targetX;
+  } else if (input.move) {
+    m.paddle.x += input.move * PADDLE_SPEED * dt;
+  }
+  const halfW = m.paddle.w / 2;
+  m.paddle.x = Math.max(halfW + 4, Math.min(WORLD.w - halfW - 4, m.paddle.x));
+
+  // Timers
+  for (const k of ["wide", "slow", "laser"]) {
+    if (m.timers[k] > 0) {
+      m.timers[k] -= dt;
+      if (m.timers[k] <= 0) {
+        m.timers[k] = 0;
+        m.events.push({ type: "powerEnd", power: k });
+      }
+    }
+  }
+  m.paddle.targetW = m.timers.wide > 0 ? PADDLE_BASE_W * WIDE_SCALE : PADDLE_BASE_W;
+  m.paddle.w += (m.paddle.targetW - m.paddle.w) * Math.min(1, dt * 10);
+
+  // Laser paddle: tự bắn theo nhịp
+  if (m.timers.laser > 0) {
+    m.laserCd -= dt;
+    if (m.laserCd <= 0) {
+      m.laserCd = 0.55;
+      m.lasers.push({ x: m.paddle.x - m.paddle.w / 2 + 10, y: PADDLE_Y - 4 });
+      m.lasers.push({ x: m.paddle.x + m.paddle.w / 2 - 10, y: PADDLE_Y - 4 });
+      m.events.push({ type: "laserShot" });
+    }
+  }
+
+  // Đạn laser bay lên
+  for (let i = m.lasers.length - 1; i >= 0; i--) {
+    const L = m.lasers[i];
+    L.y -= 900 * dt;
+    if (L.y < -20) {
+      m.lasers.splice(i, 1);
+      continue;
+    }
+    const hits = bricksNear(m, L.x, L.y, 4);
+    if (hits.length) {
+      const b = hits[0];
+      if (b.type === CELL.UNBREAKABLE) m.events.push({ type: "steel" });
+      else damageBrick(m, b, 1);
+      m.lasers.splice(i, 1);
+    }
+  }
+
+  // Bóng: substep chống xuyên
+  for (let i = m.balls.length - 1; i >= 0; i--) {
+    const ball = m.balls[i];
+    if (ball.stuck) {
+      ball.x = m.paddle.x + ball.stickOff;
+      ball.y = PADDLE_Y - BALL_R - 1;
+      if (input.launch) launchBall(m, ball);
+      continue;
+    }
+    const speed = Math.hypot(ball.vx, ball.vy) || ball.speed;
+    const maxMove = BALL_R * 0.8;
+    const steps = Math.max(1, Math.ceil((speed * dt) / maxMove));
+    const sdt = dt / steps;
+    for (let s = 0; s < steps; s++) {
+      stepBallSub(m, ball, sdt);
+      if (m.cleared) break;
+    }
+
+    // Chống kẹt quỹ đạo ngang/dọc
+    const sp = Math.hypot(ball.vx, ball.vy) || 1;
+    if (Math.abs(ball.vy) < sp * 0.18) ball.lockH += dt;
+    else ball.lockH = 0;
+    if (Math.abs(ball.vx) < sp * 0.06) ball.lockV += dt;
+    else ball.lockV = 0;
+    if (ball.lockH > 2.2) {
+      ball.lockH = 0;
+      ball.vy += (ball.vy >= 0 ? 1 : -1) * sp * 0.3;
+      const k = sp / Math.hypot(ball.vx, ball.vy);
+      ball.vx *= k;
+      ball.vy *= k;
+    }
+    if (ball.lockV > 3.5) {
+      ball.lockV = 0;
+      ball.vx += (m.rand() < 0.5 ? -1 : 1) * sp * 0.22;
+      const k = sp / Math.hypot(ball.vx, ball.vy);
+      ball.vx *= k;
+      ball.vy *= k;
+    }
+
+    // Rơi khỏi đáy
+    if (ball.y > WORLD.h + BALL_R * 3) {
+      m.balls.splice(i, 1);
+      m.events.push({ type: "ballDrop", remaining: m.balls.length });
+    }
+  }
+
+  // Mất mạng CHỈ khi quả cuối cùng rơi (multi-ball đúng chuẩn)
+  if (m.balls.length === 0 && !m.cleared) {
+    m.lives -= 1;
+    m.combo = 0;
+    m.events.push({ type: "lifeLost", lives: m.lives });
+    if (m.lives <= 0) {
+      m.over = true;
+      m.events.push({ type: "gameOver" });
+    } else {
+      m.balls.push(newBall(m.lv.ballSpeed));
+    }
+  }
+
+  // Power-up rơi
+  for (let i = m.powerups.length - 1; i >= 0; i--) {
+    const p = m.powerups[i];
+    p.y += p.vy * dt;
+    p.phase += dt * 4;
+    if (
+      p.y + 14 >= PADDLE_Y &&
+      p.y - 14 <= PADDLE_Y + PADDLE_H + 6 &&
+      Math.abs(p.x - m.paddle.x) < m.paddle.w / 2 + 16
+    ) {
+      applyPower(m, p.type);
+      m.powerups.splice(i, 1);
+    } else if (p.y > WORLD.h + 30) {
+      m.powerups.splice(i, 1);
+    }
+  }
+}
+
+/** Drain sự kiện tích lũy (index gọi mỗi frame). */
+function drainEvents(m) {
+  const ev = m.events;
+  m.events = [];
+  return ev;
+}
+
+exports.parseLevel = parseLevel; exports.createMatch = createMatch; exports.applyPower = applyPower; exports.damageBrick = damageBrick; exports.launchBall = launchBall; exports.stepMatch = stepMatch; exports.drainEvents = drainEvents; exports.CELL = CELL; exports.WORLD = WORLD; exports.BALL_R = BALL_R; exports.BRICK_H = BRICK_H; exports.FIELD_PAD = FIELD_PAD; exports.BRICK_TOP = BRICK_TOP; exports.PADDLE_BASE_W = PADDLE_BASE_W; exports.PADDLE_H = PADDLE_H; exports.PADDLE_Y = PADDLE_Y; exports.PADDLE_SPEED = PADDLE_SPEED; exports.WIDE_SCALE = WIDE_SCALE; exports.MAX_BALLS = MAX_BALLS; exports.MAX_LIVES = MAX_LIVES; exports.SPEED_CAP = SPEED_CAP; exports.POWER_DUR = POWER_DUR;
+};
+__defs["games/brick-breaker/levels.js"] = function (exports, __req) {
+/**
+ * levels.js — 10 màn Brick Breaker 404 (module JS thuần, không .json).
+ * Ký hiệu: '.' trống · N gạch thường · R tăng cường (2 hit) ·
+ * E gạch nổ (phá lan 8 ô) · U bất hoại.
+ * Màn 04 tái tạo bố cục "404" trong ảnh reference.
+ */
+
+const LEVELS = [
+  {
+    id: 1,
+    name: "KHỞI ĐỘNG",
+    ballSpeed: 360,
+    powerupChance: 0.16,
+    rows: [
+      "NNNNNNNNNNN",
+      "NNNNNNNNNNN",
+      "NNNRNNNRNNN",
+      "NNNNNNNNNNN",
+    ],
+  },
+  {
+    id: 2,
+    name: "SÓNG ĐÔI",
+    ballSpeed: 380,
+    powerupChance: 0.15,
+    rows: [
+      "NNNNNNNNNNNN",
+      "RN.NR..RN.NR",
+      "NNNNNNNNNNNN",
+      ".E.N.NN.N.E.",
+    ],
+  },
+  {
+    id: 3,
+    name: "KIM TỰ THÁP",
+    ballSpeed: 400,
+    powerupChance: 0.14,
+    rows: [
+      "......N......",
+      ".....NRN.....",
+      "....NNRNN....",
+      "...NNNENNN...",
+      "..NNNNRNNNN..",
+      ".NNNNNNNNNNN.",
+    ],
+  },
+  {
+    id: 4,
+    name: "BỨC TƯỜNG 404",
+    ballSpeed: 420,
+    powerupChance: 0.12,
+    rows: [
+      "UUUUUUUUUUUUUU",
+      "N..N.RNNR.N..N",
+      "E..N.N..N.N..E",
+      "NNNN.N..N.NNNN",
+      "...N.E..E.N...",
+      "...N.NNNN.N...",
+    ],
+  },
+  {
+    id: 5,
+    name: "LÒ PHẢN ỨNG",
+    ballSpeed: 440,
+    powerupChance: 0.12,
+    rows: [
+      "U.NNNNNNNN.U",
+      ".NNNEEEENNN.",
+      ".NNEERREENN.",
+      ".NNNEEEENNN.",
+      "U.NNNNNNNN.U",
+    ],
+  },
+  {
+    id: 6,
+    name: "PHÁO ĐÀI",
+    ballSpeed: 460,
+    powerupChance: 0.11,
+    rows: [
+      "UNNNNNNNNNNNNU",
+      "N.RRN.EE.NRR.N",
+      "N.NNN.NN.NNN.N",
+      "U.RNR.EE.RNR.U",
+      "NNNNNNNNNNNNNN",
+    ],
+  },
+  {
+    id: 7,
+    name: "BÀN CỜ",
+    ballSpeed: 480,
+    powerupChance: 0.11,
+    rows: [
+      "N.R.N.E.N.R.N",
+      ".N.N.N.N.N.N.",
+      "R.N.E.N.E.N.R",
+      ".N.N.N.N.N.N.",
+      "N.E.N.R.N.E.N",
+      ".N.N.N.N.N.N.",
+    ],
+  },
+  {
+    id: 8,
+    name: "HẺM NÚI",
+    ballSpeed: 500,
+    powerupChance: 0.11,
+    rows: [
+      "NNNNNU..UNNNNN",
+      "RNNNNU..UNNNNR",
+      "NNNNNU..UNNNNN",
+      "ENNNNU..UNNNNE",
+      "NNNNN....NNNNN",
+      "......RR......",
+      "NNNN.NEEN.NNNN",
+    ],
+  },
+  {
+    id: 9,
+    name: "TỔ ONG",
+    ballSpeed: 520,
+    powerupChance: 0.1,
+    rows: [
+      "NNENNENNENNENN",
+      "NRNNRNNRNNRNNR",
+      "NNNNNNNNNNNNNN",
+      "ENNEENNEENNEEN",
+      "NNNNNNNNNNNNNN",
+    ],
+  },
+  {
+    id: 10,
+    name: "TRÙM CUỐI",
+    ballSpeed: 540,
+    powerupChance: 0.1,
+    rows: [
+      "UUUUUUUUUUUUUU",
+      "RRNNEENNEENNRR",
+      "NNRNNRNNRNNRNN",
+      "ENNNENNNENNNEN",
+      "NRNNNRNNNRNNRN",
+      "NNNNNNNNNNNNNN",
+      "U..U..UU..U..U",
+    ],
+  },
+];
+
+exports.LEVELS = LEVELS;
+};
+__defs["games/brick-breaker/render.js"] = function (exports, __req) {
+/**
+ * render.js — vẽ Brick Breaker 404 theo ảnh reference: nền bảng mạch
+ * navy, khung neon cyan bo góc, gạch bevel 4 loại (cyan / tím-khiên /
+ * hồng-nổ / xám-X), bóng phát sáng có vệt trail, paddle tím lõi cyan,
+ * power-up rơi kèm mũi tên chevron, particle vỡ gạch.
+ */
+
+const { WORLD, BALL_R, PADDLE_Y, PADDLE_H, CELL } = __req("games/brick-breaker/engine.js");
+const { seededRand, MONO_FONT } = __req("core/utils.js");
+
+const COLORS = {
+  frame: "#20e3ff",
+  bg0: "#070a22",
+  bg1: "#0a0e2e",
+  normalA: "#4fe3ff",
+  normalB: "#1490c2",
+  reinA: "#9a6bff",
+  reinB: "#5c2bd9",
+  expA: "#ff4fae",
+  expB: "#c9186e",
+  steelA: "#4a5168",
+  steelB: "#262b3d",
+  ball: "#eaf9ff",
+  paddleA: "#8a5cff",
+  paddleB: "#4d21a8",
+};
+
+function createBrickRenderer(canvas, box) {
+  const g = canvas.getContext("2d");
+  let scale = 1;
+  let dpr = 1;
+
+  function fit() {
+    const rect = box.getBoundingClientRect();
+    if (rect.width < 4 || rect.height < 4) return;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const k = Math.min(rect.width / WORLD.w, rect.height / WORLD.h);
+    const cssW = Math.floor(WORLD.w * k);
+    const cssH = Math.floor(WORLD.h * k);
+    canvas.style.width = `${cssW}px`;
+    canvas.style.height = `${cssH}px`;
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    scale = (cssW / WORLD.w) * dpr;
+  }
+
+  /* ---------- nền bảng mạch (vẽ 1 lần vào offscreen) ---------- */
+  let bgCanvas = null;
+
+  function paintBg() {
+    bgCanvas = document.createElement("canvas");
+    bgCanvas.width = canvas.width;
+    bgCanvas.height = canvas.height;
+    const c = bgCanvas.getContext("2d");
+    c.scale(scale, scale);
+    const grad = c.createLinearGradient(0, 0, 0, WORLD.h);
+    grad.addColorStop(0, COLORS.bg1);
+    grad.addColorStop(1, COLORS.bg0);
+    c.fillStyle = grad;
+    c.fillRect(0, 0, WORLD.w, WORLD.h);
+
+    const rand = seededRand(404);
+    // lưới chấm mờ
+    c.fillStyle = "rgba(64,110,200,0.10)";
+    for (let y = 20; y < WORLD.h; y += 34) {
+      for (let x = 20; x < WORLD.w; x += 34) c.fillRect(x, y, 2, 2);
+    }
+    // trace mạch in
+    c.strokeStyle = "rgba(32,120,220,0.13)";
+    c.lineWidth = 1.6;
+    for (let i = 0; i < 26; i++) {
+      let x = rand() * WORLD.w;
+      let y = rand() * WORLD.h;
+      c.beginPath();
+      c.moveTo(x, y);
+      for (let k2 = 0; k2 < 3; k2++) {
+        const len = 30 + rand() * 90;
+        if (rand() > 0.5) x += rand() > 0.5 ? len : -len;
+        else y += rand() > 0.5 ? len : -len;
+        c.lineTo(x, y);
+      }
+      c.stroke();
+      c.fillStyle = "rgba(40,140,240,0.22)";
+      c.beginPath();
+      c.arc(x, y, 2.4, 0, Math.PI * 2);
+      c.fill();
+    }
+    // vignette
+    const vg = c.createRadialGradient(WORLD.w / 2, WORLD.h / 2, WORLD.h * 0.3, WORLD.w / 2, WORLD.h / 2, WORLD.h * 0.95);
+    vg.addColorStop(0, "rgba(0,0,0,0)");
+    vg.addColorStop(1, "rgba(2,4,14,0.55)");
+    c.fillStyle = vg;
+    c.fillRect(0, 0, WORLD.w, WORLD.h);
+  }
+
+  /* ---------- gạch ---------- */
+
+  function brickColors(b) {
+    if (b.type === CELL.NORMAL) return [COLORS.normalA, COLORS.normalB];
+    if (b.type === CELL.REINFORCED) return [COLORS.reinA, COLORS.reinB];
+    if (b.type === CELL.EXPLOSIVE) return [COLORS.expA, COLORS.expB];
+    return [COLORS.steelA, COLORS.steelB];
+  }
+
+  function drawBrick(c, b, time) {
+    const pad = 2;
+    const x = b.x + pad;
+    const y = b.y + pad;
+    const w = b.w - pad * 2;
+    const h = b.h - pad * 2;
+    const [ca, cb] = brickColors(b);
+    const grad = c.createLinearGradient(0, y, 0, y + h);
+    grad.addColorStop(0, ca);
+    grad.addColorStop(1, cb);
+    c.fillStyle = grad;
+    c.beginPath();
+    c.roundRect(x, y, w, h, 4);
+    c.fill();
+    // bevel
+    c.fillStyle = "rgba(255,255,255,0.28)";
+    c.fillRect(x + 2, y + 2, w - 4, 3);
+    c.fillStyle = "rgba(0,0,10,0.3)";
+    c.fillRect(x + 2, y + h - 5, w - 4, 3);
+    c.strokeStyle = "rgba(4,8,20,0.65)";
+    c.lineWidth = 1.4;
+    c.beginPath();
+    c.roundRect(x + 0.5, y + 0.5, w - 1, h - 1, 4);
+    c.stroke();
+
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    if (b.type === CELL.NORMAL) {
+      // vân nứt mờ
+      c.strokeStyle = "rgba(6,40,60,0.4)";
+      c.lineWidth = 1;
+      c.beginPath();
+      c.moveTo(x + w * 0.22, y + 4);
+      c.lineTo(x + w * 0.34, cy);
+      c.lineTo(x + w * 0.24, y + h - 4);
+      c.moveTo(x + w * 0.72, y + 4);
+      c.lineTo(x + w * 0.62, cy + 2);
+      c.stroke();
+    } else if (b.type === CELL.REINFORCED) {
+      // icon khiên
+      c.fillStyle = b.hp >= 2 ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.45)";
+      c.beginPath();
+      c.moveTo(cx, cy - 8);
+      c.lineTo(cx + 6, cy - 5);
+      c.lineTo(cx + 6, cy + 2);
+      c.quadraticCurveTo(cx + 6, cy + 6, cx, cy + 9);
+      c.quadraticCurveTo(cx - 6, cy + 6, cx - 6, cy + 2);
+      c.lineTo(cx - 6, cy - 5);
+      c.closePath();
+      c.fill();
+      if (b.hp < 2) {
+        // đã nứt
+        c.strokeStyle = "rgba(10,4,30,0.6)";
+        c.lineWidth = 1.4;
+        c.beginPath();
+        c.moveTo(x + 4, y + 4);
+        c.lineTo(cx - 3, cy);
+        c.lineTo(x + 6, y + h - 4);
+        c.moveTo(x + w - 5, y + 3);
+        c.lineTo(cx + 4, cy + 3);
+        c.stroke();
+      }
+    } else if (b.type === CELL.EXPLOSIVE) {
+      // icon nổ 8 cánh
+      c.save();
+      c.translate(cx, cy);
+      c.fillStyle = "rgba(255,255,255,0.92)";
+      c.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = (Math.PI / 4) * i;
+        const r1 = 8;
+        const r2 = 3.4;
+        c.lineTo(Math.cos(a) * r1, Math.sin(a) * r1);
+        c.lineTo(Math.cos(a + Math.PI / 8) * r2, Math.sin(a + Math.PI / 8) * r2);
+      }
+      c.closePath();
+      c.fill();
+      c.fillStyle = COLORS.expB;
+      c.beginPath();
+      c.arc(0, 0, 2.4, 0, Math.PI * 2);
+      c.fill();
+      c.restore();
+      // nhấp nháy nhẹ
+      const pulse = 0.5 + 0.5 * Math.sin(time * 4 + b.gx * 1.3);
+      c.strokeStyle = `rgba(255,120,190,${0.25 + pulse * 0.3})`;
+      c.lineWidth = 1;
+      c.beginPath();
+      c.roundRect(x + 1.5, y + 1.5, w - 3, h - 3, 3);
+      c.stroke();
+    } else {
+      // bất hoại: giằng X + đinh tán
+      c.strokeStyle = "rgba(140,150,175,0.65)";
+      c.lineWidth = 2.4;
+      c.beginPath();
+      c.moveTo(x + 6, y + 5);
+      c.lineTo(x + w - 6, y + h - 5);
+      c.moveTo(x + w - 6, y + 5);
+      c.lineTo(x + 6, y + h - 5);
+      c.stroke();
+      c.fillStyle = "rgba(170,180,205,0.8)";
+      for (const [rx, ry] of [[x + 5, y + 5], [x + w - 5, y + 5], [x + 5, y + h - 5], [x + w - 5, y + h - 5]]) {
+        c.beginPath();
+        c.arc(rx, ry, 1.8, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+  }
+
+  /* ---------- power-up ---------- */
+
+  const POWER_TONE = {
+    multi: "#4df77f",
+    wide: "#ffd23f",
+    slow: "#20e3ff",
+    laser: "#ff2ee6",
+    life: "#ff5d7e",
+  };
+
+  function drawPowerGlyph(c, type) {
+    c.fillStyle = "#fff";
+    c.strokeStyle = "#fff";
+    c.lineWidth = 2;
+    if (type === "multi") {
+      c.font = `800 13px ${MONO_FONT}`;
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      c.fillText("x2", 0, 1);
+    } else if (type === "wide") {
+      c.beginPath();
+      c.moveTo(-10, 0);
+      c.lineTo(10, 0);
+      c.stroke();
+      for (const s of [-1, 1]) {
+        c.beginPath();
+        c.moveTo(s * 10, 0);
+        c.lineTo(s * 5, -4);
+        c.moveTo(s * 10, 0);
+        c.lineTo(s * 5, 4);
+        c.stroke();
+      }
+    } else if (type === "slow") {
+      c.beginPath();
+      c.arc(0, 0, 7, 0, Math.PI * 2);
+      c.stroke();
+      c.beginPath();
+      c.moveTo(0, -4);
+      c.lineTo(0, 0);
+      c.lineTo(4, 2);
+      c.stroke();
+    } else if (type === "laser") {
+      c.beginPath();
+      c.moveTo(-4, -8);
+      c.lineTo(-4, 8);
+      c.moveTo(4, -8);
+      c.lineTo(4, 8);
+      c.stroke();
+    } else {
+      // life: trái tim
+      c.beginPath();
+      c.moveTo(0, 6);
+      c.bezierCurveTo(-9, -1, -6, -8, 0, -3);
+      c.bezierCurveTo(6, -8, 9, -1, 0, 6);
+      c.fill();
+    }
+  }
+
+  function drawPowerup(c, p, time) {
+    const tone = POWER_TONE[p.type] || "#fff";
+    const sway = Math.sin(p.phase) * 5;
+    c.save();
+    c.translate(p.x + sway, p.y);
+    // vệt lấp lánh phía trên
+    c.strokeStyle = tone;
+    c.globalAlpha = 0.35;
+    c.lineWidth = 2;
+    for (const dx of [-6, 0, 6]) {
+      c.beginPath();
+      c.moveTo(dx, -20 - (dx === 0 ? 8 : 0));
+      c.lineTo(dx, -34 - (dx === 0 ? 10 : 0));
+      c.stroke();
+    }
+    c.globalAlpha = 1;
+    // thân: wide/laser dạng viên nang, còn lại hình tròn
+    c.shadowColor = tone;
+    c.shadowBlur = 14;
+    c.fillStyle = "rgba(6,10,26,0.95)";
+    c.strokeStyle = tone;
+    c.lineWidth = 2.4;
+    c.beginPath();
+    if (p.type === "wide" || p.type === "laser") c.roundRect(-17, -11, 34, 22, 11);
+    else c.arc(0, 0, 15, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+    c.shadowBlur = 0;
+    drawPowerGlyph(c, p.type);
+    // chevron rơi phía dưới
+    const cv = (time * 26) % 10;
+    c.strokeStyle = tone;
+    c.globalAlpha = 0.85;
+    c.lineWidth = 2.6;
+    c.beginPath();
+    c.moveTo(-6, 20 + cv * 0.4);
+    c.lineTo(0, 25 + cv * 0.4);
+    c.lineTo(6, 20 + cv * 0.4);
+    c.stroke();
+    c.restore();
+  }
+
+  /* ---------- vẽ chính ---------- */
+
+  function draw(m, fx, time) {
+    if (!bgCanvas || bgCanvas.width !== canvas.width || bgCanvas.height !== canvas.height) paintBg();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.drawImage(bgCanvas, 0, 0);
+    g.setTransform(scale, 0, 0, scale, 0, 0);
+
+    // khung neon bo góc
+    g.strokeStyle = COLORS.frame;
+    g.lineWidth = 2.4;
+    g.shadowColor = COLORS.frame;
+    g.shadowBlur = 12;
+    g.beginPath();
+    g.roundRect(4, 4, WORLD.w - 8, WORLD.h - 8, 16);
+    g.stroke();
+    g.shadowBlur = 0;
+    g.strokeStyle = "rgba(32,227,255,0.28)";
+    g.lineWidth = 1;
+    g.beginPath();
+    g.roundRect(9, 9, WORLD.w - 18, WORLD.h - 18, 12);
+    g.stroke();
+    // ngoặc góc
+    g.strokeStyle = COLORS.frame;
+    g.lineWidth = 3;
+    for (const [cx, cy, sx, sy] of [[4, 4, 1, 1], [WORLD.w - 4, 4, -1, 1], [4, WORLD.h - 4, 1, -1], [WORLD.w - 4, WORLD.h - 4, -1, -1]]) {
+      g.beginPath();
+      g.moveTo(cx + sx * 26, cy);
+      g.lineTo(cx + sx * 4, cy);
+      g.quadraticCurveTo(cx, cy, cx, cy + sy * 4);
+      g.lineTo(cx, cy + sy * 26);
+      g.stroke();
+    }
+
+    // gạch
+    for (const b of m.lv.bricks) {
+      if (b.alive) drawBrick(g, b, time);
+    }
+
+    // đạn laser
+    for (const L of m.lasers) {
+      g.strokeStyle = "#ff2ee6";
+      g.shadowColor = "#ff2ee6";
+      g.shadowBlur = 8;
+      g.lineWidth = 3;
+      g.beginPath();
+      g.moveTo(L.x, L.y);
+      g.lineTo(L.x, L.y + 16);
+      g.stroke();
+      g.shadowBlur = 0;
+    }
+
+    // power-up
+    for (const p of m.powerups) drawPowerup(g, p, time);
+
+    // particle
+    for (const pt of fx.particles) {
+      g.globalAlpha = Math.max(0, pt.life / pt.life0);
+      g.fillStyle = pt.color;
+      g.save();
+      g.translate(pt.x, pt.y);
+      g.rotate(pt.rot);
+      g.fillRect(-pt.size / 2, -pt.size / 2, pt.size, pt.size * 0.7);
+      g.restore();
+    }
+    g.globalAlpha = 1;
+
+    // vòng nổ
+    for (const ring of fx.rings) {
+      const t = 1 - ring.life / ring.life0;
+      g.strokeStyle = ring.color;
+      g.globalAlpha = Math.max(0, ring.life / ring.life0);
+      g.lineWidth = 3.4 * (1 - t) + 0.6;
+      g.beginPath();
+      g.arc(ring.x, ring.y, 8 + t * 64, 0, Math.PI * 2);
+      g.stroke();
+    }
+    g.globalAlpha = 1;
+
+    // trail bóng
+    for (const ball of m.balls) {
+      if (!ball.trail) continue;
+      for (let i = 0; i < ball.trail.length; i++) {
+        const tr = ball.trail[i];
+        const a = (i / ball.trail.length) * 0.5;
+        const r = BALL_R * (0.35 + (i / ball.trail.length) * 0.55);
+        g.fillStyle = `rgba(90,210,255,${a.toFixed(3)})`;
+        g.beginPath();
+        g.arc(tr.x, tr.y, r, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+
+    // bóng
+    for (const ball of m.balls) {
+      g.save();
+      g.shadowColor = "#7ce6ff";
+      g.shadowBlur = 16;
+      const bg2 = g.createRadialGradient(ball.x - 2, ball.y - 3, 1, ball.x, ball.y, BALL_R + 1);
+      bg2.addColorStop(0, "#ffffff");
+      bg2.addColorStop(0.55, COLORS.ball);
+      bg2.addColorStop(1, "#48b8e8");
+      g.fillStyle = bg2;
+      g.beginPath();
+      g.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+      g.fill();
+      g.restore();
+      // mũi tên phóng khi bóng dính paddle
+      if (ball.stuck) {
+        const bob = Math.sin(time * 5) * 4;
+        g.strokeStyle = "rgba(140,230,255,0.8)";
+        g.setLineDash([5, 7]);
+        g.lineWidth = 2;
+        g.beginPath();
+        g.moveTo(ball.x, ball.y - 16);
+        g.lineTo(ball.x, ball.y - 74 - bob);
+        g.stroke();
+        g.setLineDash([]);
+        g.beginPath();
+        g.moveTo(ball.x - 7, ball.y - 66 - bob);
+        g.lineTo(ball.x, ball.y - 78 - bob);
+        g.lineTo(ball.x + 7, ball.y - 66 - bob);
+        g.stroke();
+      }
+    }
+
+    // paddle (tím phát sáng, lõi cyan — theo ảnh)
+    const p = m.paddle;
+    const px = p.x - p.w / 2;
+    g.save();
+    g.shadowColor = COLORS.paddleA;
+    g.shadowBlur = 18;
+    const pg = g.createLinearGradient(0, PADDLE_Y, 0, PADDLE_Y + PADDLE_H);
+    pg.addColorStop(0, COLORS.paddleA);
+    pg.addColorStop(1, COLORS.paddleB);
+    g.fillStyle = pg;
+    g.beginPath();
+    g.roundRect(px, PADDLE_Y, p.w, PADDLE_H, 9);
+    g.fill();
+    g.restore();
+    g.strokeStyle = "rgba(220,190,255,0.75)";
+    g.lineWidth = 1.4;
+    g.beginPath();
+    g.roundRect(px + 0.5, PADDLE_Y + 0.5, p.w - 1, PADDLE_H - 1, 9);
+    g.stroke();
+    // lõi cyan giữa
+    g.save();
+    g.shadowColor = COLORS.frame;
+    g.shadowBlur = 10;
+    g.fillStyle = m.timers.laser > 0 ? "#ff2ee6" : COLORS.frame;
+    g.beginPath();
+    g.roundRect(p.x - p.w * 0.2, PADDLE_Y + PADDLE_H / 2 - 3, p.w * 0.4, 6, 3);
+    g.fill();
+    g.restore();
+    // vát mũi hai đầu
+    g.fillStyle = "rgba(230,214,255,0.85)";
+    for (const s of [-1, 1]) {
+      g.beginPath();
+      g.moveTo(p.x + s * (p.w / 2 - 4), PADDLE_Y + 3);
+      g.lineTo(p.x + s * (p.w / 2 - 12), PADDLE_Y + PADDLE_H / 2);
+      g.lineTo(p.x + s * (p.w / 2 - 4), PADDLE_Y + PADDLE_H - 3);
+      g.closePath();
+      g.fill();
+    }
+    // súng laser hai đầu paddle khi active
+    if (m.timers.laser > 0) {
+      g.fillStyle = "#ff2ee6";
+      for (const s of [-1, 1]) {
+        g.fillRect(p.x + s * (p.w / 2 - 12) - 2.4, PADDLE_Y - 8, 4.8, 9);
+      }
+    }
+  }
+
+  return { fit, draw, get scale() { return scale; }, get dpr() { return dpr; } };
+}
+
+/** Icon chú giải sidebar (canvas nhỏ 30×22 kiểu gạch tương ứng). */
+function paintBrickLegend(canvas, kind) {
+  canvas.width = 60;
+  canvas.height = 44;
+  const c = canvas.getContext("2d");
+  c.scale(2, 2);
+  const map = {
+    normal: [COLORS.normalA, COLORS.normalB],
+    reinforced: [COLORS.reinA, COLORS.reinB],
+    explosive: [COLORS.expA, COLORS.expB],
+    steel: [COLORS.steelA, COLORS.steelB],
+  };
+  const [ca, cb] = map[kind];
+  const grad = c.createLinearGradient(0, 0, 0, 22);
+  grad.addColorStop(0, ca);
+  grad.addColorStop(1, cb);
+  c.fillStyle = grad;
+  c.beginPath();
+  c.roundRect(1, 1, 28, 20, 3);
+  c.fill();
+  c.fillStyle = "rgba(255,255,255,0.3)";
+  c.fillRect(3, 3, 24, 2);
+  const cx = 15;
+  const cy = 11;
+  c.fillStyle = "rgba(255,255,255,0.9)";
+  c.strokeStyle = "rgba(255,255,255,0.85)";
+  if (kind === "reinforced") {
+    c.beginPath();
+    c.moveTo(cx, cy - 5);
+    c.lineTo(cx + 4, cy - 3);
+    c.lineTo(cx + 4, cy + 1);
+    c.quadraticCurveTo(cx + 4, cy + 4, cx, cy + 6);
+    c.quadraticCurveTo(cx - 4, cy + 4, cx - 4, cy + 1);
+    c.lineTo(cx - 4, cy - 3);
+    c.closePath();
+    c.fill();
+  } else if (kind === "explosive") {
+    c.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (Math.PI / 4) * i;
+      c.lineTo(cx + Math.cos(a) * 5.4, cy + Math.sin(a) * 5.4);
+      c.lineTo(cx + Math.cos(a + Math.PI / 8) * 2.2, cy + Math.sin(a + Math.PI / 8) * 2.2);
+    }
+    c.closePath();
+    c.fill();
+  } else if (kind === "steel") {
+    c.strokeStyle = "rgba(150,160,185,0.9)";
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(5, 4);
+    c.lineTo(25, 18);
+    c.moveTo(25, 4);
+    c.lineTo(5, 18);
+    c.stroke();
+  }
+}
+
+exports.createBrickRenderer = createBrickRenderer; exports.paintBrickLegend = paintBrickLegend;
+};
+__defs["games/brick-breaker/styles.js"] = function (exports, __req) {
+/**
+ * styles.js — CSS riêng Brick Breaker 404: tiêu đề hộp góc trái trên,
+ * sân chơi lớn bên trái, sidebar PHẢI gồm cụm nút hệ thống 2×2 +
+ * panel ĐIỂM / MẠNG / MÀN / COMBO + chú giải gạch (theo ảnh reference).
+ */
+
+const BB_CSS = /* css */ `
+.bb-layout {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+}
+
+.bb-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bb-head { flex: none; display: flex; }
+
+.bb-titlebox {
+  position: relative;
+  padding: 8px 22px 9px 16px;
+  border: 1px solid color-mix(in srgb, var(--cyan) 55%, transparent);
+  background: rgba(7, 11, 30, 0.92);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--cyan) 18%, transparent);
+}
+
+.bb-titlebox .exp-title .deco { width: 100%; }
+
+.bb-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bb-stage canvas {
+  touch-action: none;
+  display: block;
+  cursor: none;
+}
+
+/* ---------- Sidebar phải ---------- */
+
+.bb-side {
+  flex: none;
+  width: 214px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+}
+
+.bb-side .exp-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid color-mix(in srgb, var(--cyan) 30%, transparent);
+  background: rgba(7, 11, 30, 0.85);
+  clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+}
+
+.bb-side .exp-btn { min-width: 0; width: 100%; }
+
+.bb-panel {
+  --tone: var(--cyan);
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--tone) 55%, transparent);
+  background: rgba(7, 11, 30, 0.88);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  padding: 9px 12px 11px;
+  text-align: center;
+  box-shadow: inset 0 0 22px color-mix(in srgb, var(--tone) 7%, transparent);
+}
+
+.bb-panel[data-tone="pink"]  { --tone: var(--pink); }
+.bb-panel[data-tone="lime"]  { --tone: var(--lime); }
+.bb-panel[data-tone="green"] { --tone: var(--green); }
+
+.bb-panel .lbl {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  color: var(--tone);
+  margin-bottom: 4px;
+}
+
+.bb-panel .val {
+  font-size: 1.55rem;
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  color: var(--tone);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--tone) 55%, transparent);
+}
+
+.bb-hearts {
+  display: flex;
+  gap: 7px;
+  justify-content: center;
+  padding: 3px 0 1px;
+}
+
+.bb-hearts canvas {
+  width: 26px;
+  height: 23px;
+  image-rendering: pixelated;
+}
+
+.bb-comboseg {
+  display: flex;
+  gap: 3px;
+  margin-top: 7px;
+}
+
+.bb-comboseg i {
+  flex: 1;
+  height: 8px;
+  background: rgba(120, 240, 130, 0.14);
+  border: 1px solid rgba(120, 240, 130, 0.2);
+}
+
+.bb-comboseg i.on {
+  background: var(--lime);
+  border-color: var(--lime);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--lime) 60%, transparent);
+}
+
+.bb-legend { text-align: left; display: grid; gap: 7px; }
+
+.bb-legend-row { display: flex; align-items: center; gap: 9px; }
+
+.bb-legend-row canvas { width: 30px; height: 22px; flex: none; }
+
+.bb-legend-row span {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-1);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 900px) {
+  .bb-layout { flex-direction: column; padding: 8px; gap: 8px; }
+  .bb-side {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    order: -1;
+    overflow: visible;
+  }
+  .bb-side .exp-btns { order: -1; display: flex; padding: 6px; flex: 1 1 100%; }
+  .bb-panel { flex: 1 1 90px; padding: 6px 8px 8px; }
+  .bb-panel .val { font-size: 1.05rem; }
+  .bb-panel .lbl { font-size: 0.52rem; letter-spacing: 0.18em; margin-bottom: 2px; }
+  .bb-panel.bb-panel-legend { display: none; }
+  .bb-hearts canvas { width: 18px; height: 16px; }
+  .bb-comboseg { margin-top: 4px; }
+  .bb-head { display: none; }
+  .bb-stage canvas { cursor: default; }
+}
+`;
+
+exports.BB_CSS = BB_CSS;
+};
+__defs["games/laser-maze/index.js"] = function (exports, __req) {
+/**
+ * Laser Maze 404 — puzzle dẫn tia laser 20 màn (expansion 11–15).
+ *
+ * Theo ảnh reference: topbar tiêu đề đóng khung + 4 nút hệ thống nhỏ;
+ * sidebar TRÁI: MÀN / GƯƠNG / THỜI GIAN + chú giải 7 thành phần;
+ * board lưới ở giữa; sidebar PHẢI: HOÀN TÁC / CHƠI LẠI / GỢI Ý +
+ * KHO GƯƠNG (lưới slot). Nhấp ô trống đặt gương, nhấp gương xoay
+ * / → \\ → gỡ; gương cố định chỉ xoay. Tia trace tức thời qua engine
+ * thuần (chống vòng lặp bằng state đã thăm). Esc tạm dừng.
+ * Tiến trình lưu storage; điểm gửi ctx.onGameOver mỗi màn.
+ */
+
+const { createExpansionFrame } = __req("games/_shared/frame.js");
+const { createKeyboard } = __req("core/input-manager.js");
+const { createLoop } = __req("core/loop.js");
+const { el, svgIcon, formatNumber, formatTime } = __req("core/utils.js");
+const { makeState, cloneState, cellsOf, trace, actionAt, applySolution, parOf, nextHint } = __req("games/laser-maze/engine.js");
+const { LEVELS } = __req("games/laser-maze/levels.js");
+const { createMazeRenderer, paintMazeLegend, paintInventoryMirror } = __req("games/laser-maze/render.js");
+const { LM_CSS } = __req("games/laser-maze/styles.js");
+
+const PROGRESS_KEY = "lm-progress";
+const UNDO_CAP = 60;
+
+function createGame() {
+  let ctx = null;
+  let frame = null;
+  let renderer = null;
+  let keys = null;
+  let loop = null;
+  let ro = null;
+  let canvas = null;
+  let boardBox = null;
+
+  const TEST = typeof window !== "undefined" && window.__ARCADE_EXP11_TEST__;
+
+  let mode = "intro"; // intro | play | paused | complete | finished
+  let levelIdx = 0;
+  let level = null;
+  let st = null;
+  let result = null;
+  let cells = null;
+  let history = [];
+  let levelTime = 0;
+  let totalScore = 0;
+  let hintUsed = false;
+  let time = 0;
+  let stateT = 0;
+  let winDelay = 0;
+
+  const ui = { hover: null, hint: null, placed: null };
+  const hud = { level: null, mirrors: null, time: null, slots: [] };
+
+  /* ---------------- Tiến trình ---------------- */
+
+  function readProgress() {
+    const p = ctx.storage.getPref(PROGRESS_KEY, null);
+    if (p && typeof p === "object" && p.v === 1 && Number.isInteger(p.level) && p.level >= 0 && p.level < LEVELS.length) {
+      return { level: p.level, score: Number.isFinite(p.score) ? p.score : 0 };
+    }
+    return { level: 0, score: 0 };
+  }
+
+  function saveProgress(levelNext, score) {
+    ctx.storage.setPref(PROGRESS_KEY, { v: 1, level: levelNext, score });
+  }
+
+  /* ---------------- HUD ---------------- */
+
+  function retrace() {
+    cells = cellsOf(level, st);
+    result = trace(level, st);
+    ui.placed = st.placed;
+  }
+
+  function updateHud() {
+    hud.level.textContent = String(levelIdx + 1).padStart(2, "0");
+    hud.mirrors.textContent = `${st.placed.size}/${level.mirrors}`;
+    hud.time.textContent = formatTime(levelTime);
+    const remaining = level.mirrors - st.placed.size;
+    hud.slots.forEach((slot, i) => {
+      const filled = i < remaining;
+      slot.box.classList.toggle("empty", !filled);
+      paintInventoryMirror(slot.cv, filled);
+    });
+  }
+
+  function rebuildSlots() {
+    const grid = hud.slotGrid;
+    grid.textContent = "";
+    hud.slots = [];
+    for (let i = 0; i < level.mirrors; i++) {
+      const box = el("div", "lm-slot");
+      const cv = document.createElement("canvas");
+      box.appendChild(cv);
+      grid.appendChild(box);
+      hud.slots.push({ box, cv });
+    }
+    hud.slotGrid.parentElement.style.display = level.mirrors === 0 ? "none" : "";
+  }
+
+  /* ---------------- Vòng đời màn ---------------- */
+
+  function beginLevel(idx) {
+    levelIdx = idx;
+    level = LEVELS[idx];
+    st = makeState();
+    history = [];
+    levelTime = 0;
+    hintUsed = false;
+    winDelay = 0;
+    ui.hover = null;
+    ui.hint = null;
+    retrace();
+    rebuildSlots();
+    saveProgress(idx, totalScore);
+    mode = "play";
+    frame.clearScreen();
+    frame.setPaused(false);
+    ctx.onMatchStart();
+    frame.banner(`MÀN ${String(idx + 1).padStart(2, "0")} — ${level.name}`);
+    frame.toast(level.intro);
+    ctx.audio.play("start");
+    renderer.fit(level);
+    updateHud();
+    loop.start();
+  }
+
+  function starsOf(placedCount) {
+    const par = parOf(level);
+    if (placedCount <= par && !hintUsed) return 3;
+    if (placedCount <= par + 1) return 2;
+    return 1;
+  }
+
+  function finishLevel() {
+    mode = "complete";
+    const par = parOf(level);
+    const used = st.placed.size;
+    const stars = starsOf(used);
+    const gained = 300 + (used <= par ? 150 : 0) + (hintUsed ? 0 : 100) + Math.max(0, 180 - Math.floor(levelTime)) * 2;
+    totalScore += gained;
+    ctx.audio.play("win");
+    const isLast = levelIdx === LEVELS.length - 1;
+    if (isLast) saveProgress(0, 0);
+    else saveProgress(levelIdx + 1, totalScore);
+    const saved = ctx.onGameOver(totalScore, { level: levelIdx + 1, stars });
+
+    const statCards = [
+      { label: "SAO", value: "★".repeat(stars) + "☆".repeat(3 - stars), color: "gold" },
+      { label: "GƯƠNG / PAR", value: `${used}/${par}`, color: "cyan" },
+      { label: "THỜI GIAN", value: formatTime(levelTime), color: "cyan" },
+      { label: "ĐIỂM MÀN", value: `+${formatNumber(gained)}`, color: "lime" },
+    ];
+    if (isLast) {
+      mode = "finished";
+      frame.overScreen({
+        kicker: "// CHIẾN DỊCH HOÀN TẤT",
+        heading: "PHÁ GIẢI 20 MÊ CUNG!",
+        score: totalScore,
+        saved,
+        statCards,
+        restartLabel: "CHƠI LẠI TỪ ĐẦU",
+        onRestart: () => {
+          totalScore = 0;
+          beginLevel(0);
+        },
+        scoreLabel: "TỔNG ĐIỂM",
+      });
+    } else {
+      frame.overScreen({
+        kicker: "// MẠCH LASER KHÉP KÍN",
+        heading: `MÀN ${String(levelIdx + 1).padStart(2, "0")} — HOÀN THÀNH!`,
+        score: totalScore,
+        saved,
+        statCards,
+        restartLabel: "MÀN TIẾP THEO",
+        onRestart: () => beginLevel(levelIdx + 1),
+        extraActions: [["Chơi lại màn", "i-restart", "cyan", () => beginLevel(levelIdx)]],
+        scoreLabel: "TỔNG ĐIỂM",
+      });
+    }
+  }
+
+  /* ---------------- Hành động ---------------- */
+
+  function pushHistory() {
+    history.push(cloneState(st));
+    if (history.length > UNDO_CAP) history.shift();
+  }
+
+  function clickCell(x, y) {
+    if (mode !== "play") return;
+    const snap = cloneState(st);
+    const r = actionAt(level, st, x, y);
+    if (!r.changed) {
+      if (r.action === "denied") {
+        ctx.audio.play("denied");
+        if (st.placed.size >= level.mirrors) frame.toast("KHO GƯƠNG ĐÃ HẾT — GỠ BỚT GƯƠNG TRÊN BOARD");
+      }
+      return;
+    }
+    history.push(snap);
+    if (history.length > UNDO_CAP) history.shift();
+    ui.hint = null;
+    ctx.audio.play(r.action === "place" ? "build" : r.action === "remove" ? "sell" : "switch");
+    const prevOk = result.ok;
+    retrace();
+    updateHud();
+    if (result.ok > prevOk) ctx.audio.play("checkpoint");
+    if (result.done) {
+      winDelay = 0.65; // cho người chơi thấy tia hoàn chỉnh
+    }
+  }
+
+  function undoMove() {
+    if (mode !== "play") return;
+    const prev = history.pop();
+    if (!prev) {
+      frame.toast("KHÔNG CÒN BƯỚC HOÀN TÁC");
+      ctx.audio.play("denied");
+      return;
+    }
+    st = prev;
+    ui.hint = null;
+    winDelay = 0;
+    ctx.audio.play("undo");
+    retrace();
+    updateHud();
+  }
+
+  function restartLevel() {
+    if (mode !== "play" && mode !== "paused") return;
+    ctx.audio.play("ui");
+    beginLevel(levelIdx);
+  }
+
+  function useHint() {
+    if (mode !== "play") return;
+    const h = nextHint(level, st);
+    if (!h) {
+      frame.toast("BOARD ĐÃ KHỚP LỜI GIẢI — KIỂM TRA CÁC GƯƠNG THỪA");
+      return;
+    }
+    if (h.kind === "place" && st.placed.size >= level.mirrors) {
+      frame.toast("HẾT GƯƠNG TRONG KHO — GỠ GƯƠNG SAI TRƯỚC ĐÃ");
+      ctx.audio.play("denied");
+      return;
+    }
+    pushHistory();
+    hintUsed = true;
+    if (h.kind === "rotate") st.rot.set(`${h.x},${h.y}`, h.o);
+    else st.placed.set(`${h.x},${h.y}`, { o: h.o });
+    ui.hint = { x: h.x, y: h.y, until: time + 3.5 };
+    frame.toast(h.kind === "rotate" ? "GỢI Ý: XOAY GƯƠNG PHÁT SÁNG" : "GỢI Ý: ĐẶT GƯƠNG PHÁT SÁNG");
+    ctx.audio.play("ui");
+    retrace();
+    updateHud();
+    if (result.done) winDelay = 0.65;
+  }
+
+  /* ---------------- Pause ---------------- */
+
+  function pauseGame() {
+    if (mode !== "play") return;
+    mode = "paused";
+    loop.stop();
+    frame.setPaused(true);
+    frame.pauseMenu({
+      onResume: () => resumeGame(),
+      onRestart: () => beginLevel(levelIdx),
+      restartLabel: "CHƠI LẠI MÀN",
+      buildExtra: (box) => {
+        const row = el("div", "exp-setrow");
+        row.appendChild(el("span", "", "TIẾN TRÌNH"));
+        row.appendChild(el("span", "val", `MÀN ${levelIdx + 1}/20 · ${formatNumber(totalScore)} ĐIỂM`));
+        box.appendChild(row);
+      },
+    });
+  }
+
+  function resumeGame() {
+    if (mode !== "paused") return;
+    mode = "play";
+    frame.clearScreen();
+    frame.setPaused(false);
+    keys.clearDown();
+    loop.start();
+  }
+
+  function togglePause() {
+    if (mode === "play") pauseGame();
+    else if (mode === "paused") resumeGame();
+  }
+
+  /* ---------------- Intro ---------------- */
+
+  function showIntro() {
+    mode = "intro";
+    loop.stop();
+    const progress = readProgress();
+    const extra = [];
+    if (progress.level > 0) {
+      extra.push([
+        "Chơi từ đầu",
+        "i-restart",
+        "gold",
+        () => {
+          totalScore = 0;
+          saveProgress(0, 0);
+          beginLevel(0);
+        },
+      ]);
+    }
+    frame.intro({
+      kicker: "// NHIỆM VỤ QUANG HỌC",
+      heading: [["LASER MAZE ", ""], ["404", "pink"]],
+      goal:
+        "Dẫn tia laser tới MỌI bộ thu của 20 màn: đặt và xoay gương, tách chùm qua splitter, nhuộm màu tia qua kính lọc — bộ thu chỉ nhận ĐÚNG MÀU. Càng ít gương + không dùng gợi ý càng nhiều sao!",
+      rows: [
+        { keys: ["Click", "Chạm"], text: "ô trống: đặt gương · gương: xoay / gỡ" },
+        { keys: ["U"], text: "hoàn tác bước" },
+        { keys: ["R"], text: "chơi lại màn" },
+        { keys: ["H"], text: "gợi ý (mất thưởng sao)" },
+        { keys: ["ESC"], text: "tạm dừng" },
+      ],
+      startLabel: progress.level > 0 ? `TIẾP TỤC — MÀN ${String(progress.level + 1).padStart(2, "0")}` : "BẮT ĐẦU",
+      onStart: () => {
+        const p = readProgress();
+        totalScore = p.score;
+        beginLevel(p.level);
+      },
+      extra,
+    });
+    // nền tĩnh
+    levelIdx = progress.level;
+    level = LEVELS[levelIdx];
+    st = makeState();
+    retrace();
+    rebuildSlots();
+    renderer.fit(level);
+    renderer.draw(level, cells, result, ui, 0);
+    updateHud();
+  }
+
+  /* ---------------- Vòng lặp ---------------- */
+
+  function update(dt) {
+    time += dt;
+    if (mode === "play") {
+      levelTime += dt;
+      hud.time.textContent = formatTime(levelTime);
+      if (ui.hint && time > ui.hint.until) ui.hint = null;
+      if (winDelay > 0) {
+        winDelay -= dt;
+        if (winDelay <= 0) {
+          finishLevel();
+          return;
+        }
+      }
+    }
+    renderer.draw(level, cells, result, ui, time);
+
+    if (TEST) {
+      stateT += dt;
+      if (stateT > 0.35) {
+        stateT = 0;
+        window.__LM_STATE__ = {
+          mode,
+          level: levelIdx + 1,
+          lit: result ? result.ok : 0,
+          total: result ? result.total : 0,
+          mirrors: st ? st.placed.size : 0,
+          limit: level ? level.mirrors : 0,
+          time: Math.floor(levelTime),
+          score: totalScore,
+        };
+      }
+    }
+  }
+
+  /* ---------------- Interface ---------------- */
+
+  return {
+    async mount(container, context) {
+      ctx = context;
+
+      const rootNode = container.getRootNode();
+      if (rootNode instanceof ShadowRoot && !rootNode.querySelector("#lm-style")) {
+        const style = document.createElement("style");
+        style.id = "lm-style";
+        style.textContent = LM_CSS;
+        rootNode.appendChild(style);
+      }
+
+      frame = createExpansionFrame(container, ctx, {
+        accent: "cyan",
+        title: [["LASER MAZE ", ""], ["404", "pink"]],
+        stats: [],
+        onPauseToggle: togglePause,
+      });
+      frame.root.classList.add("lm-mode");
+
+      const layout = el("div", "lm-layout");
+
+      /* Sidebar trái */
+      const sideL = el("aside", "lm-side");
+      const mkPanel = (parent, label, tone = "cyan") => {
+        const p = el("div", "lm-panel");
+        p.dataset.tone = tone;
+        p.appendChild(el("div", "lbl", label));
+        const v = el("div", "val", "—");
+        p.appendChild(v);
+        parent.appendChild(p);
+        return v;
+      };
+      hud.level = mkPanel(sideL, "MÀN");
+      hud.mirrors = mkPanel(sideL, "GƯƠNG", "white");
+      hud.time = mkPanel(sideL, "THỜI GIAN");
+
+      const legendP = el("div", "lm-panel lm-panel-legend");
+      const legend = el("div", "lm-legend");
+      for (const [kind, name, desc] of [
+        ["source", "NGUỒN LASER", ""],
+        ["receiver", "BỘ THU MỤC TIÊU", ""],
+        ["mirror", "GƯƠNG XOAY", "Xoay để đổi hướng"],
+        ["splitter", "BỘ TÁCH CHÙM", "Tách tia thành 2 hướng"],
+        ["filter-cyan", "BỘ LỌC XANH", "Chỉ cho tia xanh đi qua"],
+        ["filter-violet", "BỘ LỌC TÍM", "Chỉ cho tia tím đi qua"],
+        ["blocker", "KHỐI CHẶN", "Chặn tia laser"],
+      ]) {
+        const row = el("div", "lm-legend-row");
+        const cv = document.createElement("canvas");
+        paintMazeLegend(cv, kind);
+        row.appendChild(cv);
+        const txt = el("div", "txt");
+        txt.appendChild(el("div", "name", name));
+        if (desc) txt.appendChild(el("div", "desc", desc));
+        row.appendChild(txt);
+        legend.appendChild(row);
+      }
+      legendP.appendChild(legend);
+      sideL.appendChild(legendP);
+
+      /* Board giữa */
+      boardBox = el("div", "lm-board");
+      canvas = document.createElement("canvas");
+      canvas.setAttribute("aria-label", "Bàn chơi Laser Maze");
+      boardBox.appendChild(canvas);
+
+      /* Sidebar phải */
+      const sideR = el("aside", "lm-side lm-side-right");
+      const mkAction = (label, tone, iconId, fn) => {
+        const b = el("button", "lm-action");
+        b.type = "button";
+        b.dataset.tone = tone;
+        b.appendChild(svgIcon(iconId));
+        b.appendChild(el("span", "", label));
+        b.addEventListener("click", (e) => {
+          if (e.detail > 0) b.blur();
+          fn();
+        });
+        sideR.appendChild(b);
+        return b;
+      };
+      mkAction("HOÀN TÁC", "blue", "i-swap", () => undoMove());
+      mkAction("CHƠI LẠI", "violet", "i-restart", () => restartLevel());
+      mkAction("GỢI Ý", "green", "i-target", () => useHint());
+
+      const invP = el("div", "lm-panel lm-inv");
+      invP.appendChild(el("div", "lm-inv-head", "KHO GƯƠNG"));
+      hud.slotGrid = el("div", "lm-inv-grid");
+      invP.appendChild(hud.slotGrid);
+      sideR.appendChild(invP);
+
+      layout.append(sideL, boardBox, sideR);
+      frame.playfield.appendChild(layout);
+
+      renderer = createMazeRenderer(canvas, boardBox);
+      ro = new ResizeObserver(() => {
+        if (!level) return;
+        renderer.fit(level);
+        if (mode !== "play") renderer.draw(level, cells, result, ui, time);
+      });
+      ro.observe(boardBox);
+
+      /* Input */
+      const cellAt = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const { t, ox, oy } = renderer.geometry();
+        const x = Math.floor((e.clientX - rect.left - ox) / t);
+        const y = Math.floor((e.clientY - rect.top - oy) / t);
+        return { x, y };
+      };
+      canvas.addEventListener(
+        "pointerdown",
+        (e) => {
+          e.preventDefault();
+          const { x, y } = cellAt(e);
+          clickCell(x, y);
+        },
+        { signal: ctx.signal }
+      );
+      canvas.addEventListener(
+        "pointermove",
+        (e) => {
+          if (!level) return;
+          const { x, y } = cellAt(e);
+          if (x < 0 || y < 0 || x >= level.w || y >= level.h) {
+            ui.hover = null;
+            return;
+          }
+          const key = `${x},${y}`;
+          const fixed = level.fixed.find((f) => f[1] === x && f[2] === y);
+          const can =
+            (fixed && fixed[0] === "mirror") ||
+            (!fixed && (st.placed.has(key) || st.placed.size < level.mirrors));
+          ui.hover = { x, y, can };
+        },
+        { signal: ctx.signal }
+      );
+      canvas.addEventListener("pointerleave", () => (ui.hover = null), { signal: ctx.signal });
+
+      keys = createKeyboard({ signal: ctx.signal });
+      keys.on(["KeyU", "KeyZ"], () => undoMove());
+      keys.on(["KeyR"], () => restartLevel());
+      keys.on(["KeyH"], () => useHint());
+      keys.on(["KeyP"], () => togglePause());
+
+      loop = createLoop(update);
+
+      if (TEST) {
+        window.__LM_TEST__ = {
+          solve: (upTo = Infinity) => {
+            if (mode !== "play") return false;
+            pushHistory();
+            applySolution(level, st, upTo);
+            retrace();
+            updateHud();
+            if (result.done) winDelay = 0.3;
+            return true;
+          },
+          // tâm ô (client px) để QA gửi PointerEvent thật vào canvas
+          cellPoint: (x, y) => {
+            const rect = canvas.getBoundingClientRect();
+            const { t, ox, oy } = renderer.geometry();
+            return { cx: rect.left + ox + x * t + t / 2, cy: rect.top + oy + y * t + t / 2 };
+          },
+        };
+      }
+
+      showIntro();
+    },
+
+    start() {
+      if (mode !== "intro") return;
+      const p = readProgress();
+      totalScore = p.score;
+      beginLevel(p.level);
+    },
+
+    pause() {
+      pauseGame();
+    },
+
+    resume() {
+      resumeGame();
+    },
+
+    restart() {
+      if (mode === "intro") return;
+      beginLevel(levelIdx);
+    },
+
+    resize() {
+      if (level) renderer?.fit(level);
+    },
+
+    destroy() {
+      loop?.stop();
+      keys?.destroy();
+      ro?.disconnect();
+      frame?.destroy();
+      frame = null;
+      renderer = null;
+      level = null;
+      st = null;
+      if (typeof window !== "undefined") {
+        delete window.__LM_STATE__;
+        delete window.__LM_TEST__;
+      }
+    },
+  };
+}
+
+exports.createGame = createGame;
+};
+__defs["games/laser-maze/engine.js"] = function (exports, __req) {
+/**
+ * engine.js — Laser Maze 404: ray engine + thao tác board thuần
+ * (không DOM) để chạy unit test trong Node.
+ *
+ * Tia mô phỏng theo ô và 4 hướng U/R/D/L. Gương '/' và '\\' phản xạ,
+ * splitter tách tia thành 2 hướng (đi thẳng + phản xạ theo hướng gương),
+ * filter nhuộm tia gốc (đỏ) thành màu của nó và CHẶN tia khác màu,
+ * receiver yêu cầu đúng màu. Vòng lặp phát hiện bằng state đã thăm
+ * (x, y, direction, color) tại gương/splitter + guard tổng số bước.
+ */
+
+const DX = { U: 0, R: 1, D: 0, L: -1 };
+const DY = { U: -1, R: 0, D: 1, L: 0 };
+
+const REFLECT = {
+  "/": { R: "U", U: "R", L: "D", D: "L" },
+  "\\": { R: "D", D: "R", L: "U", U: "L" },
+};
+
+const BEAM_COLORS = {
+  red: "#ff3b4f",
+  cyan: "#20e3ff",
+  violet: "#9a5cff",
+  magenta: "#ff2ee6",
+};
+
+/** Trạng thái board của người chơi (gương đặt + góc xoay gương cố định). */
+function makeState() {
+  return { placed: new Map(), rot: new Map() };
+}
+
+function cloneState(st) {
+  return { placed: new Map(st.placed), rot: new Map(st.rot) };
+}
+
+/** Gộp fixed + placed thành Map "x,y" → cell. */
+function cellsOf(level, st) {
+  const cells = new Map();
+  for (const f of level.fixed) {
+    const [kind, x, y, a] = f;
+    const key = `${x},${y}`;
+    if (kind === "source") cells.set(key, { kind, dir: a });
+    else if (kind === "receiver") cells.set(key, { kind, need: a });
+    else if (kind === "mirror") cells.set(key, { kind, o: st.rot.get(key) || a, fixed: true });
+    else if (kind === "splitter") cells.set(key, { kind, o: a });
+    else if (kind === "filter") cells.set(key, { kind, color: a });
+    else if (kind === "blocker") cells.set(key, { kind });
+  }
+  for (const [key, p] of st.placed) {
+    cells.set(key, { kind: "mirror", o: p.o, fixed: false });
+  }
+  return cells;
+}
+
+/**
+ * Lần tia. Trả về:
+ *  segs: [{x1,y1,x2,y2,color,cut}] — đoạn giữa tâm ô (cut 0.5 = dừng nửa ô)
+ *  lit:  Map "x,y" → Set màu tia đến receiver
+ *  ok / total / done — số receiver thỏa màu yêu cầu
+ */
+function trace(level, st) {
+  const cells = cellsOf(level, st);
+  const segs = [];
+  const lit = new Map();
+  const visited = new Set();
+  const queue = [];
+  for (const f of level.fixed) {
+    if (f[0] === "source") queue.push({ x: f[1], y: f[2], dir: f[3], color: "red" });
+  }
+
+  let guard = 0;
+  while (queue.length && guard < 8000) {
+    let { x, y, dir, color } = queue.shift();
+    let walking = true;
+    while (walking && guard++ < 8000) {
+      const nx = x + DX[dir];
+      const ny = y + DY[dir];
+      if (nx < 0 || ny < 0 || nx >= level.w || ny >= level.h) {
+        segs.push({ x1: x, y1: y, x2: nx, y2: ny, color, cut: 0.5 });
+        break;
+      }
+      const key = `${nx},${ny}`;
+      const cell = cells.get(key);
+      const blocked = cell && (cell.kind === "blocker" || cell.kind === "source");
+      segs.push({ x1: x, y1: y, x2: nx, y2: ny, color, cut: blocked ? 0.5 : 0 });
+      if (!cell) {
+        x = nx;
+        y = ny;
+        continue;
+      }
+      switch (cell.kind) {
+        case "blocker":
+        case "source":
+          walking = false;
+          break;
+        case "receiver": {
+          if (!lit.has(key)) lit.set(key, new Set());
+          lit.get(key).add(color);
+          walking = false;
+          break;
+        }
+        case "filter": {
+          if (color === "red") color = cell.color;
+          else if (color !== cell.color) {
+            segs[segs.length - 1].cut = 0.5;
+            walking = false;
+            break;
+          }
+          x = nx;
+          y = ny;
+          break;
+        }
+        case "mirror": {
+          const vk = `m${key}|${dir}|${color}`;
+          if (visited.has(vk)) {
+            walking = false;
+            break;
+          }
+          visited.add(vk);
+          dir = REFLECT[cell.o][dir];
+          x = nx;
+          y = ny;
+          break;
+        }
+        case "splitter": {
+          const vk = `s${key}|${dir}|${color}`;
+          if (visited.has(vk)) {
+            walking = false;
+            break;
+          }
+          visited.add(vk);
+          // tách 2 hướng: đi thẳng (nhánh mới) + phản xạ (nhánh hiện tại)
+          queue.push({ x: nx, y: ny, dir, color });
+          dir = REFLECT[cell.o][dir];
+          x = nx;
+          y = ny;
+          break;
+        }
+        default:
+          walking = false;
+      }
+    }
+  }
+
+  let ok = 0;
+  let total = 0;
+  for (const f of level.fixed) {
+    if (f[0] !== "receiver") continue;
+    total += 1;
+    const s = lit.get(`${f[1]},${f[2]}`);
+    if (s && s.has(f[3])) ok += 1;
+  }
+  return { segs, lit, ok, total, done: total > 0 && ok === total };
+}
+
+/**
+ * Click vào ô (x,y):
+ *  - gương cố định → xoay / ↔ \
+ *  - gương đã đặt → xoay / → \ → gỡ về kho
+ *  - ô trống → đặt gương '/' nếu kho còn
+ * Trả về { changed, action } — action: rotate|place|remove|denied|null.
+ */
+function actionAt(level, st, x, y) {
+  if (x < 0 || y < 0 || x >= level.w || y >= level.h) return { changed: false, action: null };
+  const key = `${x},${y}`;
+  const fixed = level.fixed.find((f) => f[1] === x && f[2] === y);
+  if (fixed) {
+    if (fixed[0] === "mirror") {
+      const cur = st.rot.get(key) || fixed[3];
+      st.rot.set(key, cur === "/" ? "\\" : "/");
+      return { changed: true, action: "rotate" };
+    }
+    return { changed: false, action: "denied" };
+  }
+  const p = st.placed.get(key);
+  if (p) {
+    if (p.o === "/") {
+      p.o = "\\";
+      return { changed: true, action: "rotate" };
+    }
+    st.placed.delete(key);
+    return { changed: true, action: "remove" };
+  }
+  if (st.placed.size >= level.mirrors) return { changed: false, action: "denied" };
+  st.placed.set(key, { o: "/" });
+  return { changed: true, action: "place" };
+}
+
+/** Áp lời giải: entry [x,y,o] — xoay gương cố định hoặc đặt gương mới. */
+function applySolution(level, st, upTo = Infinity) {
+  let n = 0;
+  for (const [x, y, o] of level.solution) {
+    if (n >= upTo) break;
+    const key = `${x},${y}`;
+    const fixed = level.fixed.find((f) => f[1] === x && f[2] === y);
+    if (fixed && fixed[0] === "mirror") st.rot.set(key, o);
+    else st.placed.set(key, { o });
+    n += 1;
+  }
+  return st;
+}
+
+/** Số gương phải ĐẶT trong lời giải (par chấm sao). */
+function parOf(level) {
+  let n = 0;
+  for (const [x, y] of level.solution) {
+    const fixed = level.fixed.find((f) => f[1] === x && f[2] === y);
+    if (!fixed) n += 1;
+  }
+  return n;
+}
+
+/**
+ * Gợi ý bước tiếp theo: entry lời giải đầu tiên chưa đúng trên board.
+ * Trả về {x,y,o,kind:'rotate'|'place'} hoặc null nếu đã khớp hết.
+ */
+function nextHint(level, st) {
+  for (const [x, y, o] of level.solution) {
+    const key = `${x},${y}`;
+    const fixed = level.fixed.find((f) => f[1] === x && f[2] === y);
+    if (fixed && fixed[0] === "mirror") {
+      const cur = st.rot.get(key) || fixed[3];
+      if (cur !== o) return { x, y, o, kind: "rotate" };
+    } else {
+      const p = st.placed.get(key);
+      if (!p || p.o !== o) return { x, y, o, kind: "place" };
+    }
+  }
+  return null;
+}
+
+exports.makeState = makeState; exports.cloneState = cloneState; exports.cellsOf = cellsOf; exports.trace = trace; exports.actionAt = actionAt; exports.applySolution = applySolution; exports.parOf = parOf; exports.nextHint = nextHint; exports.DX = DX; exports.DY = DY; exports.REFLECT = REFLECT; exports.BEAM_COLORS = BEAM_COLORS;
+};
+__defs["games/laser-maze/levels.js"] = function (exports, __req) {
+/**
+ * levels.js — 20 màn Laser Maze 404 (module JS thuần).
+ *
+ * fixed: ["source",x,y,dir] · ["receiver",x,y,màu] · ["mirror",x,y,o]
+ *        ["splitter",x,y,o] · ["filter",x,y,màu] · ["blocker",x,y]
+ * solution: [[x,y,o]] — xoay gương cố định hoặc đặt gương mới (kho).
+ * mirrors: giới hạn gương người chơi được đặt.
+ * Mọi lời giải được unit test kiểm chứng (expansion11.test.mjs).
+ */
+
+const LEVELS = [
+  {
+    id: 1,
+    name: "TIA ĐẦU TIÊN",
+    w: 7,
+    h: 6,
+    mirrors: 1,
+    intro: "Đặt gương chéo để bẻ tia laser đỏ lên bộ thu. Nhấp ô trống để đặt gương, nhấp lần nữa để xoay hoặc gỡ.",
+    fixed: [
+      ["source", 0, 3, "R"],
+      ["receiver", 5, 0, "red"],
+    ],
+    solution: [[5, 3, "/"]],
+  },
+  {
+    id: 2,
+    name: "HAI KHÚC CUA",
+    w: 7,
+    h: 6,
+    mirrors: 2,
+    intro: "Hai gương — hai khúc cua. Dẫn tia qua góc chữ Z tới bộ thu.",
+    fixed: [
+      ["source", 0, 4, "R"],
+      ["receiver", 6, 1, "red"],
+      ["blocker", 5, 4],
+    ],
+    solution: [
+      [3, 4, "/"],
+      [3, 1, "/"],
+    ],
+  },
+  {
+    id: 3,
+    name: "XOAY GƯƠNG",
+    w: 7,
+    h: 6,
+    mirrors: 0,
+    intro: "Không có gương trong kho — hai gương trên board đang xoay SAI hướng. Nhấp để xoay chúng.",
+    fixed: [
+      ["source", 0, 3, "R"],
+      ["receiver", 6, 1, "red"],
+      ["mirror", 2, 3, "\\"],
+      ["mirror", 2, 1, "\\"],
+      ["blocker", 4, 4],
+    ],
+    solution: [
+      [2, 3, "/"],
+      [2, 1, "/"],
+    ],
+  },
+  {
+    id: 4,
+    name: "KHE HẸP",
+    w: 8,
+    h: 6,
+    mirrors: 3,
+    intro: "Bức tường chặn chỉ hở một khe dưới đáy. Luồn tia qua khe rồi vòng lên bộ thu.",
+    fixed: [
+      ["source", 0, 2, "R"],
+      ["receiver", 6, 0, "red"],
+      ["blocker", 4, 0],
+      ["blocker", 4, 1],
+      ["blocker", 4, 2],
+      ["blocker", 4, 3],
+      ["blocker", 4, 4],
+    ],
+    solution: [
+      [2, 2, "\\"],
+      [2, 5, "\\"],
+      [6, 5, "/"],
+    ],
+  },
+  {
+    id: 5,
+    name: "TÁCH ĐÔI",
+    w: 8,
+    h: 7,
+    mirrors: 2,
+    intro: "Bộ tách chùm chia tia thành 2 hướng: đi thẳng và phản xạ. Dẫn CẢ HAI nhánh về bộ thu.",
+    fixed: [
+      ["source", 0, 3, "R"],
+      ["splitter", 4, 3, "\\"],
+      ["receiver", 5, 0, "red"],
+      ["receiver", 1, 5, "red"],
+    ],
+    solution: [
+      [5, 3, "/"],
+      [4, 5, "/"],
+    ],
+  },
+  {
+    id: 6,
+    name: "KÍNH LỌC XANH",
+    w: 8,
+    h: 7,
+    mirrors: 1,
+    intro: "Bộ thu XANH chỉ nhận tia xanh. Cho tia đỏ xuyên qua kính lọc để nhuộm màu trước khi tới đích.",
+    fixed: [
+      ["source", 0, 2, "R"],
+      ["filter", 4, 2, "cyan"],
+      ["receiver", 6, 5, "cyan"],
+      ["blocker", 7, 2],
+    ],
+    solution: [[6, 2, "\\"]],
+  },
+  {
+    id: 7,
+    name: "HAI MÀU",
+    w: 9,
+    h: 7,
+    mirrors: 1,
+    intro: "Một nguồn — hai bộ thu khác màu. Tách tia rồi cho mỗi nhánh xuyên đúng kính lọc.",
+    fixed: [
+      ["source", 0, 3, "R"],
+      ["splitter", 3, 3, "\\"],
+      ["filter", 6, 3, "cyan"],
+      ["receiver", 8, 3, "cyan"],
+      ["filter", 5, 5, "violet"],
+      ["receiver", 8, 5, "violet"],
+      ["blocker", 3, 6],
+    ],
+    solution: [[3, 5, "\\"]],
+  },
+  {
+    id: 8,
+    name: "MÊ CUNG CHẶN",
+    w: 9,
+    h: 7,
+    mirrors: 4,
+    intro: "Các khối chặn giăng kín lối đi thẳng. Lách tia qua 4 khúc cua để về đích.",
+    fixed: [
+      ["source", 0, 1, "R"],
+      ["receiver", 8, 5, "red"],
+      ["blocker", 6, 1],
+      ["blocker", 4, 4],
+      ["blocker", 8, 3],
+      ["blocker", 2, 5],
+      ["blocker", 1, 3],
+    ],
+    solution: [
+      [4, 1, "\\"],
+      [4, 3, "\\"],
+      [7, 3, "\\"],
+      [7, 5, "\\"],
+    ],
+  },
+  {
+    id: 9,
+    name: "NHÀ GƯƠNG",
+    w: 9,
+    h: 8,
+    mirrors: 2,
+    intro: "Kết hợp: xoay 2 gương có sẵn cho đúng hướng, rồi đặt thêm 2 gương từ kho để hoàn tất đường tia.",
+    fixed: [
+      ["source", 0, 6, "R"],
+      ["receiver", 8, 0, "red"],
+      ["mirror", 4, 6, "\\"],
+      ["mirror", 4, 2, "\\"],
+      ["blocker", 8, 2],
+      ["blocker", 3, 4],
+    ],
+    solution: [
+      [4, 6, "/"],
+      [4, 2, "/"],
+      [7, 2, "/"],
+      [7, 0, "/"],
+    ],
+  },
+  {
+    id: 10,
+    name: "HAI NGUỒN",
+    w: 10,
+    h: 8,
+    mirrors: 4,
+    intro: "Hai nguồn laser bắn ngược chiều nhau. Dẫn mỗi tia về đúng bộ thu của nó.",
+    fixed: [
+      ["source", 0, 2, "R"],
+      ["source", 9, 5, "L"],
+      ["receiver", 9, 0, "red"],
+      ["receiver", 0, 7, "red"],
+      ["blocker", 4, 4],
+      ["blocker", 6, 6],
+    ],
+    solution: [
+      [7, 2, "/"],
+      [7, 0, "/"],
+      [2, 5, "/"],
+      [2, 7, "/"],
+    ],
+  },
+  {
+    id: 11,
+    name: "LỌC KÉP",
+    w: 10,
+    h: 8,
+    mirrors: 1,
+    intro: "Kính lọc cùng màu cho tia đi tiếp, khác màu sẽ CHẶN. Quan sát kỹ trước khi tách nhánh.",
+    fixed: [
+      ["source", 0, 4, "R"],
+      ["splitter", 2, 4, "\\"],
+      ["filter", 3, 4, "cyan"],
+      ["filter", 6, 4, "cyan"],
+      ["receiver", 9, 4, "cyan"],
+      ["filter", 2, 6, "violet"],
+      ["receiver", 9, 7, "violet"],
+      ["blocker", 5, 6],
+    ],
+    solution: [[2, 7, "\\"]],
+  },
+  {
+    id: 12,
+    name: "ĐƯỜNG VÒNG",
+    w: 10,
+    h: 9,
+    mirrors: 4,
+    intro: "Đích nằm ngay dưới nguồn nhưng đường thẳng bị bịt kín — dẫn tia vòng quanh cả board.",
+    fixed: [
+      ["source", 0, 0, "R"],
+      ["receiver", 0, 8, "red"],
+      ["blocker", 0, 4],
+      ["blocker", 1, 1],
+      ["blocker", 2, 4],
+      ["blocker", 5, 2],
+      ["blocker", 6, 6],
+    ],
+    solution: [
+      [8, 0, "\\"],
+      [8, 4, "/"],
+      [3, 4, "/"],
+      [3, 8, "/"],
+    ],
+  },
+  {
+    id: 13,
+    name: "CHUỖI TÁCH",
+    w: 10,
+    h: 9,
+    mirrors: 3,
+    intro: "Hai bộ tách nối tiếp tạo THREE nhánh tia. Đưa cả ba về bộ thu.",
+    fixed: [
+      ["source", 0, 4, "R"],
+      ["splitter", 3, 4, "\\"],
+      ["splitter", 6, 4, "/"],
+      ["receiver", 0, 6, "red"],
+      ["receiver", 8, 7, "red"],
+      ["receiver", 0, 1, "red"],
+      ["blocker", 9, 4],
+    ],
+    solution: [
+      [3, 6, "/"],
+      [8, 4, "\\"],
+      [6, 1, "\\"],
+    ],
+  },
+  {
+    id: 14,
+    name: "SẮC HỒNG",
+    w: 11,
+    h: 9,
+    mirrors: 2,
+    intro: "Kính lọc HỒNG xuất hiện. Ba màu — ba bộ thu, đừng để nhánh nào lạc đường.",
+    fixed: [
+      ["source", 0, 4, "R"],
+      ["splitter", 2, 4, "/"],
+      ["splitter", 4, 4, "\\"],
+      ["filter", 7, 4, "magenta"],
+      ["receiver", 10, 4, "magenta"],
+      ["filter", 6, 7, "cyan"],
+      ["receiver", 10, 7, "cyan"],
+      ["receiver", 5, 0, "red"],
+      ["blocker", 0, 1],
+    ],
+    solution: [
+      [2, 0, "/"],
+      [4, 7, "\\"],
+    ],
+  },
+  {
+    id: 15,
+    name: "BỨC TƯỜNG",
+    w: 11,
+    h: 9,
+    mirrors: 4,
+    intro: "Bức tường thép chỉ hở đúng hai khe. Chọn khe đúng — khe còn lại là bẫy.",
+    fixed: [
+      ["source", 0, 2, "R"],
+      ["receiver", 10, 0, "red"],
+      ["blocker", 5, 0],
+      ["blocker", 5, 1],
+      ["blocker", 5, 2],
+      ["blocker", 5, 3],
+      ["blocker", 5, 5],
+      ["blocker", 5, 6],
+      ["blocker", 5, 8],
+      ["blocker", 7, 1],
+    ],
+    solution: [
+      [2, 2, "\\"],
+      [2, 4, "\\"],
+      [8, 4, "/"],
+      [8, 0, "/"],
+    ],
+  },
+  {
+    id: 16,
+    name: "BA MÀU",
+    w: 11,
+    h: 10,
+    mirrors: 3,
+    intro: "Một nguồn, ba màu, ba bộ thu. Sắp gương để mỗi nhánh xuyên đúng kính lọc của nó.",
+    fixed: [
+      ["source", 0, 5, "R"],
+      ["splitter", 2, 5, "\\"],
+      ["splitter", 5, 5, "/"],
+      ["filter", 2, 7, "cyan"],
+      ["receiver", 10, 8, "cyan"],
+      ["filter", 5, 2, "violet"],
+      ["receiver", 10, 1, "violet"],
+      ["filter", 7, 5, "magenta"],
+      ["receiver", 8, 9, "magenta"],
+      ["blocker", 2, 9],
+    ],
+    solution: [
+      [2, 8, "\\"],
+      [5, 1, "/"],
+      [8, 5, "\\"],
+    ],
+  },
+  {
+    id: 17,
+    name: "HÀNH LANG HẸP",
+    w: 12,
+    h: 9,
+    mirrors: 4,
+    intro: "Zigzag qua các hành lang hẹp giữa những khối chặn. Đếm kỹ từng hàng.",
+    fixed: [
+      ["source", 0, 1, "R"],
+      ["receiver", 11, 5, "red"],
+      ["blocker", 10, 1],
+      ["blocker", 9, 4],
+      ["blocker", 1, 3],
+      ["blocker", 2, 6],
+      ["blocker", 5, 0],
+      ["blocker", 4, 7],
+      ["blocker", 7, 2],
+      ["blocker", 11, 0],
+    ],
+    solution: [
+      [9, 1, "\\"],
+      [9, 3, "/"],
+      [2, 3, "/"],
+      [2, 5, "\\"],
+    ],
+  },
+  {
+    id: 18,
+    name: "GIAO LỘ",
+    w: 12,
+    h: 9,
+    mirrors: 4,
+    intro: "Hai nguồn nhuộm màu ngay từ cửa. Tia xanh và tia tím phải băng qua nhau mà không lạc đích.",
+    fixed: [
+      ["source", 0, 3, "R"],
+      ["filter", 1, 3, "cyan"],
+      ["source", 11, 6, "L"],
+      ["filter", 10, 6, "violet"],
+      ["receiver", 11, 0, "cyan"],
+      ["receiver", 0, 8, "violet"],
+      ["blocker", 9, 3],
+      ["blocker", 2, 6],
+      ["blocker", 5, 4],
+    ],
+    solution: [
+      [8, 3, "/"],
+      [8, 0, "/"],
+      [3, 6, "/"],
+      [3, 8, "/"],
+    ],
+  },
+  {
+    id: 19,
+    name: "TỔ HỢP",
+    w: 12,
+    h: 10,
+    mirrors: 3,
+    intro: "Tách chùm, kính lọc và gương xoay sẵn — tất cả trong một. Bộ thu xanh ở hai đầu board.",
+    fixed: [
+      ["source", 0, 5, "R"],
+      ["splitter", 3, 5, "\\"],
+      ["filter", 5, 5, "cyan"],
+      ["splitter", 7, 5, "/"],
+      ["mirror", 9, 5, "/"],
+      ["receiver", 9, 9, "cyan"],
+      ["receiver", 0, 1, "cyan"],
+      ["filter", 6, 7, "violet"],
+      ["receiver", 11, 7, "violet"],
+      ["blocker", 3, 9],
+      ["blocker", 11, 5],
+    ],
+    solution: [
+      [9, 5, "\\"],
+      [3, 7, "\\"],
+      [7, 1, "\\"],
+    ],
+  },
+  {
+    id: 20,
+    name: "CHUNG KẾT 404",
+    w: 12,
+    h: 10,
+    mirrors: 5,
+    intro: "Màn cuối: 2 nguồn, 2 bộ tách, 3 kính lọc, 4 bộ thu. Dồn hết kỹ năng của bạn vào đây!",
+    fixed: [
+      ["source", 0, 8, "R"],
+      ["splitter", 2, 8, "/"],
+      ["splitter", 5, 8, "\\"],
+      ["filter", 2, 4, "magenta"],
+      ["filter", 7, 8, "cyan"],
+      ["source", 11, 0, "L"],
+      ["filter", 9, 0, "violet"],
+      ["receiver", 5, 9, "red"],
+      ["receiver", 9, 9, "cyan"],
+      ["receiver", 5, 2, "magenta"],
+      ["receiver", 4, 4, "violet"],
+      ["blocker", 6, 1],
+      ["blocker", 0, 3],
+      ["blocker", 11, 6],
+      ["blocker", 3, 3],
+    ],
+    solution: [
+      [2, 1, "/"],
+      [5, 1, "\\"],
+      [9, 8, "\\"],
+      [4, 0, "/"],
+    ],
+  },
+];
+
+exports.LEVELS = LEVELS;
+};
+__defs["games/laser-maze/render.js"] = function (exports, __req) {
+/**
+ * render.js — vẽ board Laser Maze 404 theo ảnh reference: lưới ô tối,
+ * nguồn laser đỏ đồng tâm, bộ thu vòng tròn màu + badge check xanh,
+ * gương thanh chéo ánh thép kèm mũi tên xoay, bộ tách chùm chữ thập đỏ,
+ * kính lọc khung vuông màu, khối chặn giằng X, tia laser phát sáng.
+ */
+
+const { BEAM_COLORS, REFLECT } = __req("games/laser-maze/engine.js");
+
+const TILE_BG = "#151a29";
+const TILE_LINE = "rgba(96, 120, 175, 0.16)";
+
+function createMazeRenderer(canvas, box) {
+  const g = canvas.getContext("2d");
+  let dpr = 1;
+  let t = 40; // cạnh ô (css px)
+  let ox = 0;
+  let oy = 0;
+  let W = 0;
+  let H = 0;
+
+  function fit(level) {
+    const rect = box.getBoundingClientRect();
+    if (rect.width < 4 || rect.height < 4) return;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = rect.width;
+    H = rect.height;
+    canvas.style.width = `${W}px`;
+    canvas.style.height = `${H}px`;
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    t = Math.floor(Math.min((W - 36) / level.w, (H - 36) / level.h));
+    t = Math.max(22, Math.min(86, t));
+    ox = Math.floor((W - level.w * t) / 2);
+    oy = Math.floor((H - level.h * t) / 2);
+  }
+
+  function geometry() {
+    return { t, ox, oy };
+  }
+
+  const cx = (x) => ox + x * t + t / 2;
+  const cy = (y) => oy + y * t + t / 2;
+
+  /* ---------- thành phần ---------- */
+
+  function tileBase(x, y, fill = "rgba(10, 14, 28, 0.92)", stroke = "rgba(120,140,190,0.3)") {
+    const px = ox + x * t + 2;
+    const py = oy + y * t + 2;
+    g.fillStyle = fill;
+    g.strokeStyle = stroke;
+    g.lineWidth = 1.4;
+    g.beginPath();
+    g.roundRect(px, py, t - 4, t - 4, 5);
+    g.fill();
+    g.stroke();
+  }
+
+  function drawSource(x, y, dir, time) {
+    tileBase(x, y, "#210b12", "rgba(255,80,100,0.55)");
+    const X = cx(x);
+    const Y = cy(y);
+    const pulse = 0.75 + 0.25 * Math.sin(time * 5);
+    g.strokeStyle = `rgba(255,59,79,${0.85 * pulse})`;
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(X, Y, t * 0.26, 0, Math.PI * 2);
+    g.stroke();
+    g.save();
+    g.shadowColor = "#ff3b4f";
+    g.shadowBlur = 12;
+    g.fillStyle = "#ff5a68";
+    g.beginPath();
+    g.arc(X, Y, t * 0.12, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+    // họng phát theo hướng
+    const d = { U: [0, -1], R: [1, 0], D: [0, 1], L: [-1, 0] }[dir];
+    g.fillStyle = "rgba(255,90,104,0.9)";
+    g.fillRect(X + d[0] * t * 0.3 - 3, Y + d[1] * t * 0.3 - 3, 6, 6);
+  }
+
+  function drawReceiver(x, y, need, litOk, time) {
+    // receiver tia gốc (đỏ) hiển thị vòng xanh lá như legend ảnh reference
+    const col = need === "red" ? "#4df77f" : BEAM_COLORS[need] || "#4df77f";
+    tileBase(x, y, "rgba(8,12,24,0.94)", litOk ? "rgba(77,247,127,0.6)" : `${col}55`);
+    const X = cx(x);
+    const Y = cy(y);
+    const pulse = litOk ? 0.85 + 0.15 * Math.sin(time * 7) : 0.65;
+    g.save();
+    if (litOk) {
+      g.shadowColor = col;
+      g.shadowBlur = 14;
+    }
+    g.strokeStyle = col;
+    g.globalAlpha = pulse;
+    g.lineWidth = 3;
+    g.beginPath();
+    g.arc(X, Y, t * 0.28, 0, Math.PI * 2);
+    g.stroke();
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(X, Y, t * 0.17, 0, Math.PI * 2);
+    g.stroke();
+    g.fillStyle = col;
+    g.beginPath();
+    g.arc(X, Y, t * 0.07, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+    g.globalAlpha = 1;
+    // badge check khi thỏa màu
+    if (litOk) {
+      const bx = X + t * 0.28;
+      const by = Y + t * 0.28;
+      g.fillStyle = "#20d96a";
+      g.beginPath();
+      g.arc(bx, by, t * 0.13, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = "#04270f";
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(bx - t * 0.06, by);
+      g.lineTo(bx - t * 0.015, by + t * 0.05);
+      g.lineTo(bx + t * 0.065, by - t * 0.05);
+      g.stroke();
+    }
+  }
+
+  function drawMirror(x, y, o, rotatable, hintGlow, time) {
+    tileBase(x, y, "#10141f", "rgba(150,175,220,0.35)");
+    const X = cx(x);
+    const Y = cy(y);
+    const r = t * 0.3;
+    const a = o === "/" ? -Math.PI / 4 : Math.PI / 4;
+    g.save();
+    g.translate(X, Y);
+    g.rotate(a);
+    if (hintGlow) {
+      g.shadowColor = "#a8ff3e";
+      g.shadowBlur = 12 + 5 * Math.sin(time * 6);
+    }
+    const grad = g.createLinearGradient(0, -4, 0, 4);
+    grad.addColorStop(0, "#e8f4ff");
+    grad.addColorStop(0.5, "#9fc3e8");
+    grad.addColorStop(1, "#5d7fa8");
+    g.fillStyle = grad;
+    g.beginPath();
+    g.roundRect(-r, -3.4, r * 2, 6.8, 3.4);
+    g.fill();
+    g.restore();
+    // vệt shine
+    g.strokeStyle = "rgba(255,255,255,0.75)";
+    g.lineWidth = 1.6;
+    g.beginPath();
+    const sx = o === "/" ? 1 : -1;
+    g.moveTo(X - sx * r * 0.5, Y + r * 0.5 - 2);
+    g.lineTo(X + sx * r * 0.25, Y - r * 0.25 - 2);
+    g.stroke();
+    // mũi tên xoay góc trên phải
+    if (rotatable) {
+      const ax = X + t * 0.28;
+      const ay = Y - t * 0.28;
+      g.strokeStyle = "rgba(140,220,255,0.9)";
+      g.lineWidth = 1.6;
+      g.beginPath();
+      g.arc(ax, ay, t * 0.1, -Math.PI * 0.2, Math.PI * 1.1);
+      g.stroke();
+      g.fillStyle = "rgba(140,220,255,0.9)";
+      g.beginPath();
+      const tipA = -Math.PI * 0.2;
+      const tx = ax + Math.cos(tipA) * t * 0.1;
+      const ty = ay + Math.sin(tipA) * t * 0.1;
+      g.moveTo(tx + 3, ty - 2);
+      g.lineTo(tx - 3, ty - 3);
+      g.lineTo(tx + 1, ty + 4);
+      g.closePath();
+      g.fill();
+    }
+  }
+
+  function drawSplitter(x, y, o, time) {
+    tileBase(x, y, "#1a0f14", "rgba(255,110,130,0.5)");
+    const X = cx(x);
+    const Y = cy(y);
+    const r = t * 0.26;
+    g.strokeStyle = "rgba(255,120,135,0.9)";
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(X - r, Y);
+    g.lineTo(X + r, Y);
+    g.moveTo(X, Y - r);
+    g.lineTo(X, Y + r);
+    g.stroke();
+    // chỉ báo hướng phản xạ (thanh chéo mờ)
+    g.strokeStyle = "rgba(255,170,185,0.5)";
+    g.lineWidth = 3;
+    const a = o === "/" ? -Math.PI / 4 : Math.PI / 4;
+    g.beginPath();
+    g.moveTo(X - Math.cos(a) * r * 0.8, Y - Math.sin(a) * r * 0.8);
+    g.lineTo(X + Math.cos(a) * r * 0.8, Y + Math.sin(a) * r * 0.8);
+    g.stroke();
+    g.save();
+    g.shadowColor = "#ff8091";
+    g.shadowBlur = 8 + 3 * Math.sin(time * 5);
+    g.fillStyle = "#fff";
+    g.beginPath();
+    g.arc(X, Y, 3.2, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+  }
+
+  function drawFilter(x, y, color) {
+    const col = BEAM_COLORS[color];
+    tileBase(x, y, "rgba(8,12,24,0.94)", `${col}44`);
+    const X = cx(x);
+    const Y = cy(y);
+    const r = t * 0.24;
+    g.save();
+    g.shadowColor = col;
+    g.shadowBlur = 10;
+    g.strokeStyle = col;
+    g.lineWidth = 3.4;
+    g.beginPath();
+    g.roundRect(X - r, Y - r, r * 2, r * 2, 3);
+    g.stroke();
+    g.restore();
+    g.strokeStyle = `${col}66`;
+    g.lineWidth = 1.4;
+    g.beginPath();
+    g.roundRect(X - r * 0.55, Y - r * 0.55, r * 1.1, r * 1.1, 2);
+    g.stroke();
+  }
+
+  function drawBlocker(x, y) {
+    tileBase(x, y, "#191d29", "rgba(105,115,140,0.5)");
+    const X = cx(x);
+    const Y = cy(y);
+    const r = t * 0.24;
+    g.strokeStyle = "rgba(130,140,165,0.7)";
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(X - r, Y - r);
+    g.lineTo(X + r, Y + r);
+    g.moveTo(X + r, Y - r);
+    g.lineTo(X - r, Y + r);
+    g.stroke();
+    g.fillStyle = "rgba(160,170,195,0.75)";
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      g.beginPath();
+      g.arc(X + sx * r, Y + sy * r, 2, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+
+  /* ---------- vẽ chính ---------- */
+
+  function draw(level, cells, result, ui, time) {
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+
+    // panel board + ngoặc góc cyan
+    g.fillStyle = "rgba(9, 12, 26, 0.72)";
+    g.beginPath();
+    g.roundRect(ox - 12, oy - 12, level.w * t + 24, level.h * t + 24, 10);
+    g.fill();
+    g.strokeStyle = "rgba(70, 100, 160, 0.3)";
+    g.lineWidth = 1;
+    g.stroke();
+    g.strokeStyle = "rgba(32,227,255,0.75)";
+    g.lineWidth = 2.4;
+    const bx0 = ox - 12;
+    const by0 = oy - 12;
+    const bx1 = ox + level.w * t + 12;
+    const by1 = oy + level.h * t + 12;
+    for (const [px, py, sx, sy] of [[bx0, by0, 1, 1], [bx1, by0, -1, 1], [bx0, by1, 1, -1], [bx1, by1, -1, -1]]) {
+      g.beginPath();
+      g.moveTo(px + sx * 20, py);
+      g.lineTo(px, py);
+      g.lineTo(px, py + sy * 20);
+      g.stroke();
+    }
+
+    // lưới ô
+    for (let y = 0; y < level.h; y++) {
+      for (let x = 0; x < level.w; x++) {
+        const px = ox + x * t + 1.5;
+        const py = oy + y * t + 1.5;
+        g.fillStyle = TILE_BG;
+        g.beginPath();
+        g.roundRect(px, py, t - 3, t - 3, 4);
+        g.fill();
+        g.strokeStyle = TILE_LINE;
+        g.lineWidth = 1;
+        g.stroke();
+      }
+    }
+
+    // hover
+    if (ui.hover) {
+      const { x, y, can } = ui.hover;
+      g.fillStyle = can ? "rgba(32,227,255,0.14)" : "rgba(255,80,100,0.08)";
+      g.strokeStyle = can ? "rgba(32,227,255,0.5)" : "rgba(255,80,100,0.3)";
+      g.lineWidth = 1.6;
+      g.beginPath();
+      g.roundRect(ox + x * t + 1.5, oy + y * t + 1.5, t - 3, t - 3, 4);
+      g.fill();
+      g.stroke();
+    }
+
+    // tia laser (dưới thành phần một chút nhưng trên lưới)
+    const pulse = 0.8 + 0.2 * Math.sin(time * 6);
+    for (const s of result.segs) {
+      const col = BEAM_COLORS[s.color];
+      let x2 = cx(s.x2);
+      let y2 = cy(s.y2);
+      if (s.cut) {
+        x2 = cx(s.x1) + (x2 - cx(s.x1)) * (1 - s.cut);
+        y2 = cy(s.y1) + (y2 - cy(s.y1)) * (1 - s.cut);
+      }
+      g.save();
+      g.globalAlpha = pulse;
+      g.shadowColor = col;
+      g.shadowBlur = 10;
+      g.strokeStyle = col;
+      g.lineWidth = 3;
+      g.beginPath();
+      g.moveTo(cx(s.x1), cy(s.y1));
+      g.lineTo(x2, y2);
+      g.stroke();
+      g.shadowBlur = 0;
+      g.strokeStyle = "rgba(255,255,255,0.75)";
+      g.lineWidth = 1.1;
+      g.stroke();
+      g.restore();
+    }
+
+    // thành phần
+    for (const f of level.fixed) {
+      const [kind, x, y, a] = f;
+      const key = `${x},${y}`;
+      if (kind === "source") drawSource(x, y, a, time);
+      else if (kind === "receiver") {
+        const litSet = result.lit.get(key);
+        drawReceiver(x, y, a, !!(litSet && litSet.has(a)), time);
+      } else if (kind === "mirror") {
+        const cell = cells.get(key);
+        drawMirror(x, y, cell.o, true, ui.hint && ui.hint.x === x && ui.hint.y === y, time);
+      } else if (kind === "splitter") drawSplitter(x, y, a, time);
+      else if (kind === "filter") drawFilter(x, y, a);
+      else if (kind === "blocker") drawBlocker(x, y);
+    }
+    for (const [key, p] of ui.placed) {
+      const [x, y] = key.split(",").map(Number);
+      drawMirror(x, y, p.o, true, ui.hint && ui.hint.x === x && ui.hint.y === y, time);
+    }
+  }
+
+  return { fit, draw, geometry };
+}
+
+/** Icon chú giải sidebar trái (canvas nhỏ ~30px). */
+function paintMazeLegend(canvas, kind) {
+  canvas.width = 56;
+  canvas.height = 56;
+  const c = canvas.getContext("2d");
+  c.scale(2, 2);
+  c.fillStyle = "#141927";
+  c.strokeStyle = "rgba(120,140,190,0.4)";
+  c.beginPath();
+  c.roundRect(1, 1, 26, 26, 5);
+  c.fill();
+  c.stroke();
+  const X = 14;
+  const Y = 14;
+  if (kind === "source") {
+    c.strokeStyle = "#ff3b4f";
+    c.lineWidth = 1.6;
+    c.beginPath();
+    c.arc(X, Y, 7, 0, Math.PI * 2);
+    c.stroke();
+    c.fillStyle = "#ff5a68";
+    c.beginPath();
+    c.arc(X, Y, 3, 0, Math.PI * 2);
+    c.fill();
+    c.strokeStyle = "rgba(255,90,104,0.9)";
+    c.beginPath();
+    c.moveTo(X + 7, Y);
+    c.lineTo(X + 13, Y);
+    c.stroke();
+  } else if (kind === "receiver") {
+    c.strokeStyle = "#4df77f";
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(X, Y, 7.5, 0, Math.PI * 2);
+    c.stroke();
+    c.lineWidth = 1.4;
+    c.beginPath();
+    c.arc(X, Y, 4.4, 0, Math.PI * 2);
+    c.stroke();
+    c.fillStyle = "#4df77f";
+    c.beginPath();
+    c.arc(X, Y, 1.8, 0, Math.PI * 2);
+    c.fill();
+  } else if (kind === "mirror") {
+    c.save();
+    c.translate(X, Y);
+    c.rotate(-Math.PI / 4);
+    const grad = c.createLinearGradient(0, -2, 0, 2);
+    grad.addColorStop(0, "#e8f4ff");
+    grad.addColorStop(1, "#5d7fa8");
+    c.fillStyle = grad;
+    c.beginPath();
+    c.roundRect(-8, -2.4, 16, 4.8, 2.4);
+    c.fill();
+    c.restore();
+    c.strokeStyle = "rgba(140,220,255,0.9)";
+    c.lineWidth = 1.2;
+    c.beginPath();
+    c.arc(21, 7, 3, -0.5, 3.4);
+    c.stroke();
+  } else if (kind === "splitter") {
+    c.strokeStyle = "rgba(255,120,135,0.95)";
+    c.lineWidth = 1.8;
+    c.beginPath();
+    c.moveTo(X - 7, Y);
+    c.lineTo(X + 7, Y);
+    c.moveTo(X, Y - 7);
+    c.lineTo(X, Y + 7);
+    c.stroke();
+    c.fillStyle = "#fff";
+    c.beginPath();
+    c.arc(X, Y, 2.2, 0, Math.PI * 2);
+    c.fill();
+  } else if (kind === "filter-cyan" || kind === "filter-violet") {
+    const col = kind === "filter-cyan" ? "#20e3ff" : "#9a5cff";
+    c.strokeStyle = col;
+    c.lineWidth = 2.6;
+    c.shadowColor = col;
+    c.shadowBlur = 5;
+    c.beginPath();
+    c.roundRect(X - 6.5, Y - 6.5, 13, 13, 2);
+    c.stroke();
+  } else if (kind === "blocker") {
+    c.strokeStyle = "rgba(130,140,165,0.85)";
+    c.lineWidth = 2.4;
+    c.beginPath();
+    c.moveTo(X - 6, Y - 6);
+    c.lineTo(X + 6, Y + 6);
+    c.moveTo(X + 6, Y - 6);
+    c.lineTo(X - 6, Y + 6);
+    c.stroke();
+  }
+}
+
+/** Icon gương trong KHO GƯƠNG (slot vuông). */
+function paintInventoryMirror(canvas, filled) {
+  canvas.width = 76;
+  canvas.height = 76;
+  const c = canvas.getContext("2d");
+  c.scale(2, 2);
+  c.clearRect(0, 0, 38, 38);
+  if (!filled) return;
+  c.save();
+  c.translate(19, 20);
+  c.rotate(-Math.PI / 4);
+  const grad = c.createLinearGradient(0, -3, 0, 3);
+  grad.addColorStop(0, "#e8f4ff");
+  grad.addColorStop(0.5, "#9fc3e8");
+  grad.addColorStop(1, "#5d7fa8");
+  c.fillStyle = grad;
+  c.beginPath();
+  c.roundRect(-11, -3.2, 22, 6.4, 3.2);
+  c.fill();
+  c.restore();
+  c.strokeStyle = "rgba(140,220,255,0.9)";
+  c.lineWidth = 1.5;
+  c.beginPath();
+  c.arc(29, 9, 4, -0.4, 3.5);
+  c.stroke();
+  c.fillStyle = "rgba(140,220,255,0.9)";
+  c.beginPath();
+  c.moveTo(32.6, 6.4);
+  c.lineTo(29.4, 6);
+  c.lineTo(31.8, 9.6);
+  c.closePath();
+  c.fill();
+}
+
+exports.REFLECT = REFLECT;
+
+exports.createMazeRenderer = createMazeRenderer; exports.paintMazeLegend = paintMazeLegend; exports.paintInventoryMirror = paintInventoryMirror;
+};
+__defs["games/laser-maze/styles.js"] = function (exports, __req) {
+/**
+ * styles.js — CSS riêng Laser Maze 404: sidebar TRÁI (MÀN / GƯƠNG /
+ * THỜI GIAN + chú giải 7 thành phần), board giữa, sidebar PHẢI
+ * (HOÀN TÁC / CHƠI LẠI / GỢI Ý + KHO GƯƠNG) — theo ảnh reference.
+ */
+
+const LM_CSS = /* css */ `
+.lm-mode .exp-title {
+  border: 1px solid color-mix(in srgb, var(--pink) 45%, transparent);
+  padding: 5px 16px 7px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+  background: rgba(7, 11, 30, 0.9);
+}
+
+.lm-mode .exp-btn { min-width: 46px; min-height: 44px; padding: 5px; }
+.lm-mode .exp-btn .bl { display: none; }
+.lm-mode .exp-btn:nth-child(3) { min-width: 58px; }
+.lm-mode .exp-btn:nth-child(3) .bl { display: block; }
+
+.lm-layout {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+}
+
+.lm-side {
+  flex: none;
+  width: 198px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+}
+
+.lm-side-right { width: 188px; }
+
+.lm-panel {
+  --tone: var(--cyan);
+  border: 1px solid color-mix(in srgb, var(--tone) 40%, transparent);
+  background: rgba(7, 11, 30, 0.88);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  padding: 9px 12px 11px;
+  text-align: center;
+}
+
+.lm-panel .lbl {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.lm-panel .val {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  color: var(--cyan);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--cyan) 55%, transparent);
+}
+
+.lm-panel[data-tone="white"] .val { color: var(--text-0); text-shadow: 0 0 12px rgba(244,247,255,.3); }
+
+.lm-legend {
+  text-align: left;
+  display: grid;
+  gap: 8px;
+}
+
+.lm-legend-row { display: flex; align-items: center; gap: 9px; }
+
+.lm-legend-row canvas { width: 28px; height: 28px; flex: none; }
+
+.lm-legend-row .txt { min-width: 0; }
+
+.lm-legend-row .name {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--text-0);
+}
+
+.lm-legend-row .desc {
+  font-size: 0.56rem;
+  letter-spacing: 0.04em;
+  color: var(--cyan);
+  opacity: 0.8;
+  margin-top: 1px;
+}
+
+/* ---------- board giữa ---------- */
+
+.lm-board {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.lm-board canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: manipulation;
+}
+
+/* ---------- sidebar phải ---------- */
+
+.lm-action {
+  --tone: var(--cyan);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 52px;
+  width: 100%;
+  border: 1.6px solid color-mix(in srgb, var(--tone) 65%, transparent);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--tone) 16%, rgba(9,13,32,0.94)), rgba(9, 13, 32, 0.94));
+  color: var(--text-0);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.lm-action:hover {
+  box-shadow: 0 0 18px color-mix(in srgb, var(--tone) 45%, transparent);
+  transform: translateY(-1px);
+}
+
+.lm-action .icon { width: 17px; height: 17px; color: var(--tone); }
+
+.lm-action[data-tone="blue"]   { --tone: #3b7bff; }
+.lm-action[data-tone="violet"] { --tone: var(--violet); }
+.lm-action[data-tone="green"]  { --tone: #24e06a; }
+
+.lm-inv-head {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: var(--text-0);
+  text-align: center;
+  margin: 4px 0 8px;
+}
+
+.lm-inv-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.lm-slot {
+  aspect-ratio: 1;
+  border: 1px solid rgba(110, 135, 190, 0.35);
+  border-radius: 9px;
+  background: rgba(13, 18, 38, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lm-slot canvas { width: 74%; height: 74%; }
+
+.lm-slot.empty { border-style: dashed; opacity: 0.4; }
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 980px) {
+  .lm-layout { flex-direction: column; padding: 8px; gap: 8px; }
+  .lm-side {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    overflow: visible;
+    gap: 8px;
+  }
+  .lm-panel { flex: 1 1 90px; padding: 6px 8px; }
+  .lm-panel .val { font-size: 1.05rem; }
+  .lm-panel .lbl { font-size: 0.52rem; margin-bottom: 2px; }
+  .lm-panel-legend { display: none; }
+  .lm-side-right { order: 3; }
+  .lm-side-right .lm-action { flex: 1 1 30%; min-height: 42px; font-size: 0.68rem; }
+  .lm-inv { flex: 1 1 100%; }
+  .lm-inv-grid { grid-template-columns: repeat(8, 1fr); }
+  .lm-board { min-height: 0; flex: 1; order: 2; }
+}
+`;
+
+exports.LM_CSS = LM_CSS;
+};
+__defs["games/pixel-golf/index.js"] = function (exports, __req) {
+/**
+ * Pixel Golf 404 — mini golf 9 hố (expansion 11–15).
+ *
+ * Theo ảnh reference: topbar tiêu đề + 4 nút hệ thống có nhãn; cột
+ * panel nổi trái (HỐ / GẬY / PAR / ĐIỂM / GIÓ), hướng dẫn "KÉO ĐỂ NGẮM
+ * / THẢ ĐỂ ĐÁNH" góc trái dưới, thanh SỨC MẠNH gradient giữa đáy.
+ * Kéo ngược hướng muốn đánh (độ dài = lực, thả để đánh); bàn phím:
+ * ←/→ chỉnh góc, giữ SPACE tụ lực. Physics fixed timestep trong
+ * engine.js (tường/cát/bumper/cổng trượt/portal/gió/out-of-bounds).
+ * Tiến trình từng hố lưu storage; điểm gửi onGameOver khi xong 9 hố.
+ */
+
+const { createExpansionFrame } = __req("games/_shared/frame.js");
+const { createKeyboard } = __req("core/input-manager.js");
+const { createLoop } = __req("core/loop.js");
+const { el, formatNumber } = __req("core/utils.js");
+const { createHole, stepHole, shoot, drainEvents, scoreName, holePoints, MAX_SHOT } = __req("games/pixel-golf/engine.js");
+const { COURSES } = __req("games/pixel-golf/courses.js");
+const { createGolfRenderer, paintGolfIcon } = __req("games/pixel-golf/render.js");
+const { PG_CSS } = __req("games/pixel-golf/styles.js");
+
+const PROGRESS_KEY = "pg-progress";
+const STEP = 1 / 120;
+const SEGS = 26;
+
+function createGame() {
+  let ctx = null;
+  let frame = null;
+  let renderer = null;
+  let keys = null;
+  let loop = null;
+  let ro = null;
+  let canvas = null;
+  let stage = null;
+
+  const TEST = typeof window !== "undefined" && window.__ARCADE_EXP11_TEST__;
+
+  let mode = "intro"; // intro | play | paused | holedone | finished
+  let holeIdx = 0;
+  let hs = null; // hole state engine
+  let def = null;
+  let strokesArr = [];
+  let points = 0;
+  let acc = 0;
+  let time = 0;
+  let stateT = 0;
+  let wallSfxT = 0;
+  let nextHoleT = 0;
+
+  // ngắm
+  const aim = { active: false, sx: 0, sy: 0, angle: 0, power: 0 };
+  const kb = { charging: false, t: 0, angle: 0 };
+  const ui = { aim: null, trail: [] };
+  const hud = { hole: null, strokes: null, par: null, score: null, wind: null, windDir: null, segs: [], marker: null };
+
+  /* ---------------- Tiến trình ---------------- */
+
+  function readProgress() {
+    const p = ctx.storage.getPref(PROGRESS_KEY, null);
+    if (
+      p &&
+      typeof p === "object" &&
+      p.v === 1 &&
+      Number.isInteger(p.hole) &&
+      p.hole >= 0 &&
+      p.hole < COURSES.length &&
+      Array.isArray(p.strokes)
+    ) {
+      return { hole: p.hole, strokes: p.strokes.slice(0, p.hole), points: Number.isFinite(p.points) ? p.points : 0 };
+    }
+    return { hole: 0, strokes: [], points: 0 };
+  }
+
+  function saveProgress(holeNext) {
+    ctx.storage.setPref(PROGRESS_KEY, { v: 1, hole: holeNext, strokes: strokesArr.slice(), points });
+  }
+
+  /* ---------------- HUD ---------------- */
+
+  function relToPar() {
+    let rel = 0;
+    for (let i = 0; i < strokesArr.length; i++) rel += strokesArr[i] - COURSES[i].par;
+    if (hs) rel += Math.max(0, hs.strokes - def.par);
+    return rel;
+  }
+
+  function updateHud() {
+    hud.hole.innerHTML = "";
+    hud.hole.append(String(holeIdx + 1).padStart(2, "0"));
+    const small = el("small", "", `/${String(COURSES.length).padStart(2, "0")}`);
+    hud.hole.appendChild(small);
+    hud.strokes.textContent = String(hs ? hs.strokes : 0).padStart(2, "0");
+    hud.par.textContent = String(def.par).padStart(2, "0");
+    const rel = relToPar();
+    hud.score.textContent = rel > 0 ? `+${rel}` : String(rel);
+    if (def.wind) {
+      const mag = (Math.hypot(def.wind.x, def.wind.y) / 34).toFixed(1);
+      const dir =
+        Math.abs(def.wind.x) > Math.abs(def.wind.y) ? (def.wind.x > 0 ? "→" : "←") : def.wind.y > 0 ? "↓" : "↑";
+      hud.wind.textContent = mag;
+      hud.windDir.textContent = dir;
+    } else {
+      hud.wind.textContent = "0.0";
+      hud.windDir.textContent = "·";
+    }
+  }
+
+  function setPower(p) {
+    const on = Math.round(p * SEGS);
+    hud.segs.forEach((seg, i) => seg.classList.toggle("on", i < on));
+    hud.marker.style.left = `${(p * 100).toFixed(1)}%`;
+  }
+
+  /* ---------------- Vòng đời hố ---------------- */
+
+  function beginHole(idx, { fresh = false } = {}) {
+    holeIdx = idx;
+    def = COURSES[idx];
+    hs = createHole(def);
+    if (fresh) {
+      strokesArr = strokesArr.slice(0, idx);
+    }
+    ui.trail.length = 0;
+    ui.aim = null;
+    aim.active = false;
+    kb.charging = false;
+    kb.angle = Math.atan2(def.hole.y - def.tee.y, def.hole.x - def.tee.x);
+    nextHoleT = 0;
+    saveProgress(idx);
+    mode = "play";
+    frame.clearScreen();
+    frame.setPaused(false);
+    ctx.onMatchStart();
+    frame.banner(`HỐ ${String(idx + 1).padStart(2, "0")} — ${def.name} (PAR ${def.par})`);
+    ctx.audio.play("start");
+    renderer.fit();
+    updateHud();
+    setPower(0);
+    loop.start();
+  }
+
+  function finishCampaign() {
+    mode = "finished";
+    const totalStrokes = strokesArr.reduce((a, b) => a + b, 0);
+    const totalPar = COURSES.reduce((a, c) => a + c.par, 0);
+    const rel = totalStrokes - totalPar;
+    const holeInOnes = strokesArr.filter((s) => s === 1).length;
+    saveProgress(0);
+    ctx.storage.setPref(PROGRESS_KEY, { v: 1, hole: 0, strokes: [], points: 0 });
+    const saved = ctx.onGameOver(points, { strokes: totalStrokes, rel });
+    frame.overScreen({
+      kicker: "// KẾT THÚC VÒNG GOLF",
+      heading: "HOÀN THÀNH 9 HỐ!",
+      score: points,
+      saved,
+      statCards: [
+        { label: "TỔNG GẬY", value: totalStrokes, color: "cyan" },
+        { label: "SO VỚI PAR", value: rel > 0 ? `+${rel}` : String(rel), color: rel <= 0 ? "lime" : "red" },
+        { label: "HOLE-IN-ONE", value: holeInOnes, color: "gold" },
+        { label: "PAR SÂN", value: totalPar, color: "violet" },
+      ],
+      restartLabel: "CHƠI LẠI TỪ ĐẦU",
+      onRestart: () => {
+        strokesArr = [];
+        points = 0;
+        beginHole(0);
+      },
+      scoreLabel: "ĐIỂM",
+    });
+  }
+
+  function onSink(strokes) {
+    strokesArr[holeIdx] = strokes;
+    const gained = holePoints(strokes, def.par);
+    points += gained;
+    ctx.audio.play("pg_sink");
+    frame.banner(scoreName(strokes, def.par));
+    updateHud();
+    if (holeIdx === COURSES.length - 1) {
+      nextHoleT = 1.6;
+    } else {
+      saveProgress(holeIdx + 1);
+      nextHoleT = 1.6;
+    }
+    mode = "holedone";
+  }
+
+  /* ---------------- Pause ---------------- */
+
+  function pauseGame() {
+    if (mode !== "play" && mode !== "holedone") return;
+    mode = "paused";
+    loop.stop();
+    frame.setPaused(true);
+    frame.pauseMenu({
+      onResume: () => resumeGame(),
+      onRestart: () => beginHole(holeIdx, { fresh: true }),
+      restartLabel: "CHƠI LẠI HỐ",
+      buildExtra: (box) => {
+        const row = el("div", "exp-setrow");
+        row.appendChild(el("span", "", "TIẾN TRÌNH"));
+        const rel = relToPar();
+        row.appendChild(
+          el("span", "val", `HỐ ${holeIdx + 1}/9 · ${rel > 0 ? "+" : ""}${rel} PAR · ${formatNumber(points)} ĐIỂM`)
+        );
+        box.appendChild(row);
+      },
+    });
+  }
+
+  function resumeGame() {
+    if (mode !== "paused") return;
+    mode = hs.sunk ? "holedone" : "play";
+    frame.clearScreen();
+    frame.setPaused(false);
+    keys.clearDown();
+    aim.active = false;
+    kb.charging = false;
+    loop.start();
+  }
+
+  function togglePause() {
+    if (mode === "play" || mode === "holedone") pauseGame();
+    else if (mode === "paused") resumeGame();
+  }
+
+  /* ---------------- Intro ---------------- */
+
+  function showIntro() {
+    mode = "intro";
+    loop.stop();
+    const progress = readProgress();
+    const extra = [];
+    if (progress.hole > 0) {
+      extra.push([
+        "Chơi từ đầu",
+        "i-restart",
+        "gold",
+        () => {
+          strokesArr = [];
+          points = 0;
+          beginHole(0);
+        },
+      ]);
+    }
+    frame.intro({
+      kicker: "// GIẢI GOLF PIXEL",
+      heading: [["PIXEL GOLF ", ""], ["404", "pink"]],
+      goal:
+        "Đưa bóng vào lỗ của 9 hố với số gậy thấp nhất. Kéo ngược hướng muốn đánh — kéo càng dài lực càng mạnh. Coi chừng hố cát, cổng laser trượt, trụ bật và GIÓ; cổng không gian sẽ dịch chuyển bóng!",
+      rows: [
+        { keys: ["Kéo"], text: "ngắm (kéo ngược hướng đánh) — thả để đánh" },
+        { keys: ["← →"], text: "chỉnh góc bằng phím" },
+        { keys: ["SPACE"], text: "giữ để tụ lực, thả để đánh" },
+        { keys: ["ESC"], text: "tạm dừng" },
+      ],
+      startLabel: progress.hole > 0 ? `TIẾP TỤC — HỐ ${String(progress.hole + 1).padStart(2, "0")}` : "BẮT ĐẦU",
+      onStart: () => {
+        const p = readProgress();
+        strokesArr = p.strokes.slice();
+        points = p.points;
+        beginHole(p.hole);
+      },
+      extra,
+    });
+    const p = readProgress();
+    holeIdx = p.hole;
+    def = COURSES[holeIdx];
+    hs = createHole(def);
+    renderer.fit();
+    renderer.draw(def, hs, ui, 0);
+    updateHud();
+  }
+
+  /* ---------------- Sự kiện engine ---------------- */
+
+  function handleEvents(events) {
+    for (const ev of events) {
+      switch (ev.type) {
+        case "hit":
+          ctx.audio.play("pg_hit");
+          break;
+        case "wall":
+        case "gate":
+          if (time - wallSfxT > 0.09) {
+            wallSfxT = time;
+            ctx.audio.play("pg_wall");
+          }
+          break;
+        case "sand":
+          ctx.audio.play("pg_sand");
+          break;
+        case "bumper":
+          ctx.audio.play("pg_bumper");
+          break;
+        case "portal":
+          ctx.audio.play("portal");
+          break;
+        case "oob":
+          ctx.audio.play("pg_oob");
+          frame.toast("RA NGOÀI SÂN! +1 GẬY PHẠT");
+          updateHud();
+          break;
+        case "rest":
+          updateHud();
+          if (ev.sand) frame.toast("KẸT TRONG CÁT — ĐÁNH MẠNH HƠN!");
+          break;
+        case "sink":
+          onSink(ev.strokes);
+          return;
+        default:
+          break;
+      }
+    }
+  }
+
+  /* ---------------- Vòng lặp ---------------- */
+
+  function update(dt) {
+    time += dt;
+
+    if (mode === "play" || mode === "holedone") {
+      acc = Math.min(acc + dt, 0.1);
+      while (acc >= STEP) {
+        acc -= STEP;
+        stepHole(hs, STEP);
+      }
+      handleEvents(drainEvents(hs));
+
+      if (hs.moving) {
+        ui.trail.push({ x: hs.ball.x, y: hs.ball.y });
+        if (ui.trail.length > 20) ui.trail.shift();
+      } else if (ui.trail.length) {
+        ui.trail.shift();
+      }
+
+      // chỉnh góc bằng ←/→ (fallback bàn phím)
+      if (mode === "play" && !hs.moving && !hs.sunk && !aim.active) {
+        const left = keys.isDown("ArrowLeft") || keys.isDown("KeyA");
+        const right = keys.isDown("ArrowRight") || keys.isDown("KeyD");
+        if (left || right) {
+          kb.angle += ((right ? 1 : 0) - (left ? 1 : 0)) * 2.4 * dt;
+          if (!kb.charging) ui.aim = { angle: kb.angle, power: 0.3 };
+        }
+      }
+
+      // tụ lực bằng phím Space (ping-pong 0→1→0)
+      if (kb.charging && mode === "play" && !hs.moving) {
+        kb.t += dt * 1.15;
+        const ping = kb.t % 2;
+        const p = ping < 1 ? ping : 2 - ping;
+        ui.aim = { angle: kb.angle, power: p };
+        setPower(p);
+      }
+
+      if (mode === "holedone") {
+        nextHoleT -= dt;
+        if (nextHoleT <= 0) {
+          if (holeIdx === COURSES.length - 1) {
+            finishCampaign();
+          } else {
+            beginHole(holeIdx + 1);
+          }
+          return;
+        }
+      }
+    }
+
+    renderer.draw(def, hs, ui, time);
+
+    if (TEST) {
+      stateT += dt;
+      if (stateT > 0.35) {
+        stateT = 0;
+        window.__PG_STATE__ = {
+          mode,
+          hole: holeIdx + 1,
+          strokes: hs ? hs.strokes : 0,
+          par: def ? def.par : 0,
+          moving: hs ? hs.moving : false,
+          sunk: hs ? hs.sunk : false,
+          x: hs ? Math.round(hs.ball.x) : 0,
+          y: hs ? Math.round(hs.ball.y) : 0,
+          points,
+          rel: relToPar(),
+        };
+      }
+    }
+  }
+
+  /* ---------------- Interface ---------------- */
+
+  return {
+    async mount(container, context) {
+      ctx = context;
+
+      const rootNode = container.getRootNode();
+      if (rootNode instanceof ShadowRoot && !rootNode.querySelector("#pg-style")) {
+        const style = document.createElement("style");
+        style.id = "pg-style";
+        style.textContent = PG_CSS;
+        rootNode.appendChild(style);
+      }
+
+      frame = createExpansionFrame(container, ctx, {
+        accent: "violet",
+        title: [["PIXEL GOLF ", ""], ["404", "pink"]],
+        stats: [],
+        onPauseToggle: togglePause,
+      });
+
+      stage = el("div", "pg-stage");
+      canvas = document.createElement("canvas");
+      canvas.setAttribute("aria-label", "Sân golf Pixel Golf");
+      stage.appendChild(canvas);
+      frame.playfield.appendChild(stage);
+
+      /* cột panel trái */
+      const panels = el("div", "pg-panels");
+      const mkPanel = (icon, label, tone) => {
+        const p = el("div", "pg-panel");
+        p.dataset.tone = tone;
+        const cv = document.createElement("canvas");
+        paintGolfIcon(cv, icon);
+        p.appendChild(cv);
+        const txt = el("div", "txt");
+        txt.appendChild(el("div", "lbl", label));
+        const val = el("div", "val", "—");
+        txt.appendChild(val);
+        p.appendChild(txt);
+        panels.appendChild(p);
+        return val;
+      };
+      hud.hole = mkPanel("flag", "HỐ", "cyan");
+      hud.strokes = mkPanel("club", "GẬY", "green");
+      hud.par = mkPanel("par", "PAR", "violet");
+      hud.score = mkPanel("star", "ĐIỂM", "pink");
+      hud.wind = mkPanel("wind", "GIÓ", "cyan");
+      hud.windDir = el("span", "pg-wind-dir", "·");
+      hud.wind.appendChild(hud.windDir);
+      frame.playfield.appendChild(panels);
+
+      /* hướng dẫn góc trái dưới */
+      const help = el("div", "pg-help");
+      const handSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      handSvg.setAttribute("viewBox", "0 0 24 24");
+      const handPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      handPath.setAttribute(
+        "d",
+        "M9 11V4.5a1.5 1.5 0 0 1 3 0V10h1V6.5a1.5 1.5 0 0 1 3 0V11h1V8.5a1.5 1.5 0 0 1 3 0V14c0 4-2.5 7-6.5 7S7 18 6 15.5L4.2 11a1.4 1.4 0 0 1 2.5-1.2L8 12h1z"
+      );
+      handPath.setAttribute("fill", "none");
+      handPath.setAttribute("stroke", "currentColor");
+      handPath.setAttribute("stroke-width", "1.6");
+      handSvg.appendChild(handPath);
+      help.appendChild(handSvg);
+      help.appendChild(el("div", "txt", "KÉO ĐỂ NGẮM\nTHẢ ĐỂ ĐÁNH"));
+      help.querySelector(".txt").style.whiteSpace = "pre";
+      frame.playfield.appendChild(help);
+
+      /* thanh sức mạnh */
+      const power = el("div", "pg-power");
+      power.appendChild(el("div", "lbl", "SỨC MẠNH"));
+      const bar = el("div", "bar");
+      const segsBox = el("div", "segs");
+      for (let i = 0; i < SEGS; i++) {
+        const seg = el("i");
+        const k = i / (SEGS - 1);
+        const hue = 130 - k * 130; // xanh lá → đỏ
+        seg.style.setProperty("--seg", `hsl(${hue} 95% 55%)`);
+        segsBox.appendChild(seg);
+        hud.segs.push(seg);
+      }
+      bar.appendChild(segsBox);
+      hud.marker = el("div", "marker");
+      bar.appendChild(hud.marker);
+      power.appendChild(bar);
+      frame.playfield.appendChild(power);
+
+      renderer = createGolfRenderer(canvas, stage);
+      ro = new ResizeObserver(() => {
+        renderer.fit();
+        if (mode !== "play" && def) renderer.draw(def, hs, ui, time);
+      });
+      ro.observe(stage);
+
+      /* ngắm bằng pointer: kéo ngược hướng đánh */
+      canvas.addEventListener(
+        "pointerdown",
+        (e) => {
+          if (mode !== "play" || hs.moving || hs.sunk) return;
+          e.preventDefault();
+          try {
+            canvas.setPointerCapture?.(e.pointerId);
+          } catch {
+            /* PointerEvent tổng hợp (QA) không có pointer thật */
+          }
+          const w = renderer.toWorld(e.clientX, e.clientY);
+          aim.active = true;
+          aim.sx = w.x;
+          aim.sy = w.y;
+          aim.power = 0;
+        },
+        { signal: ctx.signal }
+      );
+      canvas.addEventListener(
+        "pointermove",
+        (e) => {
+          if (!aim.active) return;
+          const w = renderer.toWorld(e.clientX, e.clientY);
+          const dx = aim.sx - w.x;
+          const dy = aim.sy - w.y;
+          const d = Math.hypot(dx, dy);
+          aim.power = Math.min(1, d / 230);
+          aim.angle = Math.atan2(dy, dx);
+          if (d > 8) {
+            ui.aim = { angle: aim.angle, power: aim.power };
+            setPower(aim.power);
+          }
+        },
+        { signal: ctx.signal }
+      );
+      const endAim = (e) => {
+        if (!aim.active) return;
+        aim.active = false;
+        const a = ui.aim;
+        ui.aim = null;
+        setPower(0);
+        if (mode !== "play" || !a || a.power < 0.06) return;
+        if (shoot(hs, a.angle, a.power)) {
+          kb.angle = a.angle;
+          updateHud();
+        }
+      };
+      canvas.addEventListener("pointerup", endAim, { signal: ctx.signal });
+      canvas.addEventListener("pointercancel", () => {
+        aim.active = false;
+        ui.aim = null;
+        setPower(0);
+      }, { signal: ctx.signal });
+
+      /* bàn phím */
+      keys = createKeyboard({ signal: ctx.signal });
+      keys.on(["Space"], () => {
+        if (mode !== "play" || hs.moving || hs.sunk || aim.active) return;
+        if (!kb.charging) {
+          kb.charging = true;
+          kb.t = 0;
+        }
+      });
+      window.addEventListener(
+        "keyup",
+        (e) => {
+          if (e.code !== "Space" || !kb.charging) return;
+          kb.charging = false;
+          const a = ui.aim;
+          ui.aim = null;
+          setPower(0);
+          if (mode === "play" && a && a.power > 0.05 && shoot(hs, a.angle, a.power)) updateHud();
+        },
+        { signal: ctx.signal }
+      );
+      keys.on(["KeyP"], () => togglePause());
+
+      loop = createLoop(update);
+
+      if (TEST) {
+        window.__PG_TEST__ = {
+          shoot: (deg, power) => {
+            if (mode !== "play") return false;
+            const ok = shoot(hs, (deg * Math.PI) / 180, power);
+            if (ok) updateHud();
+            return ok;
+          },
+          place: (x, y) => {
+            if (!hs || hs.moving) return false;
+            hs.ball.x = x;
+            hs.ball.y = y;
+            hs.rest = { x, y };
+            return true;
+          },
+          hole: () => (def ? { x: def.hole.x, y: def.hole.y } : null),
+          ballPos: () => (hs ? { x: hs.ball.x, y: hs.ball.y } : null),
+          clientOf: (x, y) => renderer.toClient(x, y),
+          maxShot: MAX_SHOT,
+        };
+      }
+
+      showIntro();
+    },
+
+    start() {
+      if (mode !== "intro") return;
+      const p = readProgress();
+      strokesArr = p.strokes.slice();
+      points = p.points;
+      beginHole(p.hole);
+    },
+
+    pause() {
+      pauseGame();
+    },
+
+    resume() {
+      resumeGame();
+    },
+
+    restart() {
+      if (mode === "intro") return;
+      beginHole(holeIdx, { fresh: true });
+    },
+
+    resize() {
+      renderer?.fit();
+    },
+
+    destroy() {
+      loop?.stop();
+      keys?.destroy();
+      ro?.disconnect();
+      frame?.destroy();
+      frame = null;
+      renderer = null;
+      hs = null;
+      def = null;
+      if (typeof window !== "undefined") {
+        delete window.__PG_STATE__;
+        delete window.__PG_TEST__;
+      }
+    },
+  };
+}
+
+exports.createGame = createGame;
+};
+__defs["games/pixel-golf/engine.js"] = function (exports, __req) {
+/**
+ * engine.js — Pixel Golf 404: physics thuần (không DOM) để unit test.
+ *
+ * Fixed timestep + substep: mỗi substep bóng đi tối đa ~nửa bán kính
+ * nên không xuyên tường ở lực tối đa. Va chạm circle-vs-segment
+ * (tường, cổng trượt) và circle-vs-circle (bumper). Ma sát theo bề mặt
+ * (cỏ / cát), gió cộng lực khi bóng lăn, portal có cooldown chống lặp,
+ * ra ngoài sân (out-of-bounds) → trả bóng về vị trí nghỉ + phạt 1 gậy.
+ */
+
+const BALL_R = 7;
+const MAX_SHOT = 700; // tốc độ tối đa khi đánh hết lực
+const STOP_SPEED = 8;
+const SINK_DIST = 11;
+const SINK_SPEED = 280;
+const PORTAL_R = 17;
+const PORTAL_CD = 0.55;
+const FRICTION_GREEN = 1.05;
+const FRICTION_SAND = 5.6;
+const WALL_BOUNCE = 0.82;
+
+/** Điểm trong đa giác (ray-cast). pts = [[x,y]...] */
+function pointInPoly(pts, x, y) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i];
+    const [xj, yj] = pts[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/** Tất cả đoạn tường của hố: cạnh đa giác + tường trong. */
+function wallsOf(def) {
+  const segs = [];
+  const pts = def.poly;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i];
+    const b = pts[(i + 1) % pts.length];
+    segs.push([a[0], a[1], b[0], b[1]]);
+  }
+  for (const w of def.walls || []) segs.push(w);
+  return segs;
+}
+
+/** Vị trí thanh cổng trượt tại thời điểm t: đoạn [x1,y1,x2,y2]. */
+function gateSegment(gate, t) {
+  const k = 0.5 + 0.5 * Math.sin((t / gate.period) * Math.PI * 2 + (gate.phase || 0));
+  const span = { x: gate.x2 - gate.x1, y: gate.y2 - gate.y1 };
+  const len = Math.hypot(span.x, span.y);
+  const barLen = gate.bar;
+  const travel = len - barLen;
+  const off = travel * k;
+  const ux = span.x / len;
+  const uy = span.y / len;
+  return [gate.x1 + ux * off, gate.y1 + uy * off, gate.x1 + ux * (off + barLen), gate.y1 + uy * (off + barLen)];
+}
+
+function createHole(def) {
+  return {
+    def,
+    walls: wallsOf(def),
+    ball: { x: def.tee.x, y: def.tee.y, vx: 0, vy: 0 },
+    moving: false,
+    strokes: 0,
+    sunk: false,
+    rest: { x: def.tee.x, y: def.tee.y },
+    portalCd: 0,
+    portalFree: true, // đã rời khỏi vùng portal sau khi dịch chuyển
+    bumperCd: new Map(),
+    inSand: false,
+    time: 0,
+    events: [],
+  };
+}
+
+/** Đánh bóng: chỉ khi bóng đứng yên và chưa vào lỗ. */
+function shoot(hs, angle, power) {
+  if (hs.moving || hs.sunk) return false;
+  const p = Math.max(0.06, Math.min(1, power));
+  hs.rest = { x: hs.ball.x, y: hs.ball.y };
+  hs.ball.vx = Math.cos(angle) * MAX_SHOT * p;
+  hs.ball.vy = Math.sin(angle) * MAX_SHOT * p;
+  hs.moving = true;
+  hs.strokes += 1;
+  hs.events.push({ type: "hit", power: p });
+  return true;
+}
+
+function collideSegment(ball, seg, events, hs) {
+  const [x1, y1, x2, y2] = seg;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len2 = dx * dx + dy * dy || 1;
+  let t = ((ball.x - x1) * dx + (ball.y - y1) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const cx = x1 + dx * t;
+  const cy = y1 + dy * t;
+  let nx = ball.x - cx;
+  let ny = ball.y - cy;
+  const d = Math.hypot(nx, ny);
+  if (d >= BALL_R || d === 0) return false;
+  nx /= d;
+  ny /= d;
+  // đẩy ra + phản xạ
+  ball.x = cx + nx * (BALL_R + 0.15);
+  ball.y = cy + ny * (BALL_R + 0.15);
+  const vn = ball.vx * nx + ball.vy * ny;
+  if (vn < 0) {
+    ball.vx -= (1 + WALL_BOUNCE) * vn * nx;
+    ball.vy -= (1 + WALL_BOUNCE) * vn * ny;
+    if (Math.abs(vn) > 40 && events) events.push({ type: "wall", speed: Math.abs(vn) });
+  }
+  return true;
+}
+
+function inSandAt(def, x, y) {
+  for (const s of def.sand || []) {
+    if (Math.hypot(x - s.x, y - s.y) < s.r) return true;
+  }
+  return false;
+}
+
+/** Bước mô phỏng dt cố định (khuyên 1/120). */
+function stepHole(hs, dt) {
+  hs.time += dt;
+  if (hs.portalCd > 0) hs.portalCd -= dt;
+  for (const [k, v] of hs.bumperCd) {
+    if (v - dt <= 0) hs.bumperCd.delete(k);
+    else hs.bumperCd.set(k, v - dt);
+  }
+  if (!hs.moving || hs.sunk) return;
+
+  const def = hs.def;
+  const ball = hs.ball;
+
+  // gió (chỉ tác động khi bóng đang lăn)
+  if (def.wind) {
+    ball.vx += def.wind.x * dt;
+    ball.vy += def.wind.y * dt;
+  }
+
+  // ma sát theo bề mặt
+  const sandNow = inSandAt(def, ball.x, ball.y);
+  if (sandNow && !hs.inSand) hs.events.push({ type: "sand" });
+  hs.inSand = sandNow;
+  const mu = sandNow ? FRICTION_SAND : FRICTION_GREEN;
+  const damp = Math.exp(-mu * dt);
+  ball.vx *= damp;
+  ball.vy *= damp;
+
+  let speed = Math.hypot(ball.vx, ball.vy);
+
+  // hút nhẹ về lỗ khi tới gần và chậm
+  const hd = Math.hypot(ball.x - def.hole.x, ball.y - def.hole.y);
+  if (hd < 24 && speed < 150) {
+    ball.vx += ((def.hole.x - ball.x) / hd) * 140 * dt;
+    ball.vy += ((def.hole.y - ball.y) / hd) * 140 * dt;
+    speed = Math.hypot(ball.vx, ball.vy);
+  }
+
+  // dừng hẳn
+  if (speed < STOP_SPEED) {
+    ball.vx = 0;
+    ball.vy = 0;
+    hs.moving = false;
+    hs.rest = { x: ball.x, y: ball.y };
+    hs.events.push({ type: "rest", sand: sandNow });
+    return;
+  }
+
+  // substep chống xuyên tường
+  const maxMove = BALL_R * 0.5;
+  const steps = Math.max(1, Math.ceil((speed * dt) / maxMove));
+  const sdt = dt / steps;
+  const gateSegs = (def.gates || []).map((g) => gateSegment(g, hs.time));
+
+  for (let s = 0; s < steps; s++) {
+    ball.x += ball.vx * sdt;
+    ball.y += ball.vy * sdt;
+
+    for (const seg of hs.walls) collideSegment(ball, seg, hs.events, hs);
+    for (const seg of gateSegs) {
+      if (collideSegment(ball, seg, null, hs)) hs.events.push({ type: "gate" });
+    }
+
+    // bumper
+    for (let i = 0; i < (def.bumpers || []).length; i++) {
+      const b = def.bumpers[i];
+      const dx = ball.x - b.x;
+      const dy = ball.y - b.y;
+      const d = Math.hypot(dx, dy);
+      if (d < BALL_R + b.r && d > 0) {
+        const nx = dx / d;
+        const ny = dy / d;
+        ball.x = b.x + nx * (BALL_R + b.r + 0.2);
+        ball.y = b.y + ny * (BALL_R + b.r + 0.2);
+        const vn = ball.vx * nx + ball.vy * ny;
+        if (vn < 0) {
+          ball.vx -= 2 * vn * nx;
+          ball.vy -= 2 * vn * ny;
+        }
+        if (!hs.bumperCd.has(i)) {
+          const sp = Math.max(Math.hypot(ball.vx, ball.vy) * 1.06, 430);
+          const k = sp / (Math.hypot(ball.vx, ball.vy) || 1);
+          ball.vx *= k;
+          ball.vy *= k;
+          hs.bumperCd.set(i, 0.12);
+          hs.events.push({ type: "bumper" });
+        }
+      }
+    }
+
+    // portal (cặp a↔b, giữ nguyên vận tốc, có cooldown)
+    if (def.portals) {
+      for (const p of def.portals) {
+        const near = (q) => Math.hypot(ball.x - q.x, ball.y - q.y) < PORTAL_R;
+        if (hs.portalCd <= 0 && hs.portalFree) {
+          let out = null;
+          if (near(p.a)) out = p.b;
+          else if (near(p.b)) out = p.a;
+          if (out) {
+            const sp = Math.hypot(ball.vx, ball.vy) || 1;
+            const ux = ball.vx / sp;
+            const uy = ball.vy / sp;
+            ball.x = out.x + ux * (PORTAL_R + BALL_R + 3);
+            ball.y = out.y + uy * (PORTAL_R + BALL_R + 3);
+            hs.portalCd = PORTAL_CD;
+            hs.portalFree = false;
+            hs.events.push({ type: "portal" });
+          }
+        } else if (!hs.portalFree) {
+          if (!near(p.a) && !near(p.b)) hs.portalFree = true;
+        }
+      }
+    }
+
+    // vào lỗ
+    const d2 = Math.hypot(ball.x - def.hole.x, ball.y - def.hole.y);
+    const spNow = Math.hypot(ball.vx, ball.vy);
+    if (d2 < SINK_DIST && spNow < SINK_SPEED) {
+      hs.sunk = true;
+      hs.moving = false;
+      ball.x = def.hole.x;
+      ball.y = def.hole.y;
+      ball.vx = 0;
+      ball.vy = 0;
+      hs.events.push({ type: "sink", strokes: hs.strokes });
+      return;
+    }
+
+    // out-of-bounds: trả về vị trí nghỉ + phạt 1 gậy
+    if (!pointInPoly(def.poly, ball.x, ball.y)) {
+      ball.x = hs.rest.x;
+      ball.y = hs.rest.y;
+      ball.vx = 0;
+      ball.vy = 0;
+      hs.moving = false;
+      hs.strokes += 1;
+      hs.events.push({ type: "oob" });
+      return;
+    }
+  }
+}
+
+function drainEvents(hs) {
+  const ev = hs.events;
+  hs.events = [];
+  return ev;
+}
+
+/** Tên kết quả so với par. */
+function scoreName(strokes, par) {
+  if (strokes === 1) return "HOLE-IN-ONE!";
+  const d = strokes - par;
+  if (d <= -2) return "EAGLE!";
+  if (d === -1) return "BIRDIE!";
+  if (d === 0) return "PAR";
+  if (d === 1) return "BOGEY";
+  if (d === 2) return "DOUBLE BOGEY";
+  return `+${d} GẬY`;
+}
+
+/** Điểm arcade cho một hố. */
+function holePoints(strokes, par) {
+  return Math.max(0, par - strokes + 2) * 150 + (strokes === 1 ? 250 : 0);
+}
+
+exports.pointInPoly = pointInPoly; exports.wallsOf = wallsOf; exports.gateSegment = gateSegment; exports.createHole = createHole; exports.shoot = shoot; exports.inSandAt = inSandAt; exports.stepHole = stepHole; exports.drainEvents = drainEvents; exports.scoreName = scoreName; exports.holePoints = holePoints; exports.BALL_R = BALL_R; exports.MAX_SHOT = MAX_SHOT; exports.STOP_SPEED = STOP_SPEED; exports.SINK_DIST = SINK_DIST; exports.SINK_SPEED = SINK_SPEED; exports.PORTAL_R = PORTAL_R; exports.PORTAL_CD = PORTAL_CD;
+};
+__defs["games/pixel-golf/courses.js"] = function (exports, __req) {
+/**
+ * courses.js — 9 hố Pixel Golf 404 (module JS thuần).
+ * poly: viền sân (đa giác kín, tường phản xạ) · walls: tường trong
+ * sand: hố cát tròn · bumpers: trụ bật · gates: cổng trượt (thanh bar
+ * trượt qua lại giữa 2 mốc) · portals: cặp cổng không gian ·
+ * wind: lực gió (chỉ hố nâng cao) · tee/hole: điểm phát / lỗ.
+ * Thế giới mỗi hố 960×600.
+ */
+
+const WORLD_W = 960;
+const WORLD_H = 600;
+
+const COURSES = [
+  {
+    id: 1,
+    name: "SÂN TẬP",
+    par: 2,
+    poly: [[70, 150], [890, 150], [890, 450], [70, 450]],
+    tee: { x: 170, y: 300 },
+    hole: { x: 790, y: 300 },
+  },
+  {
+    id: 2,
+    name: "GÓC CUA",
+    par: 3,
+    poly: [[70, 280], [600, 280], [600, 110], [890, 110], [890, 520], [70, 520]],
+    tee: { x: 160, y: 400 },
+    hole: { x: 760, y: 190 },
+  },
+  {
+    id: 3,
+    name: "BẪY CÁT",
+    par: 3,
+    poly: [[70, 140], [890, 140], [890, 460], [70, 460]],
+    sand: [
+      { x: 480, y: 300, r: 74 },
+      { x: 420, y: 250, r: 48 },
+      { x: 545, y: 352, r: 52 },
+    ],
+    tee: { x: 160, y: 300 },
+    hole: { x: 800, y: 300 },
+  },
+  {
+    id: 4,
+    name: "MÁY BẮN",
+    par: 3,
+    poly: [[70, 120], [890, 120], [890, 480], [70, 480]],
+    bumpers: [
+      { x: 480, y: 220, r: 26 },
+      { x: 480, y: 380, r: 26 },
+      { x: 330, y: 300, r: 22 },
+      { x: 630, y: 300, r: 22 },
+    ],
+    tee: { x: 160, y: 300 },
+    hole: { x: 800, y: 300 },
+  },
+  {
+    id: 5,
+    name: "CỔNG TRƯỢT",
+    par: 3,
+    poly: [[70, 140], [890, 140], [890, 460], [70, 460]],
+    walls: [
+      [500, 140, 500, 240],
+      [500, 360, 500, 460],
+    ],
+    gates: [{ x1: 500, y1: 240, x2: 500, y2: 360, bar: 64, period: 2.6, phase: 0 }],
+    tee: { x: 160, y: 300 },
+    hole: { x: 790, y: 300 },
+  },
+  {
+    id: 6,
+    name: "SÂN 404",
+    par: 4,
+    poly: [[70, 110], [890, 110], [890, 500], [70, 500]],
+    walls: [[520, 110, 520, 360]],
+    gates: [{ x1: 520, y1: 360, x2: 520, y2: 500, bar: 70, period: 2.8, phase: 0.6 }],
+    sand: [
+      { x: 230, y: 400, r: 58 },
+      { x: 285, y: 432, r: 40 },
+    ],
+    bumpers: [{ x: 300, y: 200, r: 24 }],
+    portals: [{ a: { x: 400, y: 180 }, b: { x: 660, y: 180 } }],
+    tee: { x: 150, y: 440 },
+    hole: { x: 820, y: 160 },
+  },
+  {
+    id: 7,
+    name: "GIÓ THOẢNG",
+    par: 3,
+    poly: [[70, 150], [890, 150], [890, 450], [70, 450]],
+    wind: { x: 0, y: 44 },
+    sand: [{ x: 700, y: 380, r: 55 }],
+    tee: { x: 160, y: 300 },
+    hole: { x: 780, y: 240 },
+  },
+  {
+    id: 8,
+    name: "MÊ CUNG",
+    par: 4,
+    poly: [[70, 110], [890, 110], [890, 490], [70, 490]],
+    walls: [
+      [340, 110, 340, 370],
+      [620, 230, 620, 490],
+    ],
+    bumpers: [{ x: 480, y: 300, r: 22 }],
+    tee: { x: 150, y: 420 },
+    hole: { x: 810, y: 170 },
+  },
+  {
+    id: 9,
+    name: "CHUNG KẾT",
+    par: 5,
+    poly: [[70, 100], [890, 100], [890, 520], [430, 520], [430, 330], [70, 330]],
+    walls: [[520, 100, 520, 260]],
+    gates: [{ x1: 520, y1: 260, x2: 520, y2: 330, bar: 40, period: 2.2, phase: 0 }],
+    portals: [{ a: { x: 250, y: 160 }, b: { x: 840, y: 160 } }],
+    wind: { x: -38, y: 0 },
+    sand: [{ x: 700, y: 430, r: 50 }],
+    tee: { x: 150, y: 220 },
+    hole: { x: 620, y: 450 },
+  },
+];
+
+exports.WORLD_W = WORLD_W; exports.WORLD_H = WORLD_H; exports.COURSES = COURSES;
+};
+__defs["games/pixel-golf/render.js"] = function (exports, __req) {
+/**
+ * render.js — vẽ Pixel Golf 404 theo ảnh reference: nền vũ trụ pixel
+ * với cây / tinh thể / tượng đài neon, sân cỏ teal ca-rô viền gạch tím,
+ * hố cát vàng, bumper vòng neon, cổng trượt laser đỏ, cặp cổng không
+ * gian hồng–cyan kèm chevron, lỗ cờ trắng, bóng trắng + khung ngắm
+ * xanh lá, mũi tên ngắm nét đứt.
+ */
+
+const { WORLD_W, WORLD_H } = __req("games/pixel-golf/courses.js");
+const { pointInPoly, gateSegment, BALL_R, PORTAL_R } = __req("games/pixel-golf/engine.js");
+const { seededRand } = __req("core/utils.js");
+
+function createGolfRenderer(canvas, box) {
+  const g = canvas.getContext("2d");
+  let dpr = 1;
+  let scale = 1;
+  let offX = 0;
+  let offY = 0;
+
+  function fit() {
+    const rect = box.getBoundingClientRect();
+    if (rect.width < 4 || rect.height < 4) return;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    const k = Math.min(rect.width / WORLD_W, rect.height / WORLD_H);
+    scale = k * dpr;
+    offX = (rect.width * dpr - WORLD_W * scale) / 2;
+    offY = (rect.height * dpr - WORLD_H * scale) / 2;
+  }
+
+  function toWorld(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const px = (clientX - rect.left) * dpr;
+    const py = (clientY - rect.top) * dpr;
+    return { x: (px - offX) / scale, y: (py - offY) / scale };
+  }
+
+  function toClient(x, y) {
+    const rect = canvas.getBoundingClientRect();
+    return { cx: rect.left + (offX + x * scale) / dpr, cy: rect.top + (offY + y * scale) / dpr };
+  }
+
+  /* ---------- nền + sân (cache theo hố) ---------- */
+  let bgCanvas = null;
+  let bgHoleId = -1;
+
+  function px(c, x, y, s, color) {
+    c.fillStyle = color;
+    c.fillRect(Math.round(x), Math.round(y), s, s);
+  }
+
+  function drawPlant(c, x, y, rand) {
+    const kind = rand();
+    if (kind < 0.35) {
+      // xương rồng pixel
+      const col = rand() > 0.5 ? "#2fbf71" : "#7a4fd0";
+      for (let i = 0; i < 4; i++) px(c, x, y - i * 4, 4, col);
+      px(c, x - 4, y - 8, 4, col);
+      px(c, x + 4, y - 12, 4, col);
+      px(c, x, y - 16, 4, rand() > 0.5 ? "#ff5ad2" : col);
+    } else if (kind < 0.62) {
+      // tinh thể
+      const col = rand() > 0.5 ? "#20e3ff" : "#ff2ee6";
+      px(c, x, y, 5, col);
+      px(c, x + 3, y - 5, 5, col);
+      px(c, x - 3, y - 4, 4, `${col}aa`);
+      px(c, x + 1, y - 10, 4, "#ffffffcc");
+    } else if (kind < 0.85) {
+      // hoa nhỏ
+      const col = ["#ffd23f", "#ff5ad2", "#4df77f"][Math.floor(rand() * 3)];
+      px(c, x, y, 3, col);
+      px(c, x - 3, y + 2, 3, `${col}88`);
+      px(c, x + 3, y + 2, 3, `${col}88`);
+    } else {
+      // tượng đài neon
+      const col = ["#d7ff3e", "#ff2ee6", "#20e3ff"][Math.floor(rand() * 3)];
+      c.fillStyle = "#191d33";
+      c.fillRect(x - 6, y - 22, 12, 22);
+      c.fillStyle = col;
+      c.fillRect(x - 3, y - 17, 6, 6);
+      c.fillStyle = "#242847";
+      c.fillRect(x - 8, y - 4, 16, 4);
+    }
+  }
+
+  function paintBg(def) {
+    bgCanvas = document.createElement("canvas");
+    bgCanvas.width = canvas.width;
+    bgCanvas.height = canvas.height;
+    const c = bgCanvas.getContext("2d");
+    c.fillStyle = "#0a0a24";
+    c.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+    c.setTransform(scale, 0, 0, scale, offX, offY);
+
+    const rand = seededRand(9000 + def.id * 77);
+    // sao + hạt pixel nền
+    for (let i = 0; i < 90; i++) {
+      const x = rand() * WORLD_W;
+      const y = rand() * WORLD_H;
+      c.fillStyle = rand() > 0.8 ? "rgba(122,63,212,0.5)" : "rgba(160,175,235,0.28)";
+      c.fillRect(x, y, 2, 2);
+    }
+    // cây cối / tinh thể ngoài sân
+    for (let i = 0; i < 26; i++) {
+      const x = 24 + rand() * (WORLD_W - 48);
+      const y = 30 + rand() * (WORLD_H - 50);
+      if (pointInPoly(def.poly, x, y)) continue;
+      let clear = true;
+      for (const p of def.poly) {
+        if (Math.hypot(p[0] - x, p[1] - y) < 26) clear = false;
+      }
+      if (clear) drawPlant(c, x, y, rand);
+    }
+
+    // sân cỏ ca-rô teal
+    c.save();
+    c.beginPath();
+    c.moveTo(def.poly[0][0], def.poly[0][1]);
+    for (let i = 1; i < def.poly.length; i++) c.lineTo(def.poly[i][0], def.poly[i][1]);
+    c.closePath();
+    c.clip();
+    c.fillStyle = "#157f6d";
+    c.fillRect(0, 0, WORLD_W, WORLD_H);
+    const t = 32;
+    c.fillStyle = "#1b937e";
+    for (let y = 0; y < WORLD_H / t; y++) {
+      for (let x = 0; x < WORLD_W / t; x++) {
+        if ((x + y) % 2 === 0) c.fillRect(x * t, y * t, t, t);
+      }
+    }
+    // đốm pixel cỏ
+    for (let i = 0; i < 130; i++) {
+      const x = rand() * WORLD_W;
+      const y = rand() * WORLD_H;
+      c.fillStyle = rand() > 0.5 ? "rgba(255,255,255,0.05)" : "rgba(6,40,34,0.25)";
+      c.fillRect(x, y, 3, 3);
+    }
+    // viền sáng trong mép sân
+    c.restore();
+
+    // hố cát
+    for (const s of def.sand || []) {
+      c.save();
+      c.beginPath();
+      c.moveTo(def.poly[0][0], def.poly[0][1]);
+      for (let i = 1; i < def.poly.length; i++) c.lineTo(def.poly[i][0], def.poly[i][1]);
+      c.closePath();
+      c.clip();
+      c.fillStyle = "#caa15a";
+      c.beginPath();
+      c.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = "#dfb977";
+      c.beginPath();
+      c.arc(s.x - s.r * 0.14, s.y - s.r * 0.14, s.r * 0.82, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = "#8a6a33";
+      c.lineWidth = 2.4;
+      c.beginPath();
+      c.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      c.stroke();
+      const r2 = seededRand(s.x * 7 + s.y);
+      c.fillStyle = "rgba(138,106,51,0.5)";
+      for (let i = 0; i < 14; i++) {
+        const a = r2() * Math.PI * 2;
+        const rr = r2() * s.r * 0.75;
+        c.fillRect(s.x + Math.cos(a) * rr, s.y + Math.sin(a) * rr, 3, 3);
+      }
+      c.restore();
+    }
+
+    // tường gạch tím: cạnh poly + tường trong
+    const wallSegs = [];
+    for (let i = 0; i < def.poly.length; i++) {
+      const a = def.poly[i];
+      const b = def.poly[(i + 1) % def.poly.length];
+      wallSegs.push([a[0], a[1], b[0], b[1]]);
+    }
+    for (const w of def.walls || []) wallSegs.push(w);
+    for (const [x1, y1, x2, y2] of wallSegs) {
+      const len = Math.hypot(x2 - x1, y2 - y1);
+      const a = Math.atan2(y2 - y1, x2 - x1);
+      c.save();
+      c.translate(x1, y1);
+      c.rotate(a);
+      // bóng đổ
+      c.fillStyle = "rgba(4,4,16,0.55)";
+      c.fillRect(-7, 4, len + 14, 8);
+      // thân tường
+      const wg = c.createLinearGradient(0, -8, 0, 8);
+      wg.addColorStop(0, "#9a5ae8");
+      wg.addColorStop(0.55, "#6c2fc4");
+      wg.addColorStop(1, "#4a1f8a");
+      c.fillStyle = wg;
+      c.fillRect(-7, -8, len + 14, 16);
+      // khối gạch
+      c.strokeStyle = "rgba(30,10,60,0.65)";
+      c.lineWidth = 1.6;
+      for (let d = 0; d < len + 14; d += 26) {
+        c.beginPath();
+        c.moveTo(-7 + d, -8);
+        c.lineTo(-7 + d, 8);
+        c.stroke();
+      }
+      c.strokeStyle = "rgba(220,180,255,0.5)";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(-7, -8);
+      c.lineTo(len + 7, -8);
+      c.stroke();
+      c.restore();
+    }
+
+    bgHoleId = def.id;
+  }
+
+  /* ---------- vẽ động ---------- */
+
+  function drawPortal(cxy, color, time, flip) {
+    g.save();
+    g.translate(cxy.x, cxy.y);
+    g.rotate(Math.sin(time * 1.4) * 0.08);
+    g.shadowColor = color;
+    g.shadowBlur = 16;
+    g.strokeStyle = color;
+    g.lineWidth = 5;
+    g.beginPath();
+    g.ellipse(0, 0, PORTAL_R * (flip ? 0.72 : 0.78), PORTAL_R * 1.15, 0, 0, Math.PI * 2);
+    g.stroke();
+    g.shadowBlur = 0;
+    g.strokeStyle = "rgba(255,255,255,0.65)";
+    g.lineWidth = 1.6;
+    g.beginPath();
+    g.ellipse(0, 0, PORTAL_R * 0.45, PORTAL_R * 0.8, 0, 0, Math.PI * 2);
+    g.stroke();
+    g.restore();
+  }
+
+  function draw(def, hs, ui, time) {
+    if (!bgCanvas || bgHoleId !== def.id || bgCanvas.width !== canvas.width) paintBg(def);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.drawImage(bgCanvas, 0, 0);
+    g.setTransform(scale, 0, 0, scale, offX, offY);
+
+    // bumper vòng neon + mũi tên quay
+    for (const b of def.bumpers || []) {
+      g.save();
+      g.translate(b.x, b.y);
+      g.fillStyle = "#12102c";
+      g.beginPath();
+      g.arc(0, 0, b.r, 0, Math.PI * 2);
+      g.fill();
+      g.shadowColor = "#ff2ee6";
+      g.shadowBlur = 12;
+      g.strokeStyle = "#ff2ee6";
+      g.lineWidth = 3.4;
+      g.beginPath();
+      g.arc(0, 0, b.r - 2, 0, Math.PI * 2);
+      g.stroke();
+      g.shadowBlur = 0;
+      g.strokeStyle = "#ffd23f";
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(0, 0, b.r * 0.55, 0, Math.PI * 2);
+      g.stroke();
+      g.rotate(time * 1.6);
+      g.fillStyle = "rgba(255,210,63,0.9)";
+      for (let i = 0; i < 4; i++) {
+        g.rotate(Math.PI / 2);
+        g.beginPath();
+        g.moveTo(b.r * 0.78, 0);
+        g.lineTo(b.r * 0.58, -4);
+        g.lineTo(b.r * 0.58, 4);
+        g.closePath();
+        g.fill();
+      }
+      g.restore();
+    }
+
+    // cổng trượt: trụ + thanh laser đỏ
+    for (const gate of def.gates || []) {
+      for (const [px2, py2] of [[gate.x1, gate.y1], [gate.x2, gate.y2]]) {
+        g.fillStyle = "#241645";
+        g.fillRect(px2 - 7, py2 - 7, 14, 14);
+        g.strokeStyle = "#9a5ae8";
+        g.lineWidth = 2;
+        g.strokeRect(px2 - 7, py2 - 7, 14, 14);
+        g.fillStyle = "#ff3b4f";
+        g.fillRect(px2 - 2.4, py2 - 2.4, 4.8, 4.8);
+      }
+      const [x1, y1, x2, y2] = gateSegment(gate, hs ? hs.time : time);
+      g.save();
+      g.shadowColor = "#ff2e4d";
+      g.shadowBlur = 12;
+      g.strokeStyle = "rgba(255,46,77,0.95)";
+      g.lineWidth = 5;
+      g.beginPath();
+      g.moveTo(x1, y1);
+      g.lineTo(x2, y2);
+      g.stroke();
+      g.shadowBlur = 0;
+      g.strokeStyle = "rgba(255,240,244,0.9)";
+      g.lineWidth = 1.6;
+      g.stroke();
+      g.restore();
+      // mũi tên chỉ hướng trượt
+      const mx = (gate.x1 + gate.x2) / 2;
+      const my = (gate.y1 + gate.y2) / 2;
+      g.fillStyle = "rgba(255,120,140,0.8)";
+      const vert = Math.abs(gate.y2 - gate.y1) > Math.abs(gate.x2 - gate.x1);
+      for (const s of [-1, 1]) {
+        g.beginPath();
+        if (vert) {
+          g.moveTo(mx + 16, my + s * 14);
+          g.lineTo(mx + 22, my + s * 8);
+          g.lineTo(mx + 28, my + s * 14);
+        } else {
+          g.moveTo(mx + s * 14, my + 16);
+          g.lineTo(mx + s * 8, my + 22);
+          g.lineTo(mx + s * 14, my + 28);
+        }
+        g.closePath();
+        g.fill();
+      }
+    }
+
+    // portal + chevron nối
+    for (const p of def.portals || []) {
+      drawPortal(p.a, "#ff2ee6", time, false);
+      drawPortal(p.b, "#20e3ff", time, true);
+      const dx = p.b.x - p.a.x;
+      const dy = p.b.y - p.a.y;
+      const d = Math.hypot(dx, dy);
+      const ux = dx / d;
+      const uy = dy / d;
+      const k = ((time * 40) % 26);
+      g.fillStyle = "rgba(120,230,255,0.75)";
+      for (let dd = PORTAL_R + 14 + k; dd < d - PORTAL_R - 12; dd += 26) {
+        const cx2 = p.a.x + ux * dd;
+        const cy2 = p.a.y + uy * dd;
+        g.save();
+        g.translate(cx2, cy2);
+        g.rotate(Math.atan2(uy, ux));
+        g.beginPath();
+        g.moveTo(-4, -6);
+        g.lineTo(4, 0);
+        g.lineTo(-4, 6);
+        g.lineTo(-1, 0);
+        g.closePath();
+        g.fill();
+        g.restore();
+      }
+    }
+
+    // lỗ + cờ
+    const hole = def.hole;
+    g.save();
+    g.shadowColor = "#20e3ff";
+    g.shadowBlur = 10 + 4 * Math.sin(time * 3);
+    g.fillStyle = "#04101c";
+    g.beginPath();
+    g.ellipse(hole.x, hole.y, 12, 9, 0, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+    g.strokeStyle = "rgba(32,227,255,0.75)";
+    g.lineWidth = 2;
+    g.beginPath();
+    g.ellipse(hole.x, hole.y, 12, 9, 0, 0, Math.PI * 2);
+    g.stroke();
+    // cột cờ
+    g.strokeStyle = "#e8f0ff";
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(hole.x, hole.y - 2);
+    g.lineTo(hole.x, hole.y - 52);
+    g.stroke();
+    const wave = Math.sin(time * 4) * 3;
+    g.fillStyle = "#f4f7ff";
+    g.beginPath();
+    g.moveTo(hole.x, hole.y - 52);
+    g.lineTo(hole.x - 26, hole.y - 44 + wave);
+    g.lineTo(hole.x, hole.y - 36);
+    g.closePath();
+    g.fill();
+
+    if (!hs) return;
+    const ball = hs.ball;
+
+    // vệt bóng
+    if (ui.trail) {
+      for (let i = 0; i < ui.trail.length; i++) {
+        const tr = ui.trail[i];
+        g.fillStyle = `rgba(255,255,255,${(i / ui.trail.length) * 0.3})`;
+        g.beginPath();
+        g.arc(tr.x, tr.y, 3, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+
+    // khung ngắm xanh quanh bóng khi đứng yên
+    if (!hs.moving && !hs.sunk) {
+      const r = BALL_R + 7 + Math.sin(time * 4) * 1.5;
+      g.strokeStyle = "#3dff9c";
+      g.lineWidth = 2;
+      for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+        g.beginPath();
+        g.moveTo(ball.x + sx * r, ball.y + sy * (r - 6));
+        g.lineTo(ball.x + sx * r, ball.y + sy * r);
+        g.lineTo(ball.x + sx * (r - 6), ball.y + sy * r);
+        g.stroke();
+      }
+    }
+
+    // mũi tên ngắm nét đứt
+    if (ui.aim && ui.aim.power > 0.03 && !hs.moving && !hs.sunk) {
+      const { angle, power } = ui.aim;
+      const len = 60 + power * 170;
+      const ex = ball.x + Math.cos(angle) * len;
+      const ey = ball.y + Math.sin(angle) * len;
+      g.save();
+      g.strokeStyle = "rgba(255,255,255,0.9)";
+      g.lineWidth = 3;
+      g.setLineDash([10, 9]);
+      g.lineDashOffset = -time * 30;
+      g.beginPath();
+      g.moveTo(ball.x + Math.cos(angle) * 14, ball.y + Math.sin(angle) * 14);
+      g.lineTo(ex, ey);
+      g.stroke();
+      g.setLineDash([]);
+      // đầu mũi tên
+      g.translate(ex, ey);
+      g.rotate(angle);
+      g.fillStyle = "rgba(255,255,255,0.95)";
+      g.beginPath();
+      g.moveTo(12, 0);
+      g.lineTo(-4, -8);
+      g.lineTo(-4, 8);
+      g.closePath();
+      g.fill();
+      g.restore();
+    }
+
+    // bóng
+    if (!hs.sunk) {
+      g.save();
+      g.shadowColor = "rgba(0,0,0,0.6)";
+      g.shadowBlur = 4;
+      g.shadowOffsetY = 3;
+      const bg2 = g.createRadialGradient(ball.x - 2, ball.y - 3, 1, ball.x, ball.y, BALL_R + 1);
+      bg2.addColorStop(0, "#ffffff");
+      bg2.addColorStop(0.7, "#dbe6f5");
+      bg2.addColorStop(1, "#9fb2cc");
+      g.fillStyle = bg2;
+      g.beginPath();
+      g.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+      g.fill();
+      g.restore();
+    }
+  }
+
+  return { fit, draw, toWorld, toClient };
+}
+
+/** Icon panel trái (cờ / gậy / par / sao / gió) — canvas nhỏ pixel. */
+function paintGolfIcon(canvas, kind) {
+  canvas.width = 44;
+  canvas.height = 44;
+  const c = canvas.getContext("2d");
+  c.scale(2, 2);
+  if (kind === "flag") {
+    c.strokeStyle = "#e8f0ff";
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(8, 19);
+    c.lineTo(8, 3);
+    c.stroke();
+    c.fillStyle = "#20e3ff";
+    c.beginPath();
+    c.moveTo(8, 3);
+    c.lineTo(18, 7);
+    c.lineTo(8, 11);
+    c.closePath();
+    c.fill();
+  } else if (kind === "club") {
+    c.strokeStyle = "#4df77f";
+    c.lineWidth = 2.4;
+    c.beginPath();
+    c.moveTo(14, 3);
+    c.lineTo(8, 16);
+    c.stroke();
+    c.fillStyle = "#4df77f";
+    c.beginPath();
+    c.roundRect(4, 15, 9, 4, 2);
+    c.fill();
+  } else if (kind === "par") {
+    c.strokeStyle = "#9a5cff";
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(11, 11, 7.4, 0, Math.PI * 2);
+    c.stroke();
+    c.beginPath();
+    c.arc(11, 11, 3.6, 0, Math.PI * 2);
+    c.stroke();
+  } else if (kind === "star") {
+    c.fillStyle = "#ff5ad2";
+    c.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+      const a2 = a + Math.PI / 5;
+      c.lineTo(11 + Math.cos(a) * 8, 11 + Math.sin(a) * 8);
+      c.lineTo(11 + Math.cos(a2) * 3.6, 11 + Math.sin(a2) * 3.6);
+    }
+    c.closePath();
+    c.fill();
+  } else if (kind === "wind") {
+    c.strokeStyle = "#20e3ff";
+    c.lineWidth = 2;
+    for (const [y, len] of [[6, 10], [11, 14], [16, 8]]) {
+      c.beginPath();
+      c.moveTo(3, y);
+      c.lineTo(3 + len, y);
+      c.stroke();
+      c.beginPath();
+      c.arc(3 + len, y - 1.6, 1.8, 0.6, Math.PI * 1.8);
+      c.stroke();
+    }
+  }
+}
+
+exports.createGolfRenderer = createGolfRenderer; exports.paintGolfIcon = paintGolfIcon;
+};
+__defs["games/pixel-golf/styles.js"] = function (exports, __req) {
+/**
+ * styles.js — CSS riêng Pixel Golf 404: cột panel nổi bên trái
+ * (HỐ / GẬY / PAR / ĐIỂM / GIÓ), panel hướng dẫn kéo-thả góc trái dưới,
+ * thanh SỨC MẠNH gradient giữa đáy — theo ảnh reference.
+ */
+
+const PG_CSS = /* css */ `
+.pg-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.pg-stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* ---------- cột panel trái ---------- */
+
+.pg-panels {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.pg-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 138px;
+  padding: 7px 14px 8px 10px;
+  border: 1px solid rgba(122, 63, 212, 0.55);
+  border-radius: 10px;
+  background: rgba(10, 8, 30, 0.88);
+  box-shadow: 0 0 14px rgba(122, 63, 212, 0.18);
+}
+
+.pg-panel canvas { width: 22px; height: 22px; flex: none; }
+
+.pg-panel .txt { line-height: 1.1; }
+
+.pg-panel .lbl {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: var(--text-1);
+}
+
+.pg-panel .val {
+  font-size: 1.18rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-0);
+}
+
+.pg-panel[data-tone="cyan"]  .val { color: var(--cyan); text-shadow: 0 0 10px color-mix(in srgb, var(--cyan) 50%, transparent); }
+.pg-panel[data-tone="green"] .val { color: var(--green); text-shadow: 0 0 10px color-mix(in srgb, var(--green) 50%, transparent); }
+.pg-panel[data-tone="violet"].pg-panel .val, .pg-panel[data-tone="violet"] .val { color: var(--violet); text-shadow: 0 0 10px color-mix(in srgb, var(--violet) 50%, transparent); }
+.pg-panel[data-tone="pink"]  .val { color: var(--pink); text-shadow: 0 0 10px color-mix(in srgb, var(--pink) 50%, transparent); }
+
+.pg-panel .val small { font-size: 0.72rem; color: var(--text-1); font-weight: 700; }
+
+.pg-wind-dir { display: inline-block; margin-left: 6px; color: var(--cyan); }
+
+/* ---------- hướng dẫn + thanh lực ---------- */
+
+.pg-help {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 16px;
+  border: 1px solid rgba(122, 63, 212, 0.55);
+  border-radius: 10px;
+  background: rgba(10, 8, 30, 0.88);
+  z-index: 20;
+  pointer-events: none;
+}
+
+.pg-help svg { width: 22px; height: 22px; color: var(--text-0); }
+
+.pg-help .txt {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--text-0);
+  line-height: 1.5;
+}
+
+.pg-power {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  width: min(430px, 60vw);
+  z-index: 20;
+  pointer-events: none;
+  text-align: center;
+}
+
+.pg-power .lbl {
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  color: var(--text-0);
+  margin-bottom: 5px;
+  text-shadow: 0 0 10px rgba(32, 227, 255, 0.4);
+}
+
+.pg-power .bar {
+  position: relative;
+  height: 20px;
+  border: 1px solid rgba(32, 227, 255, 0.55);
+  border-radius: 6px;
+  background: rgba(8, 10, 28, 0.9);
+  padding: 3px;
+  box-shadow: 0 0 16px rgba(32, 227, 255, 0.2);
+}
+
+.pg-power .segs {
+  display: flex;
+  gap: 2px;
+  height: 100%;
+}
+
+.pg-power .segs i {
+  flex: 1;
+  border-radius: 1.6px;
+  background: var(--seg, #235);
+  opacity: 0.22;
+}
+
+.pg-power .segs i.on { opacity: 1; box-shadow: 0 0 7px var(--seg); }
+
+.pg-power .marker {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 4px;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(255,255,255,0.9);
+  transform: translateX(-2px);
+  transition: left 0.03s linear;
+}
+
+@media (max-width: 760px) {
+  .pg-panels { transform: scale(0.82); transform-origin: top left; }
+  .pg-help { display: none; }
+  .pg-power { width: 52vw; left: auto; right: 12px; transform: none; }
+}
+`;
+
+exports.PG_CSS = PG_CSS;
+};
+__defs["games/typing-rush/index.js"] = function (exports, __req) {
+/**
+ * Typing Rush 404 — gõ phím tốc độ (expansion 11–15).
+ *
+ * Theo ảnh reference: topbar ĐIỂM / WPM / CHÍNH XÁC / COMBO / THỜI GIAN;
+ * chữ rơi trong khung neon (target đang gõ viền vàng-xanh, phần đã gõ
+ * đổi màu cyan, chevron rơi phía trên); DANGER LINE đỏ; bàn phím QWERTY
+ * ảo sáng phím kế tiếp; panel HEAT MAP tần suất phím góc phải dưới;
+ * nền mưa ký tự matrix theo màu lane. 3 độ khó + chế độ thích ứng.
+ * Engine thuần trong engine.js (fold Unicode tiếng Việt, WPM ký tự/5,
+ * target lock tất định). Ưu tiên desktop — mobile hiện nhãn tối ưu.
+ */
+
+const { createExpansionFrame } = __req("games/_shared/frame.js");
+const { createLoop } = __req("core/loop.js");
+const { el, formatScore, formatTime } = __req("core/utils.js");
+const { createSession, stepSession, typeChar, backspace, metrics, drainEvents, activeWord, fold, LANES } = __req("games/typing-rush/engine.js");
+const { sessionConfig, DIFFICULTIES } = __req("games/typing-rush/difficulty.js");
+const { buildKeyboard, buildHeatmap } = __req("games/typing-rush/keyboard.js");
+const { TR_CSS } = __req("games/typing-rush/styles.js");
+
+const DIFF_KEY = "tr-diff";
+const STATS_KEY = "tr-stats";
+const TONES = ["cyan", "violet", "magenta", "white"];
+const RAIN_COLORS = ["#20e3ff", "#9a5cff", "#39d353", "#dfe6ff", "#ff2ee6", "#ffd23f"];
+const RAIN_GLYPHS = "01<>/{}[]#$%&*+=?!absdefkxyz404";
+
+function createGame() {
+  let ctx = null;
+  let frame = null;
+  let loop = null;
+  let ro = null;
+
+  const TEST = typeof window !== "undefined" && window.__ARCADE_EXP11_TEST__;
+
+  let mode = "intro"; // intro | play | paused | over
+  let sess = null;
+  let diffId = "normal";
+  let time = 0;
+  let stateT = 0;
+  let heatT = 0;
+
+  let rainCv = null;
+  let rainG = null;
+  let fieldEl = null;
+  let dangerEl = null;
+  let flashEl = null;
+  let bottomEl = null;
+  let kb = null;
+  let heat = null;
+  const wordEls = new Map(); // id → node
+  const rainCols = [];
+  let dangerY = 400;
+
+  /* ---------------- HUD ---------------- */
+
+  function updateHud() {
+    if (!sess) return;
+    const m = metrics(sess);
+    frame.setStat("score", formatScore(sess.score));
+    frame.setStat("wpm", String(m.wpm));
+    frame.setStat("acc", `${m.acc}%`);
+    frame.setStat("combo", `x${sess.combo}`);
+    frame.setStat("lives", "♥".repeat(Math.max(0, sess.lives)) || "—");
+    frame.setStat("time", formatTime(sess.elapsed));
+  }
+
+  /* ---------------- Layout đo đạc ---------------- */
+
+  function relayout() {
+    const rect = frame.playfield.getBoundingClientRect();
+    if (rect.width < 4) return;
+    const bottomH = bottomEl.getBoundingClientRect().height || 210;
+    dangerY = Math.max(160, rect.height - bottomH - 34);
+    dangerEl.style.top = `${dangerY}px`;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    rainCv.width = Math.floor(rect.width * dpr);
+    rainCv.height = Math.floor(dangerY * dpr);
+    rainCv.style.height = `${dangerY}px`;
+    rainG = rainCv.getContext("2d");
+    rainG.scale(dpr, dpr);
+    rainG.fillStyle = "rgba(5,8,20,1)";
+    rainG.fillRect(0, 0, rect.width, dangerY);
+    rainCols.length = 0;
+    const colW = 26;
+    for (let x = colW / 2; x < rect.width; x += colW) {
+      rainCols.push({ x, y: Math.random() * dangerY, speed: 40 + Math.random() * 90 });
+    }
+  }
+
+  function laneX(lane) {
+    const rect = frame.playfield.getBoundingClientRect();
+    const margin = rect.width * 0.09;
+    return margin + ((lane + 0.5) / LANES) * (rect.width - margin * 2);
+  }
+
+  /* ---------------- Word DOM ---------------- */
+
+  function wordNode(w) {
+    let node = wordEls.get(w.id);
+    if (!node) {
+      node = el("div", "tr-word");
+      node.dataset.tone = TONES[w.id % TONES.length];
+      node.appendChild(el("span", "tag", "</>"));
+      node.appendChild(el("span", "done", ""));
+      node.appendChild(el("span", "rest", ""));
+      fieldEl.appendChild(node);
+      wordEls.set(w.id, node);
+    }
+    return node;
+  }
+
+  function syncWords() {
+    const seen = new Set();
+    for (const w of sess.words) {
+      seen.add(w.id);
+      const node = wordNode(w);
+      node.querySelector(".done").textContent = w.text.slice(0, w.typed);
+      node.querySelector(".rest").textContent = w.text.slice(w.typed);
+      node.classList.toggle("active", sess.active === w.id);
+      node.style.left = `${laneX(w.lane)}px`;
+      node.style.top = `${28 + w.y * (dangerY - 62)}px`;
+    }
+    for (const [id, node] of wordEls) {
+      if (!seen.has(id) && !node.classList.contains("pop")) {
+        node.remove();
+        wordEls.delete(id);
+      }
+    }
+    // phím kế tiếp: theo target đang gõ, không thì từ gần danger nhất
+    let next = null;
+    const act = activeWord(sess);
+    if (act) next = act.folded[act.typed];
+    else if (sess.words.length) {
+      const closest = [...sess.words].sort((a, b) => b.y - a.y)[0];
+      next = closest.folded[0];
+    }
+    kb.setNext(next || null);
+  }
+
+  function popWord(id) {
+    const node = wordEls.get(id);
+    if (!node) return;
+    node.classList.add("pop");
+    wordEls.delete(id);
+    setTimeout(() => node.remove(), 320);
+  }
+
+  /* ---------------- Mưa ký tự ---------------- */
+
+  function stepRain(dt) {
+    if (!rainG) return;
+    const rect = frame.playfield.getBoundingClientRect();
+    rainG.fillStyle = "rgba(5, 8, 20, 0.16)";
+    rainG.fillRect(0, 0, rect.width, dangerY);
+    rainG.font = "700 13px monospace";
+    rainG.textAlign = "center";
+    for (let i = 0; i < rainCols.length; i++) {
+      const col = rainCols[i];
+      col.y += col.speed * dt;
+      if (col.y > dangerY + 30) {
+        col.y = -20;
+        col.speed = 40 + Math.random() * 90;
+      }
+      const color = RAIN_COLORS[i % RAIN_COLORS.length];
+      rainG.fillStyle = `${color}44`;
+      const ch = RAIN_GLYPHS[(i * 7 + Math.floor(col.y / 14)) % RAIN_GLYPHS.length];
+      rainG.fillText(ch, col.x, col.y);
+    }
+  }
+
+  /* ---------------- Sự kiện engine ---------------- */
+
+  function handleEvents(events) {
+    for (const ev of events) {
+      switch (ev.type) {
+        case "complete":
+          ctx.audio.play("tr_word");
+          if (ev.combo > 0 && ev.combo % 10 === 0) {
+            ctx.audio.play("combo");
+            frame.banner(`COMBO x${ev.combo}!`);
+          }
+          popWord(ev.id);
+          updateHud();
+          break;
+        case "error": {
+          ctx.audio.play("tr_err");
+          const node = wordEls.get(ev.id);
+          if (node) {
+            node.classList.remove("shake");
+            void node.offsetWidth;
+            node.classList.add("shake");
+          }
+          updateHud();
+          break;
+        }
+        case "stray":
+          ctx.audio.play("tr_err");
+          updateHud();
+          break;
+        case "danger":
+          ctx.audio.play("tr_danger");
+          flashEl.classList.remove("on");
+          void flashEl.offsetWidth;
+          flashEl.classList.add("on");
+          frame.toast(`"${ev.text}" CHẠM DANGER LINE! -1 MẠNG`);
+          updateHud();
+          break;
+        case "gameOver":
+          finishMatch();
+          return;
+        default:
+          break;
+      }
+    }
+  }
+
+  /* ---------------- Vòng đời ---------------- */
+
+  function beginMatch() {
+    sess = createSession(sessionConfig(diffId));
+    for (const node of wordEls.values()) node.remove();
+    wordEls.clear();
+    time = 0;
+    heatT = 0;
+    mode = "play";
+    frame.clearScreen();
+    frame.setPaused(false);
+    ctx.onMatchStart();
+    frame.banner(`SẴN SÀNG — ${DIFFICULTIES[diffId].label}`);
+    ctx.audio.play("start");
+    relayout();
+    updateHud();
+    loop.start();
+  }
+
+  function finishMatch() {
+    mode = "over";
+    const m = metrics(sess);
+    const stats = ctx.storage.getPref(STATS_KEY, null) || { v: 1, bestWpm: 0 };
+    stats.bestWpm = Math.max(stats.bestWpm || 0, m.wpm);
+    ctx.storage.setPref(STATS_KEY, stats);
+    const saved = ctx.onGameOver(sess.score, { wpm: m.wpm, acc: m.acc, words: sess.wordsDone });
+    frame.overScreen({
+      kicker: "// PHIÊN GÕ KẾT THÚC",
+      heading: "HẾT MẠNG!",
+      score: sess.score,
+      saved,
+      statCards: [
+        { label: "WPM", value: m.wpm, color: "cyan" },
+        { label: "RAW WPM", value: m.rawWpm, color: "violet" },
+        { label: "CHÍNH XÁC", value: `${m.acc}%`, color: "lime" },
+        { label: "TỪ HOÀN THÀNH", value: sess.wordsDone, color: "gold" },
+        { label: "LỖI GÕ", value: sess.typedWrong, color: "red" },
+        { label: "COMBO MAX", value: `x${sess.maxCombo}`, color: "pink" },
+      ],
+      restartLabel: "GÕ LẠI",
+      onRestart: () => beginMatch(),
+    });
+  }
+
+  function pauseGame() {
+    if (mode !== "play") return;
+    mode = "paused";
+    loop.stop();
+    frame.setPaused(true);
+    frame.pauseMenu({
+      onResume: () => resumeGame(),
+      onRestart: () => beginMatch(),
+      restartLabel: "GÕ LẠI",
+      buildExtra: (box) => {
+        const m = metrics(sess);
+        const row = el("div", "exp-setrow");
+        row.appendChild(el("span", "", "PHIÊN HIỆN TẠI"));
+        row.appendChild(el("span", "val", `${m.wpm} WPM · ${m.acc}% · ${sess.wordsDone} từ`));
+        box.appendChild(row);
+      },
+    });
+  }
+
+  function resumeGame() {
+    if (mode !== "paused") return;
+    mode = "play";
+    frame.clearScreen();
+    frame.setPaused(false);
+    loop.start();
+  }
+
+  function togglePause() {
+    if (mode === "play") pauseGame();
+    else if (mode === "paused") resumeGame();
+  }
+
+  function showIntro() {
+    mode = "intro";
+    loop.stop();
+    const stats = ctx.storage.getPref(STATS_KEY, null);
+    const box = frame.intro({
+      kicker: "// THỬ THÁCH TỐC KÝ",
+      heading: [["TYPING RUSH ", ""], ["404", "pink"]],
+      goal:
+        "Các từ rơi dần về DANGER LINE — gõ chính xác để phá hủy chúng. Ký tự đầu khóa mục tiêu, gõ hết từ để ăn điểm và giữ combo. Hỗ trợ tiếng Việt: gõ có dấu hoặc không dấu đều được!",
+      rows: [
+        { keys: ["A–Z"], text: "gõ ký tự — từ khớp sẽ được khóa làm mục tiêu" },
+        { keys: ["⌫"], text: "lùi một ký tự của từ đang gõ" },
+        { keys: ["ESC"], text: "tạm dừng" },
+      ],
+      startLabel: "BẮT ĐẦU GÕ",
+      onStart: () => beginMatch(),
+      note: stats?.bestWpm ? `KỶ LỤC WPM CỦA BẠN: ${stats.bestWpm} · Tối ưu cho máy tính có bàn phím.` : "Tối ưu cho máy tính có bàn phím.",
+    });
+    // chèn hàng chọn độ khó trước nút CTA
+    const diffRow = el("div", "tr-diffs");
+    const chips = new Map();
+    for (const d of Object.values(DIFFICULTIES)) {
+      const chip = el("button", "tr-diff", d.label);
+      chip.type = "button";
+      chip.addEventListener("click", () => {
+        diffId = d.id;
+        ctx.storage.setPref(DIFF_KEY, diffId);
+        for (const [id, c] of chips) c.classList.toggle("sel", id === diffId);
+        ctx.audio.play("ui");
+      });
+      chips.set(d.id, chip);
+      diffRow.appendChild(chip);
+    }
+    chips.get(diffId)?.classList.add("sel");
+    const cta = box.querySelector(".exp-cta");
+    box.insertBefore(diffRow, cta);
+  }
+
+  /* ---------------- Vòng lặp ---------------- */
+
+  function update(dt) {
+    time += dt;
+    if (mode === "play") {
+      stepSession(sess, dt);
+      handleEvents(drainEvents(sess));
+      if (mode !== "play") return;
+      syncWords();
+      frame.setStat("time", formatTime(sess.elapsed));
+      heatT += dt;
+      if (heatT > 0.8) {
+        heatT = 0;
+        heat.update(sess.keyHeat);
+        updateHud();
+      }
+    }
+    stepRain(dt);
+
+    if (TEST && sess) {
+      stateT += dt;
+      if (stateT > 0.3) {
+        stateT = 0;
+        const m = metrics(sess);
+        window.__TR_STATE__ = {
+          mode,
+          score: sess.score,
+          wpm: m.wpm,
+          acc: m.acc,
+          combo: sess.combo,
+          lives: sess.lives,
+          targets: sess.words.length,
+          wordsDone: sess.wordsDone,
+          errors: sess.typedWrong,
+          active: sess.active,
+        };
+      }
+    }
+  }
+
+  /* ---------------- Interface ---------------- */
+
+  return {
+    async mount(container, context) {
+      ctx = context;
+
+      const rootNode = container.getRootNode();
+      if (rootNode instanceof ShadowRoot && !rootNode.querySelector("#tr-style")) {
+        const style = document.createElement("style");
+        style.id = "tr-style";
+        style.textContent = TR_CSS;
+        rootNode.appendChild(style);
+      }
+
+      diffId = ctx.storage.getPref(DIFF_KEY, "normal");
+      if (!DIFFICULTIES[diffId]) diffId = "normal";
+
+      frame = createExpansionFrame(container, ctx, {
+        accent: "cyan",
+        title: [["TYPING RUSH ", ""], ["404", "pink"]],
+        stats: [
+          { id: "score", label: "ĐIỂM", color: "cyan", value: "000000" },
+          { id: "wpm", label: "WPM", color: "cyan", value: "0" },
+          { id: "acc", label: "CHÍNH XÁC", color: "white", value: "100%" },
+          { id: "combo", label: "COMBO", color: "pink", value: "x0" },
+          { id: "lives", label: "MẠNG", color: "red", value: "♥♥♥", optional: true },
+          { id: "time", label: "THỜI GIAN", color: "white", value: "00:00" },
+        ],
+        onPauseToggle: togglePause,
+      });
+      frame.root.classList.add("tr-mode");
+
+      rainCv = document.createElement("canvas");
+      rainCv.className = "tr-rain";
+      frame.playfield.appendChild(rainCv);
+
+      fieldEl = el("div", "tr-field");
+      frame.playfield.appendChild(fieldEl);
+
+      dangerEl = el("div", "tr-danger");
+      dangerEl.appendChild(el("div", "warn"));
+      dangerEl.appendChild(el("div", "line"));
+      dangerEl.appendChild(el("div", "lbl", "« DANGER LINE »"));
+      dangerEl.appendChild(el("div", "line"));
+      dangerEl.appendChild(el("div", "warn"));
+      frame.playfield.appendChild(dangerEl);
+
+      flashEl = el("div", "tr-flash");
+      frame.playfield.appendChild(flashEl);
+
+      bottomEl = el("div", "tr-bottom");
+      const kbBox = el("div");
+      kbBox.style.flex = "1";
+      kbBox.style.minWidth = "0";
+      kb = buildKeyboard(kbBox);
+      bottomEl.appendChild(kbBox);
+      const heatBox = el("div");
+      heat = buildHeatmap(heatBox);
+      bottomEl.appendChild(heatBox.firstChild);
+      frame.playfield.appendChild(bottomEl);
+
+      if (window.matchMedia("(pointer: coarse)").matches) {
+        frame.playfield.appendChild(el("div", "tr-note", "TỐI ƯU CHO MÁY TÍNH"));
+      }
+
+      ro = new ResizeObserver(() => relayout());
+      ro.observe(frame.playfield);
+
+      // gõ phím: bắt trực tiếp keydown (cần e.key cho Unicode)
+      window.addEventListener(
+        "keydown",
+        (e) => {
+          if (mode !== "play") return;
+          const t = e.target;
+          if (t instanceof Element && t.closest("button, a, input, select, textarea")) return;
+          if (e.ctrlKey || e.metaKey || e.altKey) return;
+          if (e.key === "Backspace") {
+            e.preventDefault();
+            if (backspace(sess)) {
+              ctx.audio.play("ui");
+              syncWords();
+            }
+            return;
+          }
+          if (e.key.length === 1) {
+            if (e.key === " ") e.preventDefault();
+            const r = typeChar(sess, e.key);
+            kb.flash(fold(e.key), r.result !== "error" && r.result !== "stray");
+            if (r.result === "advance" || r.result === "lock") ctx.audio.play("tr_key");
+            handleEvents(drainEvents(sess));
+            if (mode === "play") syncWords();
+          }
+        },
+        { signal: ctx.signal }
+      );
+
+      loop = createLoop(update);
+
+      if (TEST) {
+        window.__TR_TEST__ = {
+          words: () => (sess ? sess.words.map((w) => ({ id: w.id, text: w.text, typed: w.typed, y: w.y, lane: w.lane })) : []),
+          rush: () => {
+            if (!sess || !sess.words.length) return false;
+            const closest = [...sess.words].sort((a, b) => b.y - a.y)[0];
+            closest.y = 0.995;
+            return true;
+          },
+          metrics: () => (sess ? metrics(sess) : null),
+        };
+      }
+
+      showIntro();
+    },
+
+    start() {
+      if (mode === "intro") beginMatch();
+    },
+
+    pause() {
+      pauseGame();
+    },
+
+    resume() {
+      resumeGame();
+    },
+
+    restart() {
+      if (mode === "intro") return;
+      beginMatch();
+    },
+
+    resize() {
+      relayout();
+    },
+
+    destroy() {
+      loop?.stop();
+      ro?.disconnect();
+      frame?.destroy();
+      frame = null;
+      sess = null;
+      wordEls.clear();
+      if (typeof window !== "undefined") {
+        delete window.__TR_STATE__;
+        delete window.__TR_TEST__;
+      }
+    },
+  };
+}
+
+exports.createGame = createGame;
+};
+__defs["games/typing-rush/engine.js"] = function (exports, __req) {
+/**
+ * engine.js — Typing Rush 404: session gõ phím thuần (không DOM).
+ *
+ * - fold(): chuẩn hóa Unicode tiếng Việt nhất quán (NFD bỏ dấu, đ→d,
+ *   lowercase) — người có IME gõ dấu trực tiếp hoặc gõ chữ gốc đều khớp.
+ * - Target lock TẤT ĐỊNH: ký tự đầu khớp → chọn từ GẦN danger line
+ *   nhất, hòa thì lane trái nhất rồi id nhỏ nhất.
+ * - WPM chuẩn: (số ký tự đúng / 5) / phút. Raw WPM tính mọi ký tự gõ.
+ * - Từ chạm danger line: gỡ từ + trừ mạng + reset combo ĐÚNG MỘT LẦN.
+ * - Spawn theo lane, giữ khoảng cách dọc để chữ không chồng nhau.
+ */
+
+const LANES = 6;
+const MIN_GAP = 0.16; // khoảng cách dọc tối thiểu giữa 2 từ cùng lane (0..1)
+
+/** Chuẩn hóa: NFD bỏ dấu kết hợp, đ→d, thường hóa. */
+function fold(str) {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+}
+
+/**
+ * cfg = { fall, spawnEvery, maxTargets, wordPool, allowBackspace,
+ *         adaptive, lives }
+ */
+function createSession(cfg, rand = Math.random) {
+  return {
+    cfg,
+    rand,
+    words: [], // {id, text, folded, typed, lane, y, len}
+    active: null,
+    lives: cfg.lives ?? 3,
+    score: 0,
+    combo: 0,
+    maxCombo: 0,
+    typedCorrect: 0,
+    typedWrong: 0,
+    wordsDone: 0,
+    elapsed: 0,
+    spawnT: 0.6, // spawn sớm từ đầu tiên
+    adaptFactor: 1,
+    adaptT: 0,
+    nextId: 1,
+    events: [],
+    keyHeat: new Map(),
+  };
+}
+
+function activeWord(sess) {
+  return sess.words.find((w) => w.id === sess.active) || null;
+}
+
+/** Lane trống nhất: mọi từ trong lane phải đã rơi đủ xa (gap). */
+function pickLane(sess) {
+  let best = -1;
+  let bestTop = -Infinity;
+  for (let lane = 0; lane < LANES; lane++) {
+    let top = Infinity; // từ CAO nhất (y nhỏ nhất) trong lane
+    for (const w of sess.words) {
+      if (w.lane === lane) top = Math.min(top, w.y);
+    }
+    const clearance = top === Infinity ? 999 : top;
+    if (clearance > bestTop) {
+      bestTop = clearance;
+      best = lane;
+    }
+  }
+  if (bestTop < MIN_GAP) return -1; // mọi lane còn từ sát mép trên
+  return best;
+}
+
+function spawnWord(sess) {
+  if (sess.words.length >= sess.cfg.maxTargets) return;
+  const lane = pickLane(sess);
+  if (lane < 0) return;
+  const pool = sess.cfg.wordPool;
+  // tránh trùng ký tự đầu với từ đang rơi nếu chọn được (giảm nhập nhằng)
+  const startTaken = new Set(sess.words.filter((w) => w.typed === 0).map((w) => w.folded[0]));
+  let text = pool[Math.floor(sess.rand() * pool.length)];
+  for (let tries = 0; tries < 6; tries++) {
+    if (!startTaken.has(fold(text)[0])) break;
+    text = pool[Math.floor(sess.rand() * pool.length)];
+  }
+  sess.words.push({
+    id: sess.nextId++,
+    text,
+    folded: fold(text),
+    typed: 0,
+    lane,
+    y: 0,
+    len: text.length,
+  });
+  sess.events.push({ type: "spawn", text });
+}
+
+/** Bước mô phỏng: rơi chữ + spawn + adaptive. */
+function stepSession(sess, dt) {
+  if (sess.lives <= 0) return;
+  sess.elapsed += dt;
+
+  // adaptive: hiệu chỉnh nhẹ theo accuracy/WPM, có giới hạn
+  if (sess.cfg.adaptive) {
+    sess.adaptT += dt;
+    if (sess.adaptT >= 5) {
+      sess.adaptT = 0;
+      const m = metrics(sess);
+      if (m.acc > 92 && m.wpm > 24) sess.adaptFactor = Math.min(1.35, sess.adaptFactor + 0.06);
+      else if (m.acc < 82 || m.wpm < 12) sess.adaptFactor = Math.max(0.8, sess.adaptFactor - 0.06);
+    }
+  }
+
+  const speed = sess.cfg.fall * sess.adaptFactor;
+  for (const w of sess.words) w.y += speed * dt;
+
+  // chạm danger line — xử lý đúng một lần cho mỗi từ (gỡ ngay)
+  for (let i = sess.words.length - 1; i >= 0; i--) {
+    const w = sess.words[i];
+    if (w.y >= 1) {
+      sess.words.splice(i, 1);
+      if (sess.active === w.id) sess.active = null;
+      sess.lives -= 1;
+      sess.combo = 0;
+      sess.events.push({ type: "danger", text: w.text, lives: sess.lives });
+      if (sess.lives <= 0) {
+        sess.events.push({ type: "gameOver" });
+        return;
+      }
+    }
+  }
+
+  sess.spawnT -= dt;
+  if (sess.spawnT <= 0) {
+    sess.spawnT = sess.cfg.spawnEvery / sess.adaptFactor;
+    spawnWord(sess);
+  }
+}
+
+/** Gõ một ký tự (đã là 1 char). Trả về kết quả để index phát SFX/FX. */
+function typeChar(sess, ch) {
+  if (sess.lives <= 0) return { result: "ignore" };
+  const fc = fold(ch);
+  if (!fc || fc.length !== 1) return { result: "ignore" };
+  sess.keyHeat.set(fc, (sess.keyHeat.get(fc) || 0) + 1);
+
+  let target = activeWord(sess);
+
+  if (!target) {
+    // khóa target tất định: khớp ký tự đầu → gần danger nhất → lane trái → id
+    const candidates = sess.words.filter((w) => w.folded[w.typed] === fc);
+    if (!candidates.length) {
+      sess.typedWrong += 1;
+      sess.events.push({ type: "stray" });
+      return { result: "stray" };
+    }
+    candidates.sort((a, b) => b.y - a.y || a.lane - b.lane || a.id - b.id);
+    target = candidates[0];
+    sess.active = target.id;
+    target.typed += 1;
+    sess.typedCorrect += 1;
+    if (target.typed >= target.folded.length) return completeWord(sess, target);
+    sess.events.push({ type: "lock", id: target.id });
+    return { result: "lock", word: target };
+  }
+
+  if (target.folded[target.typed] === fc) {
+    target.typed += 1;
+    sess.typedCorrect += 1;
+    if (target.typed >= target.folded.length) return completeWord(sess, target);
+    return { result: "advance", word: target };
+  }
+
+  sess.typedWrong += 1;
+  sess.combo = 0;
+  sess.events.push({ type: "error", id: target.id });
+  return { result: "error", word: target };
+}
+
+function completeWord(sess, target) {
+  sess.words = sess.words.filter((w) => w.id !== target.id);
+  sess.active = null;
+  sess.wordsDone += 1;
+  sess.combo += 1;
+  sess.maxCombo = Math.max(sess.maxCombo, sess.combo);
+  const gained = target.len * 10 + sess.combo * 5;
+  sess.score += gained;
+  sess.events.push({ type: "complete", id: target.id, text: target.text, gained, combo: sess.combo });
+  return { result: "complete", word: target, gained };
+}
+
+/** Backspace (nếu config cho phép): lùi một ký tự của target. */
+function backspace(sess) {
+  if (!sess.cfg.allowBackspace) return false;
+  const target = activeWord(sess);
+  if (!target || target.typed === 0) return false;
+  target.typed -= 1;
+  sess.typedCorrect = Math.max(0, sess.typedCorrect - 1);
+  if (target.typed === 0) sess.active = null;
+  return true;
+}
+
+/** WPM chuẩn ký-tự/5, raw WPM và accuracy. */
+function metrics(sess) {
+  const minutes = Math.max(sess.elapsed, 1) / 60;
+  const wpm = sess.typedCorrect / 5 / minutes;
+  const rawWpm = (sess.typedCorrect + sess.typedWrong) / 5 / minutes;
+  const total = sess.typedCorrect + sess.typedWrong;
+  const acc = total === 0 ? 100 : (sess.typedCorrect / total) * 100;
+  return { wpm: Math.round(wpm), rawWpm: Math.round(rawWpm), acc: Math.round(acc) };
+}
+
+function drainEvents(sess) {
+  const ev = sess.events;
+  sess.events = [];
+  return ev;
+}
+
+exports.fold = fold; exports.createSession = createSession; exports.activeWord = activeWord; exports.stepSession = stepSession; exports.typeChar = typeChar; exports.backspace = backspace; exports.metrics = metrics; exports.drainEvents = drainEvents; exports.LANES = LANES;
+};
+__defs["games/typing-rush/difficulty.js"] = function (exports, __req) {
+/**
+ * difficulty.js — cấu hình độ khó Typing Rush 404.
+ * fall: tốc độ rơi (đơn vị màn hình 0..1 mỗi giây) · spawnEvery: giây ·
+ * maxTargets: số từ tối đa trên màn · adaptive: tự điều chỉnh ±(có trần).
+ */
+
+const { poolOf } = __req("games/typing-rush/dictionary.js");
+
+const DIFFICULTIES = {
+  easy: {
+    id: "easy",
+    label: "DỄ",
+    fall: 0.042,
+    spawnEvery: 3.0,
+    maxTargets: 3,
+    adaptive: false,
+    lives: 3,
+    allowBackspace: true,
+    pool: () => poolOf("basic"),
+  },
+  normal: {
+    id: "normal",
+    label: "THƯỜNG",
+    fall: 0.06,
+    spawnEvery: 2.3,
+    maxTargets: 4,
+    adaptive: false,
+    lives: 3,
+    allowBackspace: true,
+    pool: () => poolOf("basic", "technology"),
+  },
+  hard: {
+    id: "hard",
+    label: "KHÓ",
+    fall: 0.082,
+    spawnEvery: 1.7,
+    maxTargets: 6,
+    adaptive: false,
+    lives: 3,
+    allowBackspace: true,
+    pool: () => poolOf("technology", "mixed"),
+  },
+  adaptive: {
+    id: "adaptive",
+    label: "THÍCH ỨNG",
+    fall: 0.058,
+    spawnEvery: 2.3,
+    maxTargets: 5,
+    adaptive: true,
+    lives: 3,
+    allowBackspace: true,
+    pool: () => poolOf("basic", "technology", "mixed"),
+  },
+};
+
+function sessionConfig(diffId) {
+  const d = DIFFICULTIES[diffId] || DIFFICULTIES.normal;
+  return {
+    fall: d.fall,
+    spawnEvery: d.spawnEvery,
+    maxTargets: d.maxTargets,
+    adaptive: d.adaptive,
+    lives: d.lives,
+    allowBackspace: d.allowBackspace,
+    wordPool: d.pool(),
+  };
+}
+
+exports.sessionConfig = sessionConfig; exports.DIFFICULTIES = DIFFICULTIES;
+};
+__defs["games/typing-rush/dictionary.js"] = function (exports, __req) {
+/**
+ * dictionary.js — từ điển Typing Rush 404 (locale vi), tách khỏi engine.
+ * basic: từ ngắn quen thuộc · technology: thuật ngữ CNTT ·
+ * mixed: cụm dài / tiếng Việt có dấu. Không chứa nội dung nhạy cảm.
+ */
+
+const DICTIONARY = {
+  locale: "vi",
+  categories: {
+    basic: [
+      "web",
+      "code",
+      "wifi",
+      "chip",
+      "data",
+      "lỗi",
+      "mạng",
+      "phím",
+      "chuột",
+      "màn hình",
+      "tập tin",
+      "thư mục",
+      "trang chủ",
+      "hình nền",
+      "tài khoản",
+      "mật khẩu",
+      "tin nhắn",
+      "trò chơi",
+    ],
+    technology: [
+      "function",
+      "debug",
+      "system",
+      "server",
+      "cache",
+      "router",
+      "kernel",
+      "python",
+      "socket",
+      "docker",
+      "commit",
+      "branch",
+      "deploy",
+      "backend",
+      "frontend",
+      "database",
+      "compiler",
+      "terminal",
+      "firewall",
+      "protocol",
+    ],
+    mixed: [
+      "bộ nhớ",
+      "kết nối",
+      "thuật toán",
+      "máy chủ ảo",
+      "lập trình viên",
+      "dữ liệu lớn",
+      "bảo mật mạng",
+      "trí tuệ nhân tạo",
+      "điện toán đám mây",
+      "hệ điều hành",
+      "phần mềm mở",
+      "băng thông rộng",
+    ],
+  },
+};
+
+/** Gộp pool theo tên nhóm. */
+function poolOf(...names) {
+  const out = [];
+  for (const n of names) out.push(...(DICTIONARY.categories[n] || []));
+  return out;
+}
+
+exports.poolOf = poolOf; exports.DICTIONARY = DICTIONARY;
+};
+__defs["games/typing-rush/keyboard.js"] = function (exports, __req) {
+/**
+ * keyboard.js — bàn phím QWERTY ảo + panel HEAT MAP cho Typing Rush 404.
+ * Bàn phím sáng phím theo ký tự KẾ TIẾP cần gõ (highlight cyan như ảnh),
+ * flash xanh/đỏ khi gõ đúng/sai. Heat map tô màu cool→hot theo tần suất.
+ */
+
+const { el } = __req("core/utils.js");
+
+const ROWS = [
+  [
+    ["~", "`"], ["!", "1"], ["@", "2"], ["#", "3"], ["$", "4"], ["%", "5"],
+    ["^", "6"], ["&", "7"], ["*", "8"], ["(", "9"], [")", "0"], ["_", "-"],
+    ["+", "="], ["BACKSPACE", null, 2],
+  ],
+  [
+    ["TAB", null, 1.6], ["Q"], ["W"], ["E"], ["R"], ["T"], ["Y"], ["U"],
+    ["I"], ["O"], ["P"], ["{", "["], ["}", "]"], ["\\", null, 1.2],
+  ],
+  [
+    ["CAPS LOCK", null, 2], ["A"], ["S"], ["D"], ["F"], ["G"], ["H"], ["J"],
+    ["K"], ["L"], [";", ";"], ["'", "'"], ["ENTER", null, 1.9],
+  ],
+  [
+    ["SHIFT", null, 2.5], ["Z"], ["X"], ["C"], ["V"], ["B"], ["N"], ["M"],
+    [",", ","], [".", "."], ["?", "/"], ["SHIFT", null, 2.5],
+  ],
+];
+
+/** key data-char cho một cap: chữ cái thường / số / ký hiệu chính. */
+function charOf(cap) {
+  const [label, sub] = cap;
+  if (label.length === 1 && /[A-Z]/.test(label)) return label.toLowerCase();
+  if (sub) return sub;
+  return null;
+}
+
+function buildKeyboard(container) {
+  const kb = el("div", "tr-kb");
+  const byChar = new Map();
+  for (const row of ROWS) {
+    const r = el("div", "tr-kb-row");
+    for (const cap of row) {
+      const [label, sub, flex] = cap;
+      const key = el("div", "tr-key");
+      if (flex) key.style.flex = `${flex} 1 0`;
+      if (label.length > 1) key.classList.add("wide");
+      if (sub && sub !== label.toLowerCase() && label.length === 1 && !/[A-Z]/.test(label)) {
+        key.appendChild(el("span", "sup", label));
+        key.appendChild(el("span", "main", sub));
+      } else {
+        key.appendChild(el("span", "main", label));
+      }
+      const ch = charOf(cap);
+      if (ch) {
+        key.dataset.char = ch;
+        byChar.set(ch, key);
+      }
+      r.appendChild(key);
+    }
+    kb.appendChild(r);
+  }
+  // spacebar mảnh dưới cùng (dải sáng trong ảnh)
+  const spaceRow = el("div", "tr-kb-row");
+  const space = el("div", "tr-key tr-space");
+  space.dataset.char = " ";
+  byChar.set(" ", space);
+  spaceRow.appendChild(space);
+  kb.appendChild(spaceRow);
+  container.appendChild(kb);
+
+  let nextKey = null;
+
+  return {
+    setNext(ch) {
+      if (nextKey) nextKey.classList.remove("next");
+      nextKey = ch ? byChar.get(ch) || null : null;
+      if (nextKey) nextKey.classList.add("next");
+    },
+    flash(ch, ok) {
+      const key = byChar.get(ch);
+      if (!key) return;
+      const cls = ok ? "hit" : "miss";
+      key.classList.remove("hit", "miss");
+      void key.offsetWidth;
+      key.classList.add(cls);
+      setTimeout(() => key.classList.remove(cls), 190);
+    },
+  };
+}
+
+/** Heat map thu nhỏ: các ô theo layout phím chữ + thanh cool→hot. */
+function buildHeatmap(container) {
+  const panel = el("div", "tr-heat");
+  panel.appendChild(el("div", "tr-heat-title", "HEAT MAP"));
+  const grid = el("div", "tr-heat-grid");
+  const cells = new Map();
+  const MINI = ["1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm"];
+  for (const rowStr of MINI) {
+    const r = el("div", "row");
+    for (const ch of rowStr) {
+      const cell = el("i");
+      cells.set(ch, cell);
+      r.appendChild(cell);
+    }
+    grid.appendChild(r);
+  }
+  panel.appendChild(grid);
+  const legend = el("div", "tr-heat-legend");
+  legend.appendChild(el("span", "", "COOL"));
+  legend.appendChild(el("i"));
+  legend.appendChild(el("span", "", "HOT"));
+  panel.appendChild(legend);
+  container.appendChild(panel);
+
+  return {
+    update(heat) {
+      let max = 0;
+      for (const [, v] of heat) max = Math.max(max, v);
+      for (const [ch, cell] of cells) {
+        const v = heat.get(ch) || 0;
+        if (!max || !v) {
+          cell.style.background = "rgba(40,60,120,0.35)";
+          cell.style.boxShadow = "none";
+          continue;
+        }
+        const k = v / max; // 0..1
+        // cool xanh dương → tím → hồng → cam nóng
+        const hue = 225 - k * 200;
+        const light = 42 + k * 18;
+        cell.style.background = `hsl(${hue} 90% ${light}%)`;
+        cell.style.boxShadow = k > 0.6 ? `0 0 6px hsl(${hue} 90% ${light}%)` : "none";
+      }
+    },
+  };
+}
+
+exports.buildKeyboard = buildKeyboard; exports.buildHeatmap = buildHeatmap;
+};
+__defs["games/typing-rush/styles.js"] = function (exports, __req) {
+/**
+ * styles.js — CSS riêng Typing Rush 404: khung chữ rơi neon, DANGER
+ * LINE đỏ, bàn phím QWERTY ảo phím sáng, panel HEAT MAP — theo ảnh.
+ */
+
+const TR_CSS = /* css */ `
+.tr-mode .exp-title {
+  border: 1px solid rgba(244, 247, 255, 0.3);
+  padding: 5px 16px 7px;
+  border-radius: 8px;
+  background: rgba(7, 11, 30, 0.9);
+}
+
+.tr-rain {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.tr-field {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* ---------- khung từ rơi ---------- */
+
+.tr-word {
+  --tone: var(--cyan);
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 9px 16px;
+  border: 1.6px solid color-mix(in srgb, var(--tone) 75%, transparent);
+  border-radius: 10px;
+  background: rgba(6, 9, 24, 0.92);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--tone) 25%, transparent);
+  font-size: 1.06rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--text-0);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.tr-word .tag { color: var(--tone); font-size: 0.8em; margin-right: 7px; opacity: 0.9; }
+.tr-word .done { color: var(--cyan); }
+.tr-word[data-tone="violet"]  { --tone: var(--violet); }
+.tr-word[data-tone="magenta"] { --tone: var(--pink); }
+.tr-word[data-tone="white"]   { --tone: #dfe6ff; }
+
+.tr-word.active {
+  --tone: #c8f542;
+  border-width: 2.4px;
+  font-size: 1.3rem;
+  box-shadow: 0 0 26px color-mix(in srgb, #c8f542 45%, transparent);
+  z-index: 5;
+}
+
+.tr-word.active::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -26px;
+  width: 16px;
+  height: 20px;
+  transform: translateX(-50%);
+  background:
+    linear-gradient(to bottom, transparent 0 2px, #c8f542 2px 8px, transparent 8px 12px, #c8f542cc 12px 18px, transparent 18px);
+  clip-path: polygon(0 0, 50% 40%, 100% 0, 100% 55%, 50% 100%, 0 55%);
+  animation: trChev 0.7s linear infinite;
+}
+
+@keyframes trChev { 50% { transform: translateX(-50%) translateY(4px); } }
+
+.tr-word.shake { animation: trShake 0.18s linear; }
+
+@keyframes trShake {
+  25% { margin-left: -5px; }
+  75% { margin-left: 5px; }
+}
+
+.tr-word.pop { animation: trPop 0.28s ease forwards; }
+
+@keyframes trPop {
+  40% { transform: translate(-50%, -50%) scale(1.18); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+}
+
+/* ---------- danger line ---------- */
+
+.tr-danger {
+  position: absolute;
+  left: 3%;
+  right: 3%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.tr-danger .line {
+  flex: 1;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #ff2e4d 12%, #ff2e4d 88%, transparent);
+  box-shadow: 0 0 14px rgba(255, 46, 77, 0.8);
+  animation: trPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes trPulse { 50% { opacity: 0.55; } }
+
+.tr-danger .lbl {
+  flex: none;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  color: #ff4d66;
+  text-shadow: 0 0 12px rgba(255, 46, 77, 0.7);
+}
+
+.tr-danger .warn {
+  flex: none;
+  width: 22px;
+  height: 20px;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  background: rgba(255, 46, 77, 0.25);
+  border-bottom: 2px solid #ff2e4d;
+  position: relative;
+}
+
+.tr-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 70%, rgba(255, 30, 60, 0.28), transparent 65%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 7;
+}
+
+.tr-flash.on { animation: trFlash 0.5s ease; }
+
+@keyframes trFlash { 12% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ---------- khu dưới: bàn phím + heat map ---------- */
+
+.tr-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  padding: 8px 14px 12px;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.tr-kb {
+  flex: 1;
+  max-width: 760px;
+  margin: 0 auto;
+  display: grid;
+  gap: 5px;
+}
+
+.tr-kb-row { display: flex; gap: 5px; }
+
+.tr-key {
+  flex: 1 1 0;
+  min-height: 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  border: 1px solid rgba(150, 170, 230, 0.28);
+  border-radius: 7px;
+  background: rgba(13, 18, 40, 0.88);
+  color: var(--text-1);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.1;
+  transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.tr-key .sup { font-size: 0.5rem; opacity: 0.65; }
+.tr-key.wide { font-size: 0.54rem; letter-spacing: 0.08em; }
+
+.tr-key.next {
+  background: rgba(32, 227, 255, 0.28);
+  border-color: var(--cyan);
+  color: #eaffff;
+  box-shadow: 0 0 12px rgba(32, 227, 255, 0.5);
+}
+
+.tr-key.hit { background: rgba(77, 247, 127, 0.35); border-color: var(--green); color: #eafff0; }
+.tr-key.miss { background: rgba(255, 46, 77, 0.4); border-color: #ff2e4d; color: #ffe8ec; }
+
+.tr-space { min-height: 12px; max-width: 320px; margin: 0 auto; background: rgba(32, 227, 255, 0.2); border-color: rgba(32,227,255,.45); }
+.tr-space.next { background: rgba(32, 227, 255, 0.5); }
+
+/* heat map */
+
+.tr-heat {
+  flex: none;
+  width: 216px;
+  border: 1px solid rgba(150, 170, 230, 0.3);
+  border-radius: 12px;
+  background: rgba(9, 13, 32, 0.92);
+  padding: 10px 12px 12px;
+}
+
+.tr-heat-title {
+  text-align: center;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.26em;
+  color: var(--cyan);
+  margin-bottom: 8px;
+}
+
+.tr-heat-grid { display: grid; gap: 3px; }
+.tr-heat-grid .row { display: flex; gap: 3px; justify-content: center; }
+.tr-heat-grid i {
+  width: 15px;
+  height: 13px;
+  border-radius: 3px;
+  background: rgba(40, 60, 120, 0.35);
+}
+
+.tr-heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.tr-heat-legend span {
+  font-size: 0.54rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--text-1);
+}
+
+.tr-heat-legend i {
+  flex: 1;
+  height: 7px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #1d49c8, #7a3fd4, #ff2ee6, #ff9d2e, #ffd23f);
+}
+
+/* nhãn tối ưu desktop */
+
+.tr-note {
+  position: absolute;
+  right: 14px;
+  top: 10px;
+  z-index: 9;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--gold);
+  border: 1px solid color-mix(in srgb, var(--gold) 50%, transparent);
+  border-radius: 6px;
+  padding: 4px 10px;
+  background: rgba(10, 10, 26, 0.85);
+}
+
+/* chọn độ khó trong intro */
+
+.tr-diffs { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 18px; }
+
+.tr-diff {
+  border: 1px solid rgba(150, 170, 230, 0.4);
+  border-radius: 7px;
+  background: rgba(13, 18, 40, 0.88);
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.tr-diff.sel {
+  border-color: var(--cyan);
+  color: #061018;
+  background: var(--cyan);
+  box-shadow: 0 0 14px rgba(32, 227, 255, 0.5);
+}
+
+@media (max-width: 900px) {
+  .tr-heat { display: none; }
+  .tr-key { min-height: 24px; font-size: 0.52rem; }
+  .tr-key .sup { display: none; }
+  .tr-word { font-size: 0.88rem; padding: 6px 10px; }
+  .tr-word.active { font-size: 1.02rem; }
+}
+`;
+
+exports.TR_CSS = TR_CSS;
+};
+__defs["games/astro-patrol/index.js"] = function (exports, __req) {
+/**
+ * Astro Patrol 404 — bắn phi thuyền dọc 5 wave + boss (expansion 11–15).
+ *
+ * Theo ảnh reference: topbar ĐIỂM / KHIÊN % (thanh) / WAVE / COMBO /
+ * BOSS % (thanh); thanh máu boss đầu lâu 2 bên dưới topbar; không gian
+ * sao + asteroid tinh thể tím; boss lục giác mắt đỏ; joystick ảo
+ * VÙNG DI CHUYỂN trái + NÚT BẮN crosshair phải. WASD/chuột di chuyển,
+ * SPACE/click bắn, tùy chọn auto-fire trong pause. Engine thuần
+ * (object pool + spatial grid + giới hạn đạn + khiên trước HP +
+ * boss 2 phase telegraph) trong engine.js.
+ */
+
+const { createExpansionFrame } = __req("games/_shared/frame.js");
+const { createKeyboard } = __req("core/input-manager.js");
+const { createLoop } = __req("core/loop.js");
+const { el, svgIcon, formatScore, formatTime } = __req("core/utils.js");
+const { createSim, stepSim, drainEvents, damagePlayer, WORLD } = __req("games/astro-patrol/engine.js");
+const { BOSS_DEF } = __req("games/astro-patrol/waves.js");
+const { createAstroRenderer } = __req("games/astro-patrol/render.js");
+const { AP_CSS } = __req("games/astro-patrol/styles.js");
+
+const STEP = 1 / 120;
+
+function createGame() {
+  let ctx = null;
+  let frame = null;
+  let renderer = null;
+  let keys = null;
+  let loop = null;
+  let ro = null;
+  let canvas = null;
+  let stage = null;
+  let bossBar = null;
+  let bossFill = null;
+  let bossPct = null;
+  let fireBtn = null;
+
+  const TEST = typeof window !== "undefined" && window.__ARCADE_EXP11_TEST__;
+
+  let mode = "intro"; // intro | play | paused | over
+  let sim = null;
+  let acc = 0;
+  let time = 0;
+  let stateT = 0;
+  let hudT = 0;
+  let autoFire = false;
+
+  const fx = { particles: [], rings: [] };
+  const touch = { joyActive: false, joyId: -1, mx: 0, my: 0, fire: false };
+  const pointer = { targetX: null, targetY: null, fire: false };
+
+  /* ---------------- HUD ---------------- */
+
+  function updateHud() {
+    if (!sim) return;
+    frame.setStat("score", formatScore(sim.score));
+    frame.setStat("shield", `${Math.round(sim.player.shield)}%`);
+    frame.setStatBar("shield", sim.player.shield);
+    frame.setStat("wave", String(Math.min(sim.wave, 6)).padStart(2, "0"));
+    frame.setStat("combo", `x${sim.combo}`);
+    frame.setStat("hp", `${Math.max(0, Math.round(sim.player.hp))}%`);
+    frame.setStatBar("hp", sim.player.hp);
+    if (sim.boss) {
+      const pct = Math.max(0, Math.round((sim.boss.hp / sim.boss.maxHp) * 100));
+      frame.setStat("boss", `${pct}%`);
+      frame.setStatBar("boss", pct);
+      bossFill.style.width = `${pct}%`;
+      bossPct.textContent = `${pct}%`;
+      bossBar.classList.add("show");
+    } else {
+      frame.setStat("boss", "—");
+      frame.setStatBar("boss", 0);
+      bossBar.classList.remove("show");
+    }
+  }
+
+  /* ---------------- FX ---------------- */
+
+  function burst(x, y, color, n = 12, ringColor = null) {
+    for (let i = 0; i < n; i++) {
+      if (fx.particles.length > 240) break;
+      const a = Math.random() * Math.PI * 2;
+      const sp = 70 + Math.random() * 220;
+      fx.particles.push({
+        x,
+        y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp,
+        rot: Math.random() * 6.3,
+        size: 2.5 + Math.random() * 5,
+        life: 0.4 + Math.random() * 0.4,
+        life0: 0.8,
+        color,
+      });
+    }
+    if (ringColor) fx.rings.push({ x, y, r0: 6, grow: 52, life: 0.45, life0: 0.45, color: ringColor });
+  }
+
+  function stepFx(dt) {
+    for (let i = fx.particles.length - 1; i >= 0; i--) {
+      const p = fx.particles[i];
+      p.life -= dt;
+      if (p.life <= 0) {
+        fx.particles.splice(i, 1);
+        continue;
+      }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+    }
+    for (let i = fx.rings.length - 1; i >= 0; i--) {
+      fx.rings[i].life -= dt;
+      if (fx.rings[i].life <= 0) fx.rings.splice(i, 1);
+    }
+  }
+
+  /* ---------------- Sự kiện engine ---------------- */
+
+  function handleEvents(events) {
+    for (const ev of events) {
+      switch (ev.type) {
+        case "shoot":
+          ctx.audio.play("ap_shoot");
+          break;
+        case "eshoot":
+          ctx.audio.play("botshot");
+          break;
+        case "ehit":
+          ctx.audio.play("hitmark");
+          burst(ev.x, ev.y, "#ffd9a0", 3);
+          break;
+        case "kill":
+          ctx.audio.play("kill");
+          burst(ev.x, ev.y, "#ffb347", 14, "rgba(255,171,61,0.8)");
+          updateHud();
+          break;
+        case "boom":
+          ctx.audio.play("boom");
+          burst(ev.x, ev.y, "#a8afc8", 16, "rgba(170,180,220,0.7)");
+          updateHud();
+          break;
+        case "shieldHit":
+          ctx.audio.play("bb_steel");
+          frame.toast("KHIÊN HẤP THỤ SÁT THƯƠNG!");
+          updateHud();
+          break;
+        case "hurt":
+          ctx.audio.play("hurt");
+          burst(sim.player.x, sim.player.y, "#ff6a7e", 10);
+          updateHud();
+          break;
+        case "pickup":
+          ctx.audio.play("pickup");
+          frame.toast(ev.kind === "shield" ? "+40 KHIÊN!" : "NÂNG CẤP HỎA LỰC!");
+          updateHud();
+          break;
+        case "wave":
+          frame.banner(`WAVE ${String(ev.n).padStart(2, "0")} — ${ev.name}`);
+          ctx.audio.play("wave");
+          updateHud();
+          break;
+        case "bossIncoming":
+          frame.banner(`BOSS — ${BOSS_DEF.name}`);
+          ctx.audio.play("ap_alarm");
+          break;
+        case "bossTelegraph":
+          ctx.audio.play("vr_warn");
+          break;
+        case "bossPhase":
+          frame.banner("BOSS PHASE 2!");
+          ctx.audio.play("ap_alarm");
+          break;
+        case "bosshit":
+          burst(ev.x, ev.y, "#c9b6ff", 2);
+          break;
+        case "bossDead":
+          burst(WORLD.w / 2, 130, "#ffb347", 40, "rgba(255,120,80,0.9)");
+          ctx.audio.play("boom");
+          break;
+        case "victory":
+          finishMatch(true);
+          return;
+        case "gameOver":
+          burst(sim.player.x, sim.player.y, "#ff8091", 26, "rgba(255,80,110,0.9)");
+          finishMatch(false);
+          return;
+        default:
+          break;
+      }
+    }
+  }
+
+  /* ---------------- Vòng đời ---------------- */
+
+  function beginMatch() {
+    sim = createSim({ test: TEST });
+    sim.autoFire = autoFire;
+    fx.particles.length = 0;
+    fx.rings.length = 0;
+    acc = 0;
+    mode = "play";
+    frame.clearScreen();
+    frame.setPaused(false);
+    ctx.onMatchStart();
+    ctx.audio.play("start");
+    updateHud();
+    loop.start();
+  }
+
+  function finishMatch(victory) {
+    mode = "over";
+    const saved = ctx.onGameOver(sim.score, {
+      wave: sim.wave,
+      kills: sim.kills,
+      maxCombo: sim.maxCombo,
+      victory,
+    });
+    frame.overScreen({
+      kicker: victory ? "// KHU VỰC AN TOÀN" : "// TÍN HIỆU MẤT",
+      heading: victory ? "DẸP YÊN KHU VỰC 404!" : "TÀU BỊ PHÁ HỦY!",
+      score: sim.score,
+      saved,
+      statCards: [
+        { label: "WAVE", value: `${Math.min(sim.wave, 6)}/6`, color: "cyan" },
+        { label: "TIÊU DIỆT", value: sim.kills, color: "gold" },
+        { label: "COMBO MAX", value: `x${sim.maxCombo}`, color: "pink" },
+        { label: "THỜI GIAN", value: formatTime(sim.time), color: "violet" },
+      ],
+      restartLabel: "XUẤT KÍCH LẠI",
+      onRestart: () => beginMatch(),
+    });
+  }
+
+  function pauseGame() {
+    if (mode !== "play") return;
+    mode = "paused";
+    loop.stop();
+    frame.setPaused(true);
+    frame.pauseMenu({
+      onResume: () => resumeGame(),
+      onRestart: () => beginMatch(),
+      restartLabel: "XUẤT KÍCH LẠI",
+      buildExtra: (box) => {
+        const row = el("div", "exp-setrow");
+        row.appendChild(el("span", "", "TỰ ĐỘNG BẮN"));
+        const btn = el("button", "exp-menu-btn", autoFire ? "BẬT" : "TẮT");
+        btn.type = "button";
+        btn.style.minHeight = "34px";
+        btn.style.padding = "0 22px";
+        btn.addEventListener("click", () => {
+          autoFire = !autoFire;
+          if (sim) sim.autoFire = autoFire;
+          ctx.storage.setPref("ap-autofire", autoFire);
+          btn.textContent = autoFire ? "BẬT" : "TẮT";
+          ctx.audio.play("ui");
+        });
+        row.appendChild(btn);
+        box.appendChild(row);
+        const prog = el("div", "exp-setrow");
+        prog.appendChild(el("span", "", "TIẾN TRÌNH"));
+        prog.appendChild(el("span", "val", `WAVE ${Math.min(sim.wave, 6)}/6 · ${sim.kills} kill`));
+        box.appendChild(prog);
+      },
+    });
+  }
+
+  function resumeGame() {
+    if (mode !== "paused") return;
+    mode = "play";
+    frame.clearScreen();
+    frame.setPaused(false);
+    keys.clearDown();
+    touch.fire = false;
+    pointer.fire = false;
+    loop.start();
+  }
+
+  function togglePause() {
+    if (mode === "play") pauseGame();
+    else if (mode === "paused") resumeGame();
+  }
+
+  function showIntro() {
+    mode = "intro";
+    loop.stop();
+    frame.intro({
+      kicker: "// TUẦN TRA KHU VỰC 404",
+      heading: [["ASTRO PATROL ", ""], ["404", "cyan"]],
+      goal:
+        "Sống sót qua 5 wave địch và hạ MINI-BOSS cuối. Khiên hấp thụ sát thương trước HP — nhặt lục giác khiên và tia sét để nâng hỏa lực. Né asteroid, coi chừng tàu lao và đạn quạt của boss!",
+      rows: [
+        { keys: ["WASD", "↑↓←→"], text: "di chuyển (hoặc rê chuột)" },
+        { keys: ["SPACE", "Click"], text: "bắn (bật auto-fire trong menu tạm dừng)" },
+        { keys: ["Chạm"], text: "joystick trái + NÚT BẮN phải trên mobile" },
+        { keys: ["ESC"], text: "tạm dừng" },
+      ],
+      startLabel: "XUẤT KÍCH",
+      onStart: () => beginMatch(),
+    });
+    sim = createSim({ test: TEST });
+    renderer.fit();
+    renderer.draw(sim, fx, 0);
+    updateHud();
+  }
+
+  /* ---------------- Input ---------------- */
+
+  function gatherInput() {
+    const left = keys.isDown("ArrowLeft") || keys.isDown("KeyA");
+    const right = keys.isDown("ArrowRight") || keys.isDown("KeyD");
+    const up = keys.isDown("ArrowUp") || keys.isDown("KeyW");
+    const down = keys.isDown("ArrowDown") || keys.isDown("KeyS");
+    let mx = (right ? 1 : 0) - (left ? 1 : 0);
+    let my = (down ? 1 : 0) - (up ? 1 : 0);
+    let targetX = null;
+    let targetY = null;
+    if (touch.joyActive) {
+      mx = touch.mx;
+      my = touch.my;
+    } else if (!mx && !my && pointer.targetX !== null) {
+      targetX = pointer.targetX;
+      targetY = pointer.targetY;
+    }
+    const fire = keys.isDown("Space") || touch.fire || pointer.fire;
+    return { mx, my, targetX, targetY, fire };
+  }
+
+  /* ---------------- Vòng lặp ---------------- */
+
+  function update(dt) {
+    time += dt;
+    if (mode === "play") {
+      const input = gatherInput();
+      acc = Math.min(acc + dt, 0.1);
+      while (acc >= STEP && mode === "play") {
+        acc -= STEP;
+        stepSim(sim, input, STEP);
+        if (sim.over || sim.victory) break;
+      }
+      handleEvents(drainEvents(sim));
+      if (mode === "play") {
+        hudT += dt;
+        if (hudT > 0.2) {
+          hudT = 0;
+          updateHud();
+        }
+      }
+    }
+    stepFx(dt);
+    renderer.draw(sim, fx, time);
+
+    if (TEST && sim) {
+      stateT += dt;
+      if (stateT > 0.35) {
+        stateT = 0;
+        window.__AP_STATE__ = {
+          mode,
+          wave: sim.wave,
+          waveState: sim.waveState,
+          hp: Math.round(sim.player.hp),
+          shield: Math.round(sim.player.shield),
+          power: sim.player.power,
+          combo: sim.combo,
+          score: sim.score,
+          kills: sim.kills,
+          enemies: sim.enemies.length,
+          queue: sim.spawnQueue.length,
+          bullets: sim.bullets.length,
+          ebullets: sim.ebullets.length,
+          bossHp: sim.boss ? sim.boss.hp : null,
+          bossPhase: sim.boss ? sim.boss.phase : null,
+        };
+      }
+    }
+  }
+
+  /* ---------------- Interface ---------------- */
+
+  return {
+    async mount(container, context) {
+      ctx = context;
+      autoFire = !!ctx.storage.getPref("ap-autofire", window.matchMedia("(pointer: coarse)").matches);
+
+      const rootNode = container.getRootNode();
+      if (rootNode instanceof ShadowRoot && !rootNode.querySelector("#ap-style")) {
+        const style = document.createElement("style");
+        style.id = "ap-style";
+        style.textContent = AP_CSS;
+        rootNode.appendChild(style);
+      }
+
+      frame = createExpansionFrame(container, ctx, {
+        accent: "cyan",
+        title: [["ASTRO PATROL ", ""], ["404", "cyan"]],
+        stats: [
+          { id: "score", label: "ĐIỂM", color: "white", value: "000000" },
+          { id: "shield", label: "KHIÊN", color: "cyan", value: "50%", bar: true },
+          { id: "hp", label: "HP", color: "green", value: "100%", bar: true, optional: true },
+          { id: "wave", label: "WAVE", color: "white", value: "01" },
+          { id: "combo", label: "COMBO", color: "pink", value: "x0" },
+          { id: "boss", label: "BOSS", color: "pink", value: "—", bar: true, optional: true },
+        ],
+        onPauseToggle: togglePause,
+        buttonLabels: { home: "HOME" },
+      });
+      frame.root.classList.add("ap-mode");
+
+      stage = el("div", "ap-stage");
+      canvas = document.createElement("canvas");
+      canvas.setAttribute("aria-label", "Không gian Astro Patrol");
+      stage.appendChild(canvas);
+      frame.playfield.appendChild(stage);
+
+      /* thanh máu boss */
+      bossBar = el("div", "ap-bossbar");
+      bossBar.appendChild(svgIcon("i-skull"));
+      const track = el("div", "track");
+      bossFill = el("div", "fill");
+      bossPct = el("div", "pct", "100%");
+      track.appendChild(bossFill);
+      track.appendChild(bossPct);
+      bossBar.appendChild(track);
+      bossBar.appendChild(svgIcon("i-skull"));
+      frame.playfield.appendChild(bossBar);
+
+      /* joystick ảo */
+      const joy = el("div", "ap-joy");
+      const pad = el("div", "pad");
+      for (const dir of ["up", "down", "left", "right"]) pad.appendChild(el("i", `arr ${dir}`));
+      const knob = el("div", "knob");
+      pad.appendChild(knob);
+      joy.appendChild(pad);
+      joy.appendChild(el("div", "lbl", "VÙNG DI CHUYỂN"));
+      frame.playfield.appendChild(joy);
+
+      const joyMove = (e) => {
+        const rect = pad.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        let dx = (e.clientX - cx) / (rect.width / 2);
+        let dy = (e.clientY - cy) / (rect.height / 2);
+        const d = Math.hypot(dx, dy);
+        if (d > 1) {
+          dx /= d;
+          dy /= d;
+        }
+        touch.mx = dx;
+        touch.my = dy;
+        knob.style.transform = `translate(calc(-50% + ${dx * 34}px), calc(-50% + ${dy * 34}px))`;
+      };
+      pad.addEventListener(
+        "pointerdown",
+        (e) => {
+          e.preventDefault();
+          touch.joyActive = true;
+          touch.joyId = e.pointerId;
+          joyMove(e);
+        },
+        { signal: ctx.signal }
+      );
+      window.addEventListener(
+        "pointermove",
+        (e) => {
+          if (touch.joyActive && e.pointerId === touch.joyId) joyMove(e);
+        },
+        { signal: ctx.signal }
+      );
+      const joyEnd = (e) => {
+        if (e.pointerId !== touch.joyId) return;
+        touch.joyActive = false;
+        touch.mx = 0;
+        touch.my = 0;
+        knob.style.transform = "translate(-50%, -50%)";
+      };
+      window.addEventListener("pointerup", joyEnd, { signal: ctx.signal });
+      window.addEventListener("pointercancel", joyEnd, { signal: ctx.signal });
+
+      /* nút bắn */
+      const fire = el("div", "ap-fire");
+      fireBtn = el("div", "btn");
+      for (const d of ["n", "s", "w", "e"]) fireBtn.appendChild(el("i", `tick ${d}`));
+      fire.appendChild(fireBtn);
+      fire.appendChild(el("div", "lbl", "NÚT BẮN"));
+      frame.playfield.appendChild(fire);
+      fireBtn.addEventListener(
+        "pointerdown",
+        (e) => {
+          e.preventDefault();
+          touch.fire = true;
+          fireBtn.classList.add("held");
+        },
+        { signal: ctx.signal }
+      );
+      const fireEnd = () => {
+        touch.fire = false;
+        fireBtn.classList.remove("held");
+      };
+      window.addEventListener("pointerup", fireEnd, { signal: ctx.signal });
+      window.addEventListener("pointercancel", fireEnd, { signal: ctx.signal });
+
+      /* chuột trên canvas: rê để lái, giữ để bắn */
+      canvas.addEventListener(
+        "pointermove",
+        (e) => {
+          if (e.pointerType === "touch") return;
+          const w = renderer.toWorld(e.clientX, e.clientY);
+          pointer.targetX = w.x;
+          pointer.targetY = w.y;
+        },
+        { signal: ctx.signal }
+      );
+      canvas.addEventListener(
+        "pointerdown",
+        (e) => {
+          if (e.pointerType === "touch") return;
+          e.preventDefault();
+          pointer.fire = true;
+        },
+        { signal: ctx.signal }
+      );
+      window.addEventListener("pointerup", () => (pointer.fire = false), { signal: ctx.signal });
+      canvas.addEventListener(
+        "pointerleave",
+        () => {
+          pointer.targetX = null;
+          pointer.targetY = null;
+        },
+        { signal: ctx.signal }
+      );
+
+      renderer = createAstroRenderer(canvas, stage);
+      ro = new ResizeObserver(() => renderer.fit());
+      ro.observe(stage);
+
+      keys = createKeyboard({ signal: ctx.signal });
+      keys.on(["Space"], () => {}); // đăng ký để preventDefault; trạng thái đọc qua isDown
+      keys.on(["KeyP"], () => togglePause());
+      keys.on(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "KeyA", "KeyD", "KeyW", "KeyS"], () => {
+        pointer.targetX = null;
+        pointer.targetY = null;
+      });
+
+      loop = createLoop(update);
+
+      if (TEST) {
+        window.__AP_TEST__ = {
+          clearWave: () => {
+            if (!sim) return false;
+            sim.spawnQueue.length = 0;
+            for (const e of sim.enemies) {
+              e.hp = 0;
+            }
+            sim.enemies.length = 0;
+            return true;
+          },
+          hitPlayer: (d) => {
+            if (!sim) return false;
+            sim.player.inv = 0;
+            damagePlayer(sim, d);
+            return true;
+          },
+          setBossHp: (hp) => {
+            if (!sim || !sim.boss) return false;
+            sim.boss.hp = hp;
+            return true;
+          },
+          setShield: (v) => {
+            if (!sim) return false;
+            sim.player.shield = v;
+            return true;
+          },
+        };
+      }
+
+      showIntro();
+    },
+
+    start() {
+      if (mode === "intro") beginMatch();
+    },
+
+    pause() {
+      pauseGame();
+    },
+
+    resume() {
+      resumeGame();
+    },
+
+    restart() {
+      if (mode === "intro") return;
+      beginMatch();
+    },
+
+    resize() {
+      renderer?.fit();
+    },
+
+    destroy() {
+      loop?.stop();
+      keys?.destroy();
+      ro?.disconnect();
+      frame?.destroy();
+      frame = null;
+      renderer = null;
+      sim = null;
+      if (typeof window !== "undefined") {
+        delete window.__AP_STATE__;
+        delete window.__AP_TEST__;
+      }
+    },
+  };
+}
+
+exports.createGame = createGame;
+};
+__defs["games/astro-patrol/engine.js"] = function (exports, __req) {
+/**
+ * engine.js — Astro Patrol 404: mô phỏng thuần (không DOM) để unit test.
+ *
+ * - Object pool cho đạn/đạn địch (acquire/release, không cấp phát mỗi phát bắn).
+ * - Spatial grid (ô 80px) cho va chạm đạn ↔ địch/asteroid.
+ * - Giới hạn projectile trên màn (B_CAP/EB_CAP) — đầy thì không bắn thêm.
+ * - Khiên hấp thụ damage TRƯỚC HP; i-frame sau khi trúng đòn.
+ * - Boss 2 phase (chuyển đúng một lần), 3 pattern có telegraph, đạn
+ *   wall/spiral luôn chừa khe né.
+ */
+
+const { WAVE_DEFS, BOSS_DEF, ENEMY_STATS, testWaves } = __req("games/astro-patrol/waves.js");
+
+const WORLD = { w: 960, h: 640 };
+const PLAYER_R = 14;
+const B_CAP = 44;
+const EB_CAP = 110;
+const MAX_POWER = 3;
+
+function makePool(create) {
+  const free = [];
+  return {
+    acquire() {
+      return free.pop() || create();
+    },
+    release(o) {
+      free.push(o);
+    },
+    get size() {
+      return free.length;
+    },
+  };
+}
+
+function createSim({ rand = Math.random, test = false } = {}) {
+  return {
+    rand,
+    test,
+    waves: test ? testWaves() : WAVE_DEFS,
+    player: {
+      x: WORLD.w / 2,
+      y: WORLD.h - 90,
+      hp: 100,
+      shield: 50,
+      power: test ? 2 : 1,
+      fireCd: 0,
+      inv: 0,
+      alive: true,
+    },
+    autoFire: false,
+    bullets: [],
+    ebullets: [],
+    enemies: [],
+    asteroids: [],
+    pickups: [],
+    bulletPool: makePool(() => ({ x: 0, y: 0, vx: 0, vy: 0 })),
+    ebulletPool: makePool(() => ({ x: 0, y: 0, vx: 0, vy: 0, kind: "orange" })),
+    wave: 0,
+    waveState: "idle", // idle | announce | fighting | boss | done
+    announceT: 0,
+    spawnQueue: [],
+    spawnT: 0,
+    asteroidBudget: 0,
+    boss: null,
+    bossPhaseFired: false,
+    combo: 0,
+    comboT: 0,
+    maxCombo: 0,
+    kills: 0,
+    score: 0,
+    time: 0,
+    over: false,
+    victory: false,
+    nextId: 1,
+    events: [],
+  };
+}
+
+function drainEvents(sim) {
+  const ev = sim.events;
+  sim.events = [];
+  return ev;
+}
+
+/* ---------------- Wave ---------------- */
+
+function startWave(sim, n) {
+  sim.wave = n;
+  if (n > sim.waves.length) {
+    // boss wave
+    sim.waveState = "announce";
+    sim.announceT = 2.0;
+    sim.events.push({ type: "bossIncoming" });
+    return;
+  }
+  const def = sim.waves[n - 1];
+  sim.waveState = "announce";
+  sim.announceT = 1.6;
+  sim.spawnQueue = def.spawns.slice();
+  sim.spawnT = 0;
+  sim.asteroidBudget = def.asteroids;
+  sim.events.push({ type: "wave", n, name: def.name });
+}
+
+function beginFight(sim) {
+  if (sim.wave > sim.waves.length) {
+    sim.waveState = "boss";
+    sim.boss = {
+      x: WORLD.w / 2,
+      y: -90,
+      hp: sim.test ? BOSS_DEF.testHp : BOSS_DEF.hp,
+      maxHp: sim.test ? BOSS_DEF.testHp : BOSS_DEF.hp,
+      r: BOSS_DEF.radius,
+      phase: 1,
+      entered: false,
+      patIdx: 0,
+      patT: 1.4,
+      telegraph: 0,
+      volley: 0,
+      sway: 0,
+    };
+  } else {
+    sim.waveState = "fighting";
+  }
+}
+
+function spawnEnemy(sim, type, fx) {
+  const st = ENEMY_STATS[type];
+  sim.enemies.push({
+    id: sim.nextId++,
+    type,
+    x: fx * WORLD.w,
+    y: -30,
+    vx: 0,
+    vy: st.speed,
+    hp: st.hp,
+    r: st.r,
+    t: 0,
+    fireT: 1 + sim.rand() * 0.8,
+    state: "enter", // charger: enter → aim(telegraph) → dash
+    aimT: 0,
+    targetY: 120 + sim.rand() * 130,
+    sway: sim.rand() * Math.PI * 2,
+  });
+}
+
+function spawnAsteroid(sim, x = null, y = -40) {
+  if (sim.asteroids.length >= 10) return;
+  const r = 20 + sim.rand() * 26;
+  sim.asteroids.push({
+    id: sim.nextId++,
+    x: x === null ? 40 + sim.rand() * (WORLD.w - 80) : x,
+    y,
+    vx: (sim.rand() - 0.5) * 40,
+    vy: 30 + sim.rand() * 40,
+    r,
+    hp: 4,
+    rot: sim.rand() * Math.PI * 2,
+    vrot: (sim.rand() - 0.5) * 1.6,
+    seed: Math.floor(sim.rand() * 9999),
+  });
+}
+
+/* ---------------- Đạn ---------------- */
+
+function fireBullet(sim, x, y, vx, vy) {
+  if (sim.bullets.length >= B_CAP) return false;
+  const b = sim.bulletPool.acquire();
+  b.x = x;
+  b.y = y;
+  b.vx = vx;
+  b.vy = vy;
+  sim.bullets.push(b);
+  return true;
+}
+
+function fireEnemyBullet(sim, x, y, vx, vy, kind = "orange") {
+  if (sim.ebullets.length >= EB_CAP) return false;
+  const b = sim.ebulletPool.acquire();
+  b.x = x;
+  b.y = y;
+  b.vx = vx;
+  b.vy = vy;
+  b.kind = kind;
+  sim.ebullets.push(b);
+  return true;
+}
+
+function playerShoot(sim) {
+  const p = sim.player;
+  const sp = -620;
+  let shot = false;
+  if (p.power === 1) {
+    shot = fireBullet(sim, p.x, p.y - 18, 0, sp);
+  } else if (p.power === 2) {
+    shot = fireBullet(sim, p.x - 9, p.y - 14, 0, sp);
+    fireBullet(sim, p.x + 9, p.y - 14, 0, sp);
+  } else {
+    shot = fireBullet(sim, p.x - 10, p.y - 12, -70, sp);
+    fireBullet(sim, p.x, p.y - 18, 0, sp);
+    fireBullet(sim, p.x + 10, p.y - 12, 70, sp);
+  }
+  if (shot) sim.events.push({ type: "shoot" });
+}
+
+/* ---------------- Damage ---------------- */
+
+function damagePlayer(sim, dmg) {
+  const p = sim.player;
+  if (!p.alive || p.inv > 0) return;
+  // khiên hấp thụ trước
+  const absorbed = Math.min(p.shield, dmg);
+  p.shield -= absorbed;
+  const rest = dmg - absorbed;
+  p.hp -= rest;
+  p.inv = 1.25;
+  sim.combo = 0;
+  sim.events.push({ type: absorbed > 0 ? "shieldHit" : "hurt", dmg });
+  if (p.hp <= 0) {
+    p.hp = 0;
+    p.alive = false;
+    sim.over = true;
+    sim.events.push({ type: "gameOver" });
+  }
+}
+
+function addKill(sim, e) {
+  sim.kills += 1;
+  sim.combo += 1;
+  sim.comboT = 2.6;
+  sim.maxCombo = Math.max(sim.maxCombo, sim.combo);
+  const base = ENEMY_STATS[e.type].score;
+  sim.score += base + sim.combo * 5;
+  sim.events.push({ type: "kill", etype: e.type, x: e.x, y: e.y, combo: sim.combo });
+  // rơi pickup
+  if (sim.rand() < 0.16) {
+    sim.pickups.push({
+      x: e.x,
+      y: e.y,
+      vy: 70,
+      kind: sim.rand() < 0.5 ? "shield" : "power",
+      phase: sim.rand() * 6.28,
+    });
+  }
+}
+
+function damageEnemy(sim, e, dmg) {
+  e.hp -= dmg;
+  if (e.hp <= 0) {
+    addKill(sim, e);
+    return true;
+  }
+  sim.events.push({ type: "ehit", x: e.x, y: e.y });
+  return false;
+}
+
+/* ---------------- Boss ---------------- */
+
+function bossFirePattern(sim, boss) {
+  const p = sim.player;
+  const dense = boss.phase === 2;
+  const patterns = ["fan", "wall", "spiral"];
+  const pat = patterns[boss.patIdx % patterns.length];
+  if (pat === "fan") {
+    // nan quạt nhắm người chơi
+    const a0 = Math.atan2(p.y - boss.y, p.x - boss.x);
+    const n = dense ? 7 : 5;
+    for (let i = 0; i < n; i++) {
+      const a = a0 + (i - (n - 1) / 2) * 0.17;
+      fireEnemyBullet(sim, boss.x, boss.y + 30, Math.cos(a) * 250, Math.sin(a) * 250, "magenta");
+    }
+  } else if (pat === "wall") {
+    // hàng đạn ngang có KHE NÉ rộng
+    const gapW = dense ? 130 : 170;
+    const gapX = 80 + sim.rand() * (WORLD.w - 160 - gapW);
+    for (let x = 30; x < WORLD.w - 20; x += 46) {
+      if (x > gapX && x < gapX + gapW) continue;
+      fireEnemyBullet(sim, x, boss.y + 60, 0, dense ? 200 : 165, "orange");
+    }
+  } else {
+    // vòng xoáy có 2 khe né
+    const n = dense ? 18 : 14;
+    const gap1 = Math.floor(sim.rand() * n);
+    const gap2 = (gap1 + Math.floor(n / 2)) % n;
+    for (let i = 0; i < n; i++) {
+      if (i === gap1 || i === gap2 || i === (gap1 + 1) % n) continue;
+      const a = (Math.PI * 2 * i) / n + boss.sway;
+      fireEnemyBullet(sim, boss.x, boss.y, Math.cos(a) * 210, Math.sin(a) * 210, "magenta");
+    }
+  }
+  sim.events.push({ type: "bossFire", pat });
+}
+
+function stepBoss(sim, dt) {
+  const boss = sim.boss;
+  if (!boss) return;
+  boss.sway += dt * (boss.phase === 2 ? 1.5 : 0.9);
+  if (!boss.entered) {
+    boss.y += 60 * dt;
+    if (boss.y >= 118) {
+      boss.y = 118;
+      boss.entered = true;
+      sim.events.push({ type: "bossEntered" });
+    }
+    return;
+  }
+  boss.x = WORLD.w / 2 + Math.sin(boss.sway) * (boss.phase === 2 ? 190 : 120);
+
+  // chuyển phase đúng một lần
+  if (!sim.bossPhaseFired && boss.hp <= boss.maxHp * BOSS_DEF.phase2At) {
+    sim.bossPhaseFired = true;
+    boss.phase = 2;
+    sim.events.push({ type: "bossPhase", phase: 2 });
+  }
+
+  if (boss.telegraph > 0) {
+    boss.telegraph -= dt;
+    if (boss.telegraph <= 0) {
+      bossFirePattern(sim, boss);
+      boss.volley -= 1;
+      if (boss.volley > 0) {
+        boss.telegraph = 0.34; // loạt tiếp theo trong cùng pattern
+      } else {
+        boss.patIdx += 1;
+        boss.patT = boss.phase === 2 ? 1.5 : 2.2;
+      }
+    }
+    return;
+  }
+
+  boss.patT -= dt;
+  if (boss.patT <= 0) {
+    // telegraph trước đòn nguy hiểm
+    boss.telegraph = boss.phase === 2 ? 0.55 : 0.75;
+    boss.volley = boss.phase === 2 ? 3 : 2;
+    sim.events.push({ type: "bossTelegraph" });
+    // pattern toss đá kèm theo (phase 1 thỉnh thoảng)
+    if (sim.rand() < 0.35) {
+      spawnAsteroid(sim, boss.x - 130, boss.y + 10);
+      spawnAsteroid(sim, boss.x + 130, boss.y + 10);
+    }
+  }
+}
+
+/* ---------------- Spatial grid ---------------- */
+
+const CELL = 80;
+
+function gridKey(x, y) {
+  return `${Math.floor(x / CELL)},${Math.floor(y / CELL)}`;
+}
+
+function buildGrid(items) {
+  const grid = new Map();
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    const key = gridKey(it.x, it.y);
+    let arr = grid.get(key);
+    if (!arr) {
+      arr = [];
+      grid.set(key, arr);
+    }
+    arr.push(it);
+  }
+  return grid;
+}
+
+function queryGrid(grid, x, y, r) {
+  const out = [];
+  const x0 = Math.floor((x - r) / CELL);
+  const x1 = Math.floor((x + r) / CELL);
+  const y0 = Math.floor((y - r) / CELL);
+  const y1 = Math.floor((y + r) / CELL);
+  for (let gy = y0; gy <= y1; gy++) {
+    for (let gx = x0; gx <= x1; gx++) {
+      const arr = grid.get(`${gx},${gy}`);
+      if (arr) out.push(...arr);
+    }
+  }
+  return out;
+}
+
+/* ---------------- Step chính ---------------- */
+
+function stepSim(sim, input, dt) {
+  if (sim.over || sim.victory) return;
+  sim.time += dt;
+  const p = sim.player;
+
+  /* --- wave flow --- */
+  if (sim.waveState === "idle") startWave(sim, 1);
+  if (sim.waveState === "announce") {
+    sim.announceT -= dt;
+    if (sim.announceT <= 0) beginFight(sim);
+  }
+  if (sim.waveState === "fighting") {
+    // spawn theo queue
+    if (sim.spawnQueue.length) {
+      sim.spawnT -= dt;
+      if (sim.spawnT <= 0) {
+        const s = sim.spawnQueue.shift();
+        spawnEnemy(sim, s.type, s.x);
+        sim.spawnT = sim.spawnQueue.length ? sim.spawnQueue[0].delay : 0;
+      }
+    }
+    if (sim.asteroidBudget > 0 && sim.rand() < dt * 0.35) {
+      sim.asteroidBudget -= 1;
+      spawnAsteroid(sim);
+    }
+    // wave CHỈ hoàn tất khi hết queue và sạch địch
+    if (!sim.spawnQueue.length && sim.enemies.length === 0) {
+      startWave(sim, sim.wave + 1);
+    }
+  }
+  if (sim.waveState === "boss") stepBoss(sim, dt);
+
+  /* --- player --- */
+  if (p.alive) {
+    let mx = input.mx || 0;
+    let my = input.my || 0;
+    if (input.targetX !== null && input.targetX !== undefined) {
+      const dx = input.targetX - p.x;
+      const dy = input.targetY - p.y;
+      const d = Math.hypot(dx, dy);
+      if (d > 6) {
+        mx = dx / d;
+        my = dy / d;
+      }
+    }
+    const mag = Math.hypot(mx, my) || 1;
+    if (mag > 1) {
+      mx /= mag;
+      my /= mag;
+    }
+    p.vx = mx * 340;
+    p.vy = my * 340;
+    p.x = Math.max(24, Math.min(WORLD.w - 24, p.x + p.vx * dt));
+    p.y = Math.max(80, Math.min(WORLD.h - 30, p.y + p.vy * dt));
+    p.inv = Math.max(0, p.inv - dt);
+    p.fireCd -= dt;
+    if ((input.fire || sim.autoFire) && p.fireCd <= 0 && sim.waveState !== "announce") {
+      p.fireCd = 0.17;
+      playerShoot(sim);
+    }
+  }
+
+  /* --- combo decay --- */
+  if (sim.combo > 0) {
+    sim.comboT -= dt;
+    if (sim.comboT <= 0) sim.combo = 0;
+  }
+
+  /* --- đạn người chơi --- */
+  for (let i = sim.bullets.length - 1; i >= 0; i--) {
+    const b = sim.bullets[i];
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    if (b.y < -20 || b.x < -20 || b.x > WORLD.w + 20) {
+      sim.bullets.splice(i, 1);
+      sim.bulletPool.release(b);
+    }
+  }
+
+  /* --- địch --- */
+  for (let i = sim.enemies.length - 1; i >= 0; i--) {
+    const e = sim.enemies[i];
+    e.t += dt;
+    if (e.type === "scout") {
+      e.x += Math.sin(e.t * 2.4 + e.sway) * 90 * dt;
+      e.y += e.vy * dt;
+    } else if (e.type === "shooter") {
+      if (e.y < e.targetY) e.y += e.vy * dt;
+      else {
+        e.x += Math.sin(e.t * 1.1 + e.sway) * 46 * dt;
+        e.fireT -= dt;
+        if (e.fireT <= 0) {
+          e.fireT = 1.7 + sim.rand() * 0.9;
+          const a = Math.atan2(p.y - e.y, p.x - e.x);
+          fireEnemyBullet(sim, e.x, e.y + 12, Math.cos(a) * 215, Math.sin(a) * 215, "orange");
+          sim.events.push({ type: "eshoot" });
+        }
+      }
+    } else if (e.type === "charger") {
+      if (e.state === "enter") {
+        e.y += e.vy * dt;
+        if (e.y >= 110) {
+          e.state = "aim";
+          e.aimT = 0.7; // telegraph trước khi lao
+          sim.events.push({ type: "chargerAim", x: e.x, y: e.y });
+        }
+      } else if (e.state === "aim") {
+        e.aimT -= dt;
+        if (e.aimT <= 0) {
+          e.state = "dash";
+          const a = Math.atan2(p.y - e.y, p.x - e.x);
+          e.vx = Math.cos(a) * 430;
+          e.vy = Math.sin(a) * 430;
+          sim.events.push({ type: "chargerDash" });
+        }
+      } else {
+        e.x += e.vx * dt;
+        e.y += e.vy * dt;
+      }
+    }
+    // ra khỏi màn → giải quyết (không tính kill)
+    if (e.y > WORLD.h + 50 || e.x < -60 || e.x > WORLD.w + 60) {
+      sim.enemies.splice(i, 1);
+      continue;
+    }
+    // đâm người chơi
+    const d = Math.hypot(e.x - p.x, e.y - p.y);
+    if (p.alive && d < e.r + PLAYER_R - 2) {
+      damagePlayer(sim, 25);
+      damageEnemy(sim, e, 3);
+      if (e.hp <= 0) sim.enemies.splice(i, 1);
+    }
+  }
+
+  /* --- asteroid --- */
+  for (let i = sim.asteroids.length - 1; i >= 0; i--) {
+    const a = sim.asteroids[i];
+    a.x += a.vx * dt;
+    a.y += a.vy * dt;
+    a.rot += a.vrot * dt;
+    if (a.y > WORLD.h + 70) {
+      sim.asteroids.splice(i, 1);
+      continue;
+    }
+    const d = Math.hypot(a.x - p.x, a.y - p.y);
+    if (p.alive && d < a.r + PLAYER_R - 3) {
+      damagePlayer(sim, 20);
+      a.vy = Math.abs(a.vy);
+    }
+  }
+
+  /* --- va chạm đạn (spatial grid) --- */
+  const enemyGrid = buildGrid(sim.enemies);
+  const asteroidGrid = buildGrid(sim.asteroids);
+  for (let i = sim.bullets.length - 1; i >= 0; i--) {
+    const b = sim.bullets[i];
+    let hit = false;
+    for (const e of queryGrid(enemyGrid, b.x, b.y, 30)) {
+      if (e.hp <= 0) continue;
+      if (Math.hypot(e.x - b.x, e.y - b.y) < e.r + 5) {
+        if (damageEnemy(sim, e, 1)) {
+          const idx = sim.enemies.indexOf(e);
+          if (idx >= 0) sim.enemies.splice(idx, 1);
+        }
+        hit = true;
+        break;
+      }
+    }
+    if (!hit) {
+      for (const a of queryGrid(asteroidGrid, b.x, b.y, 60)) {
+        if (Math.hypot(a.x - b.x, a.y - b.y) < a.r + 4) {
+          a.hp -= 1;
+          if (a.hp <= 0) {
+            const idx = sim.asteroids.indexOf(a);
+            if (idx >= 0) sim.asteroids.splice(idx, 1);
+            sim.score += 20;
+            sim.events.push({ type: "boom", x: a.x, y: a.y, r: a.r });
+          } else {
+            sim.events.push({ type: "ehit", x: b.x, y: b.y });
+          }
+          hit = true;
+          break;
+        }
+      }
+    }
+    if (!hit && sim.boss && sim.boss.entered) {
+      const boss = sim.boss;
+      if (Math.hypot(boss.x - b.x, boss.y - b.y) < boss.r) {
+        boss.hp -= 1;
+        sim.score += 2;
+        sim.events.push({ type: "bosshit", x: b.x, y: b.y });
+        if (boss.hp <= 0) {
+          sim.boss = null;
+          sim.victory = true;
+          sim.score += 1500;
+          sim.events.push({ type: "bossDead" }, { type: "victory" });
+        }
+        hit = true;
+      }
+    }
+    if (hit) {
+      sim.bullets.splice(i, 1);
+      sim.bulletPool.release(b);
+    }
+  }
+
+  /* --- đạn địch --- */
+  for (let i = sim.ebullets.length - 1; i >= 0; i--) {
+    const b = sim.ebullets[i];
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    if (b.y > WORLD.h + 20 || b.y < -30 || b.x < -20 || b.x > WORLD.w + 20) {
+      sim.ebullets.splice(i, 1);
+      sim.ebulletPool.release(b);
+      continue;
+    }
+    if (p.alive && Math.hypot(b.x - p.x, b.y - p.y) < PLAYER_R + 5) {
+      damagePlayer(sim, 12);
+      sim.ebullets.splice(i, 1);
+      sim.ebulletPool.release(b);
+    }
+  }
+
+  /* --- pickup --- */
+  for (let i = sim.pickups.length - 1; i >= 0; i--) {
+    const pk = sim.pickups[i];
+    pk.y += pk.vy * dt;
+    pk.phase += dt * 3;
+    if (pk.y > WORLD.h + 30) {
+      sim.pickups.splice(i, 1);
+      continue;
+    }
+    if (p.alive && Math.hypot(pk.x - p.x, pk.y - p.y) < PLAYER_R + 16) {
+      if (pk.kind === "shield") {
+        p.shield = Math.min(100, p.shield + 40);
+      } else if (p.power < MAX_POWER) {
+        p.power += 1;
+      } else {
+        sim.score += 200;
+      }
+      sim.events.push({ type: "pickup", kind: pk.kind });
+      sim.pickups.splice(i, 1);
+    }
+  }
+}
+
+exports.createSim = createSim; exports.drainEvents = drainEvents; exports.startWave = startWave; exports.fireEnemyBullet = fireEnemyBullet; exports.damagePlayer = damagePlayer; exports.stepSim = stepSim; exports.WORLD = WORLD; exports.PLAYER_R = PLAYER_R; exports.B_CAP = B_CAP; exports.EB_CAP = EB_CAP; exports.MAX_POWER = MAX_POWER;
+};
+__defs["games/astro-patrol/waves.js"] = function (exports, __req) {
+/**
+ * waves.js — định nghĩa 5 wave thường + boss cho Astro Patrol 404.
+ * Mỗi wave: danh sách spawn {type, delay, x} (x theo tỉ lệ 0..1 bề
+ * ngang) + số asteroid trôi nền. TEST mode rút ngắn còn 2 địch/wave.
+ */
+
+const WAVE_DEFS = [
+  {
+    id: 1,
+    name: "TRINH SÁT",
+    asteroids: 2,
+    spawns: [
+      { type: "scout", delay: 0.8, x: 0.25 },
+      { type: "scout", delay: 0.5, x: 0.75 },
+      { type: "scout", delay: 0.9, x: 0.4 },
+      { type: "scout", delay: 0.5, x: 0.6 },
+      { type: "scout", delay: 0.9, x: 0.2 },
+      { type: "scout", delay: 0.5, x: 0.8 },
+    ],
+  },
+  {
+    id: 2,
+    name: "HỎA LỰC",
+    asteroids: 2,
+    spawns: [
+      { type: "scout", delay: 0.7, x: 0.3 },
+      { type: "scout", delay: 0.4, x: 0.7 },
+      { type: "shooter", delay: 1.1, x: 0.5 },
+      { type: "scout", delay: 0.8, x: 0.2 },
+      { type: "scout", delay: 0.4, x: 0.8 },
+      { type: "shooter", delay: 1.2, x: 0.35 },
+      { type: "scout", delay: 0.7, x: 0.6 },
+      { type: "scout", delay: 0.4, x: 0.45 },
+    ],
+  },
+  {
+    id: 3,
+    name: "VÀNH ĐAI ĐÁ",
+    asteroids: 5,
+    spawns: [
+      { type: "shooter", delay: 1.0, x: 0.25 },
+      { type: "shooter", delay: 1.0, x: 0.75 },
+      { type: "scout", delay: 0.6, x: 0.5 },
+      { type: "shooter", delay: 1.1, x: 0.4 },
+      { type: "scout", delay: 0.5, x: 0.15 },
+      { type: "shooter", delay: 1.1, x: 0.6 },
+      { type: "scout", delay: 0.5, x: 0.85 },
+      { type: "shooter", delay: 1.2, x: 0.5 },
+    ],
+  },
+  {
+    id: 4,
+    name: "ĐỘT KÍCH",
+    asteroids: 3,
+    spawns: [
+      { type: "charger", delay: 1.0, x: 0.3 },
+      { type: "charger", delay: 0.8, x: 0.7 },
+      { type: "scout", delay: 0.6, x: 0.5 },
+      { type: "charger", delay: 0.9, x: 0.2 },
+      { type: "scout", delay: 0.5, x: 0.8 },
+      { type: "charger", delay: 0.9, x: 0.55 },
+      { type: "charger", delay: 0.9, x: 0.4 },
+      { type: "scout", delay: 0.5, x: 0.65 },
+      { type: "charger", delay: 0.9, x: 0.75 },
+    ],
+  },
+  {
+    id: 5,
+    name: "TỔNG LỰC",
+    asteroids: 4,
+    spawns: [
+      { type: "shooter", delay: 0.9, x: 0.2 },
+      { type: "scout", delay: 0.5, x: 0.5 },
+      { type: "charger", delay: 0.8, x: 0.8 },
+      { type: "scout", delay: 0.4, x: 0.35 },
+      { type: "shooter", delay: 1.0, x: 0.65 },
+      { type: "charger", delay: 0.8, x: 0.25 },
+      { type: "scout", delay: 0.4, x: 0.75 },
+      { type: "shooter", delay: 1.0, x: 0.5 },
+      { type: "charger", delay: 0.8, x: 0.6 },
+      { type: "scout", delay: 0.4, x: 0.15 },
+      { type: "scout", delay: 0.4, x: 0.85 },
+      { type: "charger", delay: 0.8, x: 0.45 },
+    ],
+  },
+];
+
+const BOSS_DEF = {
+  name: "THIẾT GIÁP 404",
+  hp: 850,
+  testHp: 130,
+  radius: 66,
+  phase2At: 0.5, // chuyển phase khi HP ≤ 50%
+};
+
+const ENEMY_STATS = {
+  scout: { hp: 1, r: 17, score: 50, speed: 120 },
+  shooter: { hp: 3, r: 20, score: 120, speed: 70 },
+  charger: { hp: 2, r: 18, score: 90, speed: 100 },
+};
+
+/** Rút gọn wave cho TEST mode (2 địch đầu tiên, delay ngắn). */
+function testWaves() {
+  return WAVE_DEFS.map((w) => ({
+    ...w,
+    asteroids: Math.min(w.asteroids, 1),
+    spawns: w.spawns.slice(0, 2).map((s) => ({ ...s, delay: 0.25 })),
+  }));
+}
+
+exports.testWaves = testWaves; exports.WAVE_DEFS = WAVE_DEFS; exports.BOSS_DEF = BOSS_DEF; exports.ENEMY_STATS = ENEMY_STATS;
+};
+__defs["games/astro-patrol/render.js"] = function (exports, __req) {
+/**
+ * render.js — vẽ Astro Patrol 404 theo ảnh reference: nền sao + tinh
+ * vân tím parallax, asteroid đá xám điểm tinh thể tím, tàu người chơi
+ * trắng-xanh lửa cyan, địch tam giác đèn xanh lá / tím, boss lục giác
+ * mắt đỏ, đạn cyan / cam / hồng, pickup lục giác khiên & tia sét.
+ */
+
+const { WORLD, PLAYER_R } = __req("games/astro-patrol/engine.js");
+const { seededRand } = __req("core/utils.js");
+
+function createAstroRenderer(canvas, box) {
+  const g = canvas.getContext("2d");
+  let dpr = 1;
+  let scale = 1;
+  let offX = 0;
+  let offY = 0;
+
+  function fit() {
+    const rect = box.getBoundingClientRect();
+    if (rect.width < 4 || rect.height < 4) return;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    const k = Math.max(rect.width / WORLD.w, rect.height / WORLD.h);
+    scale = k * dpr;
+    offX = (rect.width * dpr - WORLD.w * scale) / 2;
+    offY = (rect.height * dpr - WORLD.h * scale) / 2;
+  }
+
+  function toWorld(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((clientX - rect.left) * dpr - offX) / scale,
+      y: ((clientY - rect.top) * dpr - offY) / scale,
+    };
+  }
+
+  /* ---------- nền tĩnh ---------- */
+  let bgCanvas = null;
+
+  function paintBg() {
+    bgCanvas = document.createElement("canvas");
+    bgCanvas.width = canvas.width;
+    bgCanvas.height = canvas.height;
+    const c = bgCanvas.getContext("2d");
+    const grad = c.createLinearGradient(0, 0, 0, bgCanvas.height);
+    grad.addColorStop(0, "#0a0824");
+    grad.addColorStop(0.5, "#0d0a2e");
+    grad.addColorStop(1, "#070619");
+    c.fillStyle = grad;
+    c.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+    c.setTransform(scale, 0, 0, scale, offX, offY);
+    const rand = seededRand(4404);
+    // tinh vân
+    for (const [x, y, r, col] of [
+      [200, 180, 260, "rgba(110,50,200,0.13)"],
+      [760, 420, 300, "rgba(160,40,180,0.10)"],
+      [500, 90, 220, "rgba(40,90,220,0.10)"],
+    ]) {
+      const ng = c.createRadialGradient(x, y, 10, x, y, r);
+      ng.addColorStop(0, col);
+      ng.addColorStop(1, "rgba(0,0,0,0)");
+      c.fillStyle = ng;
+      c.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    // sao xa (lớp tĩnh)
+    for (let i = 0; i < 90; i++) {
+      c.fillStyle = rand() > 0.85 ? "rgba(180,200,255,0.7)" : "rgba(150,160,220,0.35)";
+      c.fillRect(rand() * WORLD.w, rand() * WORLD.h, 1.6, 1.6);
+    }
+  }
+
+  /* ---------- vẽ thành phần ---------- */
+
+  const rocks = new Map(); // seed → offscreen asteroid sprite
+
+  function rockSprite(a) {
+    let spr = rocks.get(a.seed);
+    if (spr) return spr;
+    const s = Math.ceil(a.r * 2.4);
+    spr = document.createElement("canvas");
+    spr.width = s;
+    spr.height = s;
+    const c = spr.getContext("2d");
+    const rand = seededRand(a.seed);
+    c.translate(s / 2, s / 2);
+    // khối đá đa giác
+    c.beginPath();
+    const n = 9;
+    for (let i = 0; i < n; i++) {
+      const ang = (Math.PI * 2 * i) / n;
+      const rr = a.r * (0.78 + rand() * 0.3);
+      c.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
+    }
+    c.closePath();
+    const rg = c.createLinearGradient(-a.r, -a.r, a.r, a.r);
+    rg.addColorStop(0, "#8a8fa8");
+    rg.addColorStop(0.55, "#585e75");
+    rg.addColorStop(1, "#2e3245");
+    c.fillStyle = rg;
+    c.fill();
+    c.strokeStyle = "rgba(20,22,38,0.8)";
+    c.lineWidth = 2;
+    c.stroke();
+    // hố lõm
+    for (let i = 0; i < 4; i++) {
+      const ang = rand() * Math.PI * 2;
+      const rr = rand() * a.r * 0.5;
+      c.fillStyle = "rgba(28,30,48,0.55)";
+      c.beginPath();
+      c.arc(Math.cos(ang) * rr, Math.sin(ang) * rr, 2 + rand() * a.r * 0.2, 0, Math.PI * 2);
+      c.fill();
+    }
+    // tinh thể tím
+    if (rand() > 0.4) {
+      const ang = rand() * Math.PI * 2;
+      const cx = Math.cos(ang) * a.r * 0.4;
+      const cy = Math.sin(ang) * a.r * 0.4;
+      c.fillStyle = "#b45cff";
+      c.beginPath();
+      c.moveTo(cx, cy - 7);
+      c.lineTo(cx + 5, cy);
+      c.lineTo(cx, cy + 7);
+      c.lineTo(cx - 5, cy);
+      c.closePath();
+      c.fill();
+      c.fillStyle = "rgba(240,210,255,0.8)";
+      c.fillRect(cx - 1.4, cy - 4, 2.8, 4);
+    }
+    rocks.set(a.seed, spr);
+    return spr;
+  }
+
+  function drawPlayer(p, time) {
+    if (!p.alive) return;
+    if (p.inv > 0 && Math.floor(time * 14) % 2 === 0) return; // nhấp nháy i-frame
+    g.save();
+    g.translate(p.x, p.y);
+    const bank = Math.max(-0.32, Math.min(0.32, p.vx / 900));
+    g.rotate(bank);
+    // lửa động cơ
+    const fl = 14 + Math.sin(time * 30) * 4;
+    const fg = g.createLinearGradient(0, 14, 0, 14 + fl + 10);
+    fg.addColorStop(0, "rgba(120,240,255,0.95)");
+    fg.addColorStop(0.5, "rgba(60,160,255,0.55)");
+    fg.addColorStop(1, "rgba(60,160,255,0)");
+    g.fillStyle = fg;
+    g.beginPath();
+    g.moveTo(-5, 13);
+    g.lineTo(0, 13 + fl + 8);
+    g.lineTo(5, 13);
+    g.closePath();
+    g.fill();
+    // cánh
+    g.fillStyle = "#8fa6c8";
+    g.beginPath();
+    g.moveTo(-4, -2);
+    g.lineTo(-20, 12);
+    g.lineTo(-6, 12);
+    g.closePath();
+    g.fill();
+    g.beginPath();
+    g.moveTo(4, -2);
+    g.lineTo(20, 12);
+    g.lineTo(6, 12);
+    g.closePath();
+    g.fill();
+    // thân trắng
+    const bg2 = g.createLinearGradient(-6, 0, 8, 0);
+    bg2.addColorStop(0, "#f4f8ff");
+    bg2.addColorStop(1, "#c3d2ea");
+    g.fillStyle = bg2;
+    g.beginPath();
+    g.moveTo(0, -20);
+    g.quadraticCurveTo(9, -4, 7, 12);
+    g.lineTo(-7, 12);
+    g.quadraticCurveTo(-9, -4, 0, -20);
+    g.closePath();
+    g.fill();
+    g.strokeStyle = "rgba(40,60,110,0.55)";
+    g.lineWidth = 1.2;
+    g.stroke();
+    // buồng lái cyan
+    g.save();
+    g.shadowColor = "#20e3ff";
+    g.shadowBlur = 7;
+    g.fillStyle = "#20e3ff";
+    g.beginPath();
+    g.ellipse(0, -5, 3.2, 6, 0, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+    // khiên
+    if (p.shield > 0) {
+      g.strokeStyle = `rgba(64,200,255,${0.16 + (p.shield / 100) * 0.2})`;
+      g.lineWidth = 2.4;
+      g.beginPath();
+      g.ellipse(0, -2, 26, 30, 0, 0, Math.PI * 2);
+      g.stroke();
+    }
+    g.restore();
+  }
+
+  function drawEnemy(e, time) {
+    g.save();
+    g.translate(e.x, e.y);
+    if (e.type === "scout") {
+      g.rotate(Math.sin(e.t * 2.4 + e.sway) * 0.2);
+      g.fillStyle = "#1d2436";
+      g.beginPath();
+      g.moveTo(0, 16);
+      g.lineTo(-14, -12);
+      g.lineTo(0, -5);
+      g.lineTo(14, -12);
+      g.closePath();
+      g.fill();
+      g.strokeStyle = "rgba(90,110,150,0.8)";
+      g.lineWidth = 1.4;
+      g.stroke();
+      // đèn xanh lá
+      g.save();
+      g.shadowColor = "#4df77f";
+      g.shadowBlur = 6;
+      g.fillStyle = "#4df77f";
+      g.fillRect(-11, -11, 5, 2.6);
+      g.fillRect(6, -11, 5, 2.6);
+      g.restore();
+    } else if (e.type === "shooter") {
+      g.fillStyle = "#241a3e";
+      g.beginPath();
+      g.moveTo(0, 18);
+      g.lineTo(-17, -8);
+      g.lineTo(-6, -14);
+      g.lineTo(6, -14);
+      g.lineTo(17, -8);
+      g.closePath();
+      g.fill();
+      g.strokeStyle = "rgba(154,92,255,0.8)";
+      g.lineWidth = 1.6;
+      g.stroke();
+      g.save();
+      g.shadowColor = "#9a5cff";
+      g.shadowBlur = 7;
+      g.fillStyle = "#b9a0ff";
+      g.fillRect(-12, -8, 6, 3);
+      g.fillRect(6, -8, 6, 3);
+      g.restore();
+      // nòng đỏ
+      g.fillStyle = "#ff4f64";
+      g.beginPath();
+      g.arc(0, 8, 4 + Math.sin(time * 6) * 0.8, 0, Math.PI * 2);
+      g.fill();
+    } else {
+      // charger: tam giác tím nhọn, telegraph nhấp nháy đỏ
+      const warn = e.state === "aim";
+      g.rotate(e.state === "dash" ? Math.atan2(e.vy, e.vx) - Math.PI / 2 : 0);
+      g.fillStyle = warn && Math.floor(time * 10) % 2 === 0 ? "#59162e" : "#2a1236";
+      g.beginPath();
+      g.moveTo(0, 18);
+      g.lineTo(-13, -14);
+      g.lineTo(0, -7);
+      g.lineTo(13, -14);
+      g.closePath();
+      g.fill();
+      g.strokeStyle = warn ? "#ff4f64" : "rgba(228,92,255,0.85)";
+      g.lineWidth = 1.8;
+      g.stroke();
+      g.save();
+      g.shadowColor = warn ? "#ff4f64" : "#e45cff";
+      g.shadowBlur = 8;
+      g.fillStyle = warn ? "#ff4f64" : "#e45cff";
+      g.beginPath();
+      g.arc(0, 0, 3.4, 0, Math.PI * 2);
+      g.fill();
+      g.restore();
+      if (warn) {
+        g.strokeStyle = "rgba(255,79,100,0.5)";
+        g.setLineDash([5, 6]);
+        g.beginPath();
+        g.moveTo(0, 18);
+        g.lineTo(0, 130);
+        g.stroke();
+        g.setLineDash([]);
+      }
+    }
+    g.restore();
+  }
+
+  function drawBoss(boss, time) {
+    g.save();
+    g.translate(boss.x, boss.y);
+    const r = boss.r;
+    const p2 = boss.phase === 2;
+    // quầng
+    g.save();
+    g.shadowColor = p2 ? "#ff2e96" : "#9a5cff";
+    g.shadowBlur = 26;
+    // thân lục giác lớn
+    g.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i + Math.PI / 6;
+      g.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    g.closePath();
+    const bg2 = g.createLinearGradient(0, -r, 0, r);
+    bg2.addColorStop(0, "#3a4260");
+    bg2.addColorStop(0.5, "#242b45");
+    bg2.addColorStop(1, "#141a30");
+    g.fillStyle = bg2;
+    g.fill();
+    g.restore();
+    g.strokeStyle = p2 ? "rgba(255,80,150,0.85)" : "rgba(140,150,210,0.7)";
+    g.lineWidth = 2.6;
+    g.stroke();
+    // pod súng hai bên
+    for (const s of [-1, 1]) {
+      g.fillStyle = "#1b2138";
+      g.beginPath();
+      g.roundRect(s * (r - 6) - 12, -14, 24, 34, 6);
+      g.fill();
+      g.strokeStyle = "rgba(120,130,180,0.6)";
+      g.lineWidth = 1.4;
+      g.stroke();
+      g.fillStyle = boss.telegraph > 0 ? "#ffb347" : "#5a6488";
+      g.fillRect(s * (r - 6) - 4, 16, 8, 9);
+    }
+    // vòng lõi
+    g.strokeStyle = "rgba(150,160,220,0.5)";
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+    g.stroke();
+    g.save();
+    g.rotate(boss.sway);
+    g.strokeStyle = p2 ? "rgba(255,46,150,0.55)" : "rgba(154,92,255,0.5)";
+    g.setLineDash([10, 8]);
+    g.beginPath();
+    g.arc(0, 0, r * 0.72, 0, Math.PI * 2);
+    g.stroke();
+    g.setLineDash([]);
+    g.restore();
+    // mắt đỏ (telegraph phóng to + nhấp nháy)
+    const eyeR = r * 0.26 + (boss.telegraph > 0 ? Math.sin(time * 22) * 3 + 3 : 0);
+    g.save();
+    g.shadowColor = "#ff2438";
+    g.shadowBlur = 18;
+    const eg = g.createRadialGradient(0, 0, 2, 0, 0, eyeR);
+    eg.addColorStop(0, "#ffd9de");
+    eg.addColorStop(0.4, "#ff4453");
+    eg.addColorStop(1, "#7a0f22");
+    g.fillStyle = eg;
+    g.beginPath();
+    g.arc(0, 0, eyeR, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+    g.restore();
+  }
+
+  function drawPickup(pk, time) {
+    g.save();
+    g.translate(pk.x + Math.sin(pk.phase) * 5, pk.y);
+    const tone = pk.kind === "shield" ? "#3b9dff" : "#ff2e96";
+    g.save();
+    g.shadowColor = tone;
+    g.shadowBlur = 12;
+    g.strokeStyle = tone;
+    g.lineWidth = 2.4;
+    g.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i - Math.PI / 6;
+      g.lineTo(Math.cos(a) * 15, Math.sin(a) * 15);
+    }
+    g.closePath();
+    g.stroke();
+    g.fillStyle = "rgba(8,10,26,0.9)";
+    g.fill();
+    g.restore();
+    if (pk.kind === "shield") {
+      g.fillStyle = tone;
+      g.beginPath();
+      g.moveTo(0, -8);
+      g.lineTo(7, -4);
+      g.lineTo(7, 2);
+      g.quadraticCurveTo(7, 7, 0, 9);
+      g.quadraticCurveTo(-7, 7, -7, 2);
+      g.lineTo(-7, -4);
+      g.closePath();
+      g.fill();
+    } else {
+      g.fillStyle = tone;
+      g.beginPath();
+      g.moveTo(2.4, -9);
+      g.lineTo(-5, 1.6);
+      g.lineTo(-0.6, 1.6);
+      g.lineTo(-2.4, 9);
+      g.lineTo(5, -1.6);
+      g.lineTo(0.6, -1.6);
+      g.closePath();
+      g.fill();
+    }
+    g.restore();
+  }
+
+  /* ---------- vẽ chính ---------- */
+
+  function draw(sim, fx, time) {
+    if (!bgCanvas || bgCanvas.width !== canvas.width) paintBg();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.drawImage(bgCanvas, 0, 0);
+    g.setTransform(scale, 0, 0, scale, offX, offY);
+
+    // 2 lớp sao parallax cuộn xuống
+    const rand = seededRand(77);
+    for (let layer = 0; layer < 2; layer++) {
+      const speed = layer === 0 ? 26 : 60;
+      const n = layer === 0 ? 40 : 26;
+      g.fillStyle = layer === 0 ? "rgba(190,205,255,0.4)" : "rgba(240,246,255,0.75)";
+      for (let i = 0; i < n; i++) {
+        const x = rand() * WORLD.w;
+        const y = (rand() * WORLD.h + time * speed) % WORLD.h;
+        g.fillRect(x, y, layer === 0 ? 1.6 : 2.2, layer === 0 ? 1.6 : 3);
+      }
+    }
+
+    for (const a of sim.asteroids) {
+      const spr = rockSprite(a);
+      g.save();
+      g.translate(a.x, a.y);
+      g.rotate(a.rot);
+      g.drawImage(spr, -spr.width / 2, -spr.height / 2);
+      g.restore();
+    }
+
+    for (const pk of sim.pickups) drawPickup(pk, time);
+    for (const e of sim.enemies) drawEnemy(e, time);
+    if (sim.boss) drawBoss(sim.boss, time);
+
+    // đạn người chơi (cyan capsule)
+    for (const b of sim.bullets) {
+      g.save();
+      g.shadowColor = "#20e3ff";
+      g.shadowBlur = 8;
+      const lg = g.createLinearGradient(b.x, b.y - 12, b.x, b.y + 6);
+      lg.addColorStop(0, "#eaffff");
+      lg.addColorStop(1, "#20b3e8");
+      g.fillStyle = lg;
+      g.beginPath();
+      g.roundRect(b.x - 2.4, b.y - 12, 4.8, 18, 2.4);
+      g.fill();
+      g.restore();
+    }
+
+    // đạn địch
+    for (const b of sim.ebullets) {
+      g.save();
+      if (b.kind === "orange") {
+        g.shadowColor = "#ffab3d";
+        g.shadowBlur = 8;
+        const og = g.createRadialGradient(b.x, b.y, 0.5, b.x, b.y, 6);
+        og.addColorStop(0, "#fff3d9");
+        og.addColorStop(0.5, "#ffab3d");
+        og.addColorStop(1, "rgba(255,120,40,0)");
+        g.fillStyle = og;
+        g.beginPath();
+        g.arc(b.x, b.y, 6, 0, Math.PI * 2);
+        g.fill();
+      } else {
+        g.shadowColor = "#ff2e96";
+        g.shadowBlur = 8;
+        g.fillStyle = "#ff5ab5";
+        g.save();
+        g.translate(b.x, b.y);
+        g.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
+        g.beginPath();
+        g.ellipse(0, 0, 3.4, 7, 0, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+      }
+      g.restore();
+    }
+
+    drawPlayer(sim.player, time);
+
+    // particle fx
+    for (const pt of fx.particles) {
+      g.globalAlpha = Math.max(0, pt.life / pt.life0);
+      g.fillStyle = pt.color;
+      g.save();
+      g.translate(pt.x, pt.y);
+      g.rotate(pt.rot || 0);
+      g.fillRect(-pt.size / 2, -pt.size / 2, pt.size, pt.size);
+      g.restore();
+    }
+    g.globalAlpha = 1;
+    for (const ring of fx.rings) {
+      const t = 1 - ring.life / ring.life0;
+      g.strokeStyle = ring.color;
+      g.globalAlpha = Math.max(0, ring.life / ring.life0);
+      g.lineWidth = 3 * (1 - t) + 0.8;
+      g.beginPath();
+      g.arc(ring.x, ring.y, ring.r0 + t * ring.grow, 0, Math.PI * 2);
+      g.stroke();
+    }
+    g.globalAlpha = 1;
+  }
+
+  return { fit, draw, toWorld };
+}
+
+exports.createAstroRenderer = createAstroRenderer;
+};
+__defs["games/astro-patrol/styles.js"] = function (exports, __req) {
+/**
+ * styles.js — CSS riêng Astro Patrol 404: thanh máu BOSS có đầu lâu
+ * 2 bên dưới topbar, joystick ảo VÙNG DI CHUYỂN góc trái dưới,
+ * NÚT BẮN crosshair góc phải dưới — theo ảnh reference.
+ */
+
+const AP_CSS = /* css */ `
+.ap-mode .exp-title {
+  border: 1px solid rgba(244, 247, 255, 0.28);
+  padding: 5px 16px 7px;
+  border-radius: 8px;
+  background: rgba(7, 11, 30, 0.9);
+}
+
+.ap-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.ap-stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* ---------- thanh máu boss ---------- */
+
+.ap-bossbar {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, 72vw);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  z-index: 20;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.ap-bossbar.show { opacity: 1; }
+
+.ap-bossbar .icon {
+  width: 17px;
+  height: 17px;
+  color: #ff5a7e;
+  flex: none;
+  filter: drop-shadow(0 0 6px rgba(255, 46, 120, 0.8));
+}
+
+.ap-bossbar .track {
+  position: relative;
+  flex: 1;
+  height: 13px;
+  border: 1px solid rgba(255, 90, 150, 0.6);
+  border-radius: 8px;
+  background: rgba(20, 8, 24, 0.85);
+  overflow: hidden;
+}
+
+.ap-bossbar .fill {
+  position: absolute;
+  inset: 2px auto 2px 2px;
+  width: 72%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #ff2e96, #ff5ab5);
+  box-shadow: 0 0 12px rgba(255, 46, 150, 0.8);
+  transition: width 0.2s ease;
+}
+
+.ap-bossbar .pct {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+}
+
+/* ---------- điều khiển cảm ứng ---------- */
+
+.ap-joy {
+  position: absolute;
+  left: 20px;
+  bottom: 16px;
+  z-index: 22;
+  text-align: center;
+  user-select: none;
+}
+
+.ap-joy .pad {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  border: 2px solid rgba(50, 170, 230, 0.45);
+  background: radial-gradient(circle at 50% 45%, rgba(20, 60, 110, 0.4), rgba(8, 16, 40, 0.55));
+  box-shadow: 0 0 22px rgba(40, 150, 230, 0.2), inset 0 0 24px rgba(30, 120, 210, 0.18);
+  touch-action: none;
+}
+
+.ap-joy .arr {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: 7px solid transparent;
+  opacity: 0.8;
+}
+
+.ap-joy .arr.up    { top: 7px;    left: 50%; transform: translateX(-50%); border-bottom-color: #7cd4ff; border-top-width: 0; }
+.ap-joy .arr.down  { bottom: 7px; left: 50%; transform: translateX(-50%); border-top-color: #7cd4ff; border-bottom-width: 0; }
+.ap-joy .arr.left  { left: 7px;   top: 50%;  transform: translateY(-50%); border-right-color: #7cd4ff; border-left-width: 0; }
+.ap-joy .arr.right { right: 7px;  top: 50%;  transform: translateY(-50%); border-left-color: #7cd4ff; border-right-width: 0; }
+
+.ap-joy .knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 42% 36%, #9fd8ff, #2f9dd8 55%, #145a8c);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5), 0 0 16px rgba(70, 190, 255, 0.45);
+  pointer-events: none;
+}
+
+.ap-joy .lbl,
+.ap-fire .lbl {
+  margin-top: 7px;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: rgba(190, 220, 250, 0.85);
+  text-shadow: 0 0 8px rgba(40, 150, 230, 0.6);
+}
+
+.ap-fire {
+  position: absolute;
+  right: 22px;
+  bottom: 16px;
+  z-index: 22;
+  text-align: center;
+  user-select: none;
+}
+
+.ap-fire .btn {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 60, 150, 0.6);
+  background: radial-gradient(circle at 50% 42%, rgba(90, 20, 60, 0.5), rgba(30, 8, 26, 0.6));
+  box-shadow: 0 0 24px rgba(255, 46, 150, 0.25), inset 0 0 22px rgba(255, 46, 150, 0.2);
+  touch-action: none;
+  cursor: pointer;
+}
+
+.ap-fire .btn::before,
+.ap-fire .btn::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+
+.ap-fire .btn::before {
+  width: 56px;
+  height: 56px;
+  border: 2.4px solid #ff4da8;
+  box-shadow: 0 0 14px rgba(255, 46, 150, 0.7);
+}
+
+.ap-fire .btn::after {
+  width: 12px;
+  height: 12px;
+  background: #ff4da8;
+  box-shadow: 0 0 10px rgba(255, 46, 150, 0.9);
+}
+
+.ap-fire .tick {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3.4px;
+  height: 15px;
+  background: #ff4da8;
+  border-radius: 2px;
+}
+
+.ap-fire .tick.n { transform: translate(-50%, -46px); }
+.ap-fire .tick.s { transform: translate(-50%, 31px); }
+.ap-fire .tick.w { transform: translate(-46px, -50%) rotate(90deg); }
+.ap-fire .tick.e { transform: translate(42px, -50%) rotate(90deg); }
+
+.ap-fire .btn.held {
+  background: radial-gradient(circle at 50% 42%, rgba(150, 30, 95, 0.7), rgba(50, 10, 40, 0.7));
+  box-shadow: 0 0 34px rgba(255, 46, 150, 0.5), inset 0 0 26px rgba(255, 46, 150, 0.35);
+}
+
+@media (max-width: 760px) {
+  .ap-joy .pad { width: 104px; height: 104px; }
+  .ap-fire .btn { width: 92px; height: 92px; }
+}
+`;
+
+exports.AP_CSS = AP_CSS;
+};
 __defs["ui/overlays.js"] = function (exports, __req) {
 /**
  * overlays.js — các panel overlay dùng chung cho game 2D:
@@ -25465,6 +34760,698 @@ function rhythmArt(ctx) {
   }
 }
 
+/* ---------- Brick Breaker 404: tường gạch neon + bóng + paddle ---------- */
+function brickBreakerArt(ctx) {
+  const rand = seededRand(1111);
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#0a0e2e");
+  bg.addColorStop(1, "#070a22");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  // trace mạch mờ
+  ctx.strokeStyle = "rgba(32,120,220,.12)";
+  for (let i = 0; i < 8; i++) {
+    let x = rand() * W;
+    let y = 90 + rand() * 100;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    for (let k = 0; k < 2; k++) {
+      const len = 20 + rand() * 50;
+      if (rand() > 0.5) x += rand() > 0.5 ? len : -len;
+      else y += rand() > 0.5 ? len : -len;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  // khung neon
+  ctx.strokeStyle = "rgba(32,227,255,.75)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(6, 6, W - 12, H - 12, 10);
+  ctx.stroke();
+
+  // tường gạch: hàng thép + cyan/tím/hồng
+  const bw = 28;
+  const bh = 12;
+  const x0 = 16;
+  const drawBrick = (gx, gy, colA, colB, icon) => {
+    const x = x0 + gx * (bw + 2);
+    const y = 16 + gy * (bh + 3);
+    const g2 = ctx.createLinearGradient(0, y, 0, y + bh);
+    g2.addColorStop(0, colA);
+    g2.addColorStop(1, colB);
+    ctx.fillStyle = g2;
+    ctx.beginPath();
+    ctx.roundRect(x, y, bw, bh, 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.3)";
+    ctx.fillRect(x + 2, y + 1.5, bw - 4, 2);
+    if (icon === "x") {
+      ctx.strokeStyle = "rgba(150,160,185,.8)";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(x + 5, y + 2);
+      ctx.lineTo(x + bw - 5, y + bh - 2);
+      ctx.moveTo(x + bw - 5, y + 2);
+      ctx.lineTo(x + 5, y + bh - 2);
+      ctx.stroke();
+    } else if (icon === "s") {
+      ctx.fillStyle = "rgba(255,255,255,.85)";
+      ctx.beginPath();
+      ctx.arc(x + bw / 2, y + bh / 2, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+  for (let gx = 0; gx < 10; gx++) drawBrick(gx, 0, "#4a5168", "#262b3d", "x");
+  const pat = [
+    [1, "c"], [2, "v"], [3, "c"], [5, "p"], [6, "c"], [8, "v"], [9, "c"],
+  ];
+  const tones = { c: ["#4fe3ff", "#1490c2", null], v: ["#9a6bff", "#5c2bd9", "s"], p: ["#ff4fae", "#c9186e", "s"] };
+  for (let gy = 1; gy < 4; gy++) {
+    for (const [gx, t] of pat) {
+      if ((gx + gy) % 3 === 2) continue;
+      const [a, b, ic] = tones[t];
+      drawBrick(gx, gy, a, b, ic);
+    }
+  }
+
+  // vệt bóng + bóng
+  const trail = [[70, 158], [92, 138], [116, 120], [142, 105]];
+  trail.forEach(([tx, ty], i) => {
+    ctx.fillStyle = `rgba(90,210,255,${0.16 + i * 0.12})`;
+    ctx.beginPath();
+    ctx.arc(tx, ty, 3 + i * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.save();
+  ctx.shadowColor = "#7ce6ff";
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = "#eaf9ff";
+  ctx.beginPath();
+  ctx.arc(160, 92, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // power-up rơi
+  ctx.strokeStyle = "#4df77f";
+  ctx.fillStyle = "rgba(6,10,26,.95)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(226, 130, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#fff";
+  ctx.font = "800 9px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("x2", 226, 133);
+  ctx.strokeStyle = "rgba(77,247,127,.8)";
+  ctx.beginPath();
+  ctx.moveTo(221, 146);
+  ctx.lineTo(226, 151);
+  ctx.lineTo(231, 146);
+  ctx.stroke();
+
+  // paddle tím lõi cyan
+  ctx.save();
+  ctx.shadowColor = "#8a5cff";
+  ctx.shadowBlur = 12;
+  const pg = ctx.createLinearGradient(0, 176, 0, 188);
+  pg.addColorStop(0, "#8a5cff");
+  pg.addColorStop(1, "#4d21a8");
+  ctx.fillStyle = pg;
+  ctx.beginPath();
+  ctx.roundRect(118, 176, 84, 12, 6);
+  ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = "#20e3ff";
+  ctx.fillRect(146, 180, 28, 4);
+}
+
+/* ---------- Laser Maze 404: lưới ô + tia laser gấp khúc ---------- */
+function laserMazeArt(ctx) {
+  ctx.fillStyle = "#0b0e1e";
+  ctx.fillRect(0, 0, W, H);
+  const t = 34;
+  const ox = 24;
+  const oy = 18;
+  // lưới 8×5
+  for (let y = 0; y < 5; y++) {
+    for (let x = 0; x < 8; x++) {
+      ctx.fillStyle = "#151a29";
+      ctx.beginPath();
+      ctx.roundRect(ox + x * t + 1, oy + y * t + 1, t - 3, t - 3, 4);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(96,120,175,.16)";
+      ctx.stroke();
+    }
+  }
+  const cx = (x) => ox + x * t + t / 2;
+  const cy = (y) => oy + y * t + t / 2;
+  const beam = (x1, y1, x2, y2, col) => {
+    ctx.save();
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.moveTo(cx(x1), cy(y1));
+    ctx.lineTo(cx(x2), cy(y2));
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "rgba(255,255,255,.7)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  };
+  // đường tia: nguồn (0,3) → gương (3,3) → lên (3,1) → gương → phải qua filter cyan (5,1) → thu (7,1)
+  beam(0, 3, 3, 3, "#ff3b4f");
+  beam(3, 3, 3, 1, "#ff3b4f");
+  beam(3, 1, 5, 1, "#ff3b4f");
+  beam(5, 1, 7, 1, "#20e3ff");
+
+  // nguồn
+  ctx.fillStyle = "#210b12";
+  ctx.strokeStyle = "rgba(255,80,100,.55)";
+  ctx.beginPath();
+  ctx.roundRect(ox + 3, oy + 3 * t + 3, t - 6, t - 6, 4);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = "#ff3b4f";
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(cx(0), cy(3), 8, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "#ff5a68";
+  ctx.beginPath();
+  ctx.arc(cx(0), cy(3), 3.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // gương
+  const mirror = (x, y, a) => {
+    ctx.save();
+    ctx.translate(cx(x), cy(y));
+    ctx.rotate(a);
+    const g2 = ctx.createLinearGradient(0, -3, 0, 3);
+    g2.addColorStop(0, "#e8f4ff");
+    g2.addColorStop(1, "#5d7fa8");
+    ctx.fillStyle = g2;
+    ctx.beginPath();
+    ctx.roundRect(-10, -2.6, 20, 5.2, 2.6);
+    ctx.fill();
+    ctx.restore();
+  };
+  mirror(3, 3, -Math.PI / 4);
+  mirror(3, 1, Math.PI / 4);
+
+  // filter cyan
+  ctx.strokeStyle = "#20e3ff";
+  ctx.lineWidth = 2.6;
+  ctx.shadowColor = "#20e3ff";
+  ctx.shadowBlur = 6;
+  ctx.strokeRect(cx(5) - 7, cy(1) - 7, 14, 14);
+  ctx.shadowBlur = 0;
+
+  // bộ thu + check
+  ctx.strokeStyle = "#20e3ff";
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.arc(cx(7), cy(1), 9, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx(7), cy(1), 5, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "#20d96a";
+  ctx.beginPath();
+  ctx.arc(cx(7) + 9, cy(1) + 9, 5.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#04270f";
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(cx(7) + 6.6, cy(1) + 9);
+  ctx.lineTo(cx(7) + 8.6, cy(1) + 11);
+  ctx.lineTo(cx(7) + 11.6, cy(1) + 7);
+  ctx.stroke();
+
+  // blocker
+  ctx.strokeStyle = "rgba(130,140,165,.7)";
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(cx(5) - 7, cy(3) - 7);
+  ctx.lineTo(cx(5) + 7, cy(3) + 7);
+  ctx.moveTo(cx(5) + 7, cy(3) - 7);
+  ctx.lineTo(cx(5) - 7, cy(3) + 7);
+  ctx.stroke();
+
+  // splitter nhỏ
+  ctx.strokeStyle = "rgba(255,120,135,.9)";
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(cx(1) - 7, cy(0));
+  ctx.lineTo(cx(1) + 7, cy(0));
+  ctx.moveTo(cx(1), cy(0) - 7);
+  ctx.lineTo(cx(1), cy(0) + 7);
+  ctx.stroke();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(cx(1), cy(0), 2.4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/* ---------- Pixel Golf 404: sân cỏ ca-rô + tường tím + cờ ---------- */
+function pixelGolfArt(ctx) {
+  const rand = seededRand(3600);
+  ctx.fillStyle = "#0a0a24";
+  ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 26; i++) {
+    ctx.fillStyle = rand() > 0.75 ? "rgba(122,63,212,.5)" : "rgba(160,175,235,.3)";
+    ctx.fillRect(rand() * W, rand() * H, 2, 2);
+  }
+  // sân cỏ ca-rô hình L
+  const poly = [[36, 60], [200, 60], [200, 108], [292, 108], [292, 172], [36, 172]];
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(poly[0][0], poly[0][1]);
+  for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]);
+  ctx.closePath();
+  ctx.clip();
+  ctx.fillStyle = "#157f6d";
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#1b937e";
+  const t = 18;
+  for (let y = 0; y < H / t; y++) {
+    for (let x = 0; x < W / t; x++) {
+      if ((x + y) % 2 === 0) ctx.fillRect(x * t, y * t, t, t);
+    }
+  }
+  // hố cát
+  ctx.fillStyle = "#dfb977";
+  ctx.beginPath();
+  ctx.arc(120, 150, 26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#8a6a33";
+  ctx.stroke();
+  ctx.restore();
+  // tường tím
+  const wall = (x1, y1, x2, y2) => {
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    const a = Math.atan2(y2 - y1, x2 - x1);
+    ctx.save();
+    ctx.translate(x1, y1);
+    ctx.rotate(a);
+    const wg = ctx.createLinearGradient(0, -5, 0, 5);
+    wg.addColorStop(0, "#9a5ae8");
+    wg.addColorStop(1, "#4a1f8a");
+    ctx.fillStyle = wg;
+    ctx.fillRect(-4, -5, len + 8, 10);
+    ctx.strokeStyle = "rgba(30,10,60,.6)";
+    for (let d = 0; d < len; d += 16) {
+      ctx.beginPath();
+      ctx.moveTo(d, -5);
+      ctx.lineTo(d, 5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  };
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i];
+    const b = poly[(i + 1) % poly.length];
+    wall(a[0], a[1], b[0], b[1]);
+  }
+  // portal đôi
+  for (const [x, y, col] of [[178, 140, "#ff2ee6"], [232, 140, "#20e3ff"]]) {
+    ctx.save();
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 7, 11, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.fillStyle = "rgba(120,230,255,.8)";
+  for (const dx of [0, 9]) {
+    ctx.beginPath();
+    ctx.moveTo(196 + dx, 135);
+    ctx.lineTo(202 + dx, 140);
+    ctx.lineTo(196 + dx, 145);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // lỗ + cờ
+  ctx.fillStyle = "#04101c";
+  ctx.beginPath();
+  ctx.ellipse(258, 132, 8, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(32,227,255,.7)";
+  ctx.stroke();
+  ctx.strokeStyle = "#e8f0ff";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(258, 130);
+  ctx.lineTo(258, 100);
+  ctx.stroke();
+  ctx.fillStyle = "#f4f7ff";
+  ctx.beginPath();
+  ctx.moveTo(258, 100);
+  ctx.lineTo(242, 106);
+  ctx.lineTo(258, 112);
+  ctx.closePath();
+  ctx.fill();
+  // bóng + khung ngắm + mũi tên
+  ctx.strokeStyle = "rgba(255,255,255,.9)";
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath();
+  ctx.moveTo(86, 118);
+  ctx.lineTo(150, 96);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "#fff";
+  ctx.save();
+  ctx.translate(150, 96);
+  ctx.rotate(Math.atan2(-22, 64));
+  ctx.beginPath();
+  ctx.moveTo(8, 0);
+  ctx.lineTo(-3, -5);
+  ctx.lineTo(-3, 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+  const bg2 = ctx.createRadialGradient(74, 116, 1, 76, 118, 7);
+  bg2.addColorStop(0, "#fff");
+  bg2.addColorStop(1, "#9fb2cc");
+  ctx.fillStyle = bg2;
+  ctx.beginPath();
+  ctx.arc(76, 118, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#3dff9c";
+  ctx.lineWidth = 1.6;
+  ctx.strokeRect(66, 108, 20, 20);
+  // cây pixel trang trí
+  ctx.fillStyle = "#2fbf71";
+  ctx.fillRect(310, 60, 4, 14);
+  ctx.fillRect(306, 64, 4, 4);
+  ctx.fillStyle = "#ff5ad2";
+  ctx.fillRect(310, 56, 4, 4);
+  ctx.fillStyle = "#20e3ff";
+  ctx.fillRect(16, 190, 5, 5);
+  ctx.fillRect(20, 185, 5, 5);
+}
+
+/* ---------- Typing Rush 404: chữ rơi + bàn phím + danger line ---------- */
+function typingRushArt(ctx) {
+  const rand = seededRand(2323);
+  ctx.fillStyle = "#070b1c";
+  ctx.fillRect(0, 0, W, H);
+  // mưa ký tự
+  const cols = ["#20e3ff", "#9a5cff", "#39d353", "#ff2ee6"];
+  ctx.font = "700 9px monospace";
+  ctx.textAlign = "center";
+  for (let i = 0; i < 14; i++) {
+    const x = 14 + i * 22;
+    const col = cols[i % cols.length];
+    for (let k = 0; k < 6; k++) {
+      const y = ((i * 37 + k * 22) % 120) + 8;
+      ctx.fillStyle = `${col}${k === 0 ? "88" : "33"}`;
+      ctx.fillText("01<>#$"[Math.floor(rand() * 6)], x, y);
+    }
+  }
+  // khung từ
+  const word = (x, y, text, tone, active) => {
+    ctx.font = `700 ${active ? 13 : 11}px monospace`;
+    const w2 = ctx.measureText(text).width + 26;
+    const h2 = active ? 26 : 21;
+    ctx.fillStyle = "rgba(6,9,24,.94)";
+    ctx.strokeStyle = tone;
+    ctx.lineWidth = active ? 2.4 : 1.4;
+    if (active) {
+      ctx.shadowColor = tone;
+      ctx.shadowBlur = 10;
+    }
+    ctx.beginPath();
+    ctx.roundRect(x - w2 / 2, y - h2 / 2, w2, h2, 6);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = tone;
+    ctx.fillText("</>", x - w2 / 2 + 14, y + 4);
+    if (active) {
+      ctx.fillStyle = "#20e3ff";
+      ctx.textAlign = "left";
+      ctx.fillText("sys", x - w2 / 2 + 26, y + 4);
+      const sw = ctx.measureText("sys").width;
+      ctx.fillStyle = "#f4f7ff";
+      ctx.fillText("tem", x - w2 / 2 + 26 + sw, y + 4);
+      ctx.textAlign = "center";
+      // chevron
+      ctx.fillStyle = tone;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - h2 / 2 - 9);
+      ctx.lineTo(x, y - h2 / 2 - 4);
+      ctx.lineTo(x + 5, y - h2 / 2 - 9);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillStyle = "#f4f7ff";
+      ctx.fillText(text, x + 8, y + 4);
+    }
+  };
+  word(58, 44, "function", "#20e3ff", false);
+  word(130, 72, "debug", "#9a5cff", false);
+  word(160, 40, "system", "#c8f542", true);
+  word(232, 58, "bộ nhớ", "#dfe6ff", false);
+  word(284, 84, "kết nối", "#ff2ee6", false);
+
+  // danger line
+  ctx.strokeStyle = "#ff2e4d";
+  ctx.lineWidth = 2;
+  ctx.shadowColor = "#ff2e4d";
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(12, 112);
+  ctx.lineTo(W - 12, 112);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#ff4d66";
+  ctx.font = "800 7px monospace";
+  ctx.fillText("« DANGER LINE »", W / 2, 109);
+
+  // bàn phím mini
+  const rows = [13, 12, 11, 10];
+  let y = 126;
+  for (let r = 0; r < rows.length; r++) {
+    const n = rows[r];
+    const kw = (W - 30) / n;
+    for (let i = 0; i < n; i++) {
+      const x = 15 + i * kw;
+      const hot = (r === 1 && (i === 2 || i === 4)) || (r === 2 && (i === 1 || i === 2));
+      ctx.fillStyle = hot ? "rgba(32,227,255,.4)" : "rgba(13,18,40,.92)";
+      ctx.strokeStyle = hot ? "#20e3ff" : "rgba(150,170,230,.3)";
+      ctx.beginPath();
+      ctx.roundRect(x + 1, y, kw - 2, 14, 3);
+      ctx.fill();
+      ctx.stroke();
+    }
+    y += 17;
+  }
+  ctx.fillStyle = "rgba(32,227,255,.3)";
+  ctx.strokeStyle = "rgba(32,227,255,.5)";
+  ctx.beginPath();
+  ctx.roundRect(W / 2 - 50, y, 100, 6, 3);
+  ctx.fill();
+  ctx.stroke();
+}
+
+/* ---------- Astro Patrol 404: không gian + tàu + boss ---------- */
+function astroPatrolArt(ctx) {
+  const rand = seededRand(4404);
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#0a0824");
+  bg.addColorStop(1, "#070619");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  const ng = ctx.createRadialGradient(90, 80, 8, 90, 80, 120);
+  ng.addColorStop(0, "rgba(110,50,200,.2)");
+  ng.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = ng;
+  ctx.fillRect(0, 0, W, H);
+  stars(ctx, rand, 40);
+
+  // asteroid
+  const rock = (x, y, r) => {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (Math.PI * 2 * i) / 8;
+      const rr = r * (0.75 + rand() * 0.35);
+      ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    ctx.closePath();
+    const rg = ctx.createLinearGradient(-r, -r, r, r);
+    rg.addColorStop(0, "#8a8fa8");
+    rg.addColorStop(1, "#2e3245");
+    ctx.fillStyle = rg;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(20,22,38,.8)";
+    ctx.stroke();
+    ctx.fillStyle = "#b45cff";
+    ctx.beginPath();
+    ctx.moveTo(2, -5);
+    ctx.lineTo(6, 0);
+    ctx.lineTo(2, 5);
+    ctx.lineTo(-2, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  };
+  rock(40, 60, 20);
+  rock(286, 130, 24);
+  rock(60, 158, 14);
+
+  // boss lục giác mắt đỏ
+  ctx.save();
+  ctx.translate(160, 52);
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i + Math.PI / 6;
+    ctx.lineTo(Math.cos(a) * 34, Math.sin(a) * 34);
+  }
+  ctx.closePath();
+  const bgb = ctx.createLinearGradient(0, -34, 0, 34);
+  bgb.addColorStop(0, "#3a4260");
+  bgb.addColorStop(1, "#141a30");
+  ctx.fillStyle = bgb;
+  ctx.fill();
+  ctx.strokeStyle = "rgba(140,150,210,.7)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.shadowColor = "#ff2438";
+  ctx.shadowBlur = 10;
+  const eg = ctx.createRadialGradient(0, 0, 1, 0, 0, 10);
+  eg.addColorStop(0, "#ffd9de");
+  eg.addColorStop(0.4, "#ff4453");
+  eg.addColorStop(1, "#7a0f22");
+  ctx.fillStyle = eg;
+  ctx.beginPath();
+  ctx.arc(0, 0, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // đạn cam + hồng
+  for (const [x, y] of [[120, 92], [200, 100], [148, 118]]) {
+    const og = ctx.createRadialGradient(x, y, 0.5, x, y, 5);
+    og.addColorStop(0, "#fff3d9");
+    og.addColorStop(0.5, "#ffab3d");
+    og.addColorStop(1, "rgba(255,120,40,0)");
+    ctx.fillStyle = og;
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = "#ff5ab5";
+  for (const [x, y] of [[110, 128], [214, 122]]) {
+    ctx.beginPath();
+    ctx.ellipse(x, y, 3, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // laser cyan đôi của người chơi
+  ctx.save();
+  ctx.shadowColor = "#20e3ff";
+  ctx.shadowBlur = 6;
+  ctx.fillStyle = "#9df0ff";
+  ctx.fillRect(153, 96, 4, 16);
+  ctx.fillRect(165, 96, 4, 16);
+  ctx.restore();
+
+  // tàu người chơi
+  ctx.save();
+  ctx.translate(161, 158);
+  ctx.fillStyle = "rgba(120,240,255,.8)";
+  ctx.beginPath();
+  ctx.moveTo(-4, 12);
+  ctx.lineTo(0, 26);
+  ctx.lineTo(4, 12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#8fa6c8";
+  ctx.beginPath();
+  ctx.moveTo(-3, -2);
+  ctx.lineTo(-16, 10);
+  ctx.lineTo(-5, 10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(3, -2);
+  ctx.lineTo(16, 10);
+  ctx.lineTo(5, 10);
+  ctx.closePath();
+  ctx.fill();
+  const pg2 = ctx.createLinearGradient(-5, 0, 6, 0);
+  pg2.addColorStop(0, "#f4f8ff");
+  pg2.addColorStop(1, "#c3d2ea");
+  ctx.fillStyle = pg2;
+  ctx.beginPath();
+  ctx.moveTo(0, -16);
+  ctx.quadraticCurveTo(7, -3, 5.5, 10);
+  ctx.lineTo(-5.5, 10);
+  ctx.quadraticCurveTo(-7, -3, 0, -16);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#20e3ff";
+  ctx.beginPath();
+  ctx.ellipse(0, -4, 2.4, 4.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // địch tam giác xanh lá
+  for (const [x, y] of [[64, 96], [256, 70]]) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = "#1d2436";
+    ctx.beginPath();
+    ctx.moveTo(0, 12);
+    ctx.lineTo(-11, -9);
+    ctx.lineTo(0, -4);
+    ctx.lineTo(11, -9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(90,110,150,.8)";
+    ctx.stroke();
+    ctx.fillStyle = "#4df77f";
+    ctx.fillRect(-8, -8, 4, 2);
+    ctx.fillRect(4, -8, 4, 2);
+    ctx.restore();
+  }
+
+  // pickup khiên
+  ctx.save();
+  ctx.translate(262, 168);
+  ctx.strokeStyle = "#3b9dff";
+  ctx.shadowColor = "#3b9dff";
+  ctx.shadowBlur = 8;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i - Math.PI / 6;
+    ctx.lineTo(Math.cos(a) * 11, Math.sin(a) * 11);
+  }
+  ctx.closePath();
+  ctx.stroke();
+  ctx.fillStyle = "#3b9dff";
+  ctx.beginPath();
+  ctx.moveTo(0, -6);
+  ctx.lineTo(5, -3);
+  ctx.lineTo(5, 2);
+  ctx.quadraticCurveTo(5, 5, 0, 7);
+  ctx.quadraticCurveTo(-5, 5, -5, 2);
+  ctx.lineTo(-5, -3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
 const PAINTERS = {
   runner: runnerArt,
   "bug-hunter": bugArt,
@@ -25477,6 +35464,11 @@ const PAINTERS = {
   "rogue-arena": rogueArt,
   "rhythm-hack": rhythmArt,
   "void-runner": voidRunnerArt,
+  "brick-breaker": brickBreakerArt,
+  "laser-maze": laserMazeArt,
+  "pixel-golf": pixelGolfArt,
+  "typing-rush": typingRushArt,
+  "astro-patrol": astroPatrolArt,
 };
 
 /** Vẽ preview của một game lên canvas trong card. */

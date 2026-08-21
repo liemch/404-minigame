@@ -141,6 +141,34 @@ export function createAudio(storage, { defaultOn = false } = {}) {
     vr_fall:     () => { tone({ type: "sine", from: 420, to: 90, dur: 0.4, vol: 0.3 }); noise({ dur: 0.2, vol: 0.14, from: 900, to: 150, delay: 0.1 }); },
     vr_respawn:  () => { tone({ type: "sine", from: 300, to: 620, dur: 0.14, vol: 0.2 }); tone({ from: 830, dur: 0.07, vol: 0.16, delay: 0.12 }); },
     vr_finish:   () => { tone({ from: 587, dur: 0.09, vol: 0.28 }); tone({ from: 740, dur: 0.09, vol: 0.28, delay: 0.09 }); tone({ from: 988, dur: 0.09, vol: 0.28, delay: 0.18 }); tone({ from: 1319, dur: 0.24, vol: 0.3, delay: 0.27 }); },
+
+    /* Expansion 11–15 — Brick Breaker */
+    bb_paddle: () => tone({ type: "square", from: 340, to: 430, dur: 0.06, vol: 0.24 }),
+    bb_wall:   () => tone({ type: "sine", from: 260, to: 220, dur: 0.04, vol: 0.12 }),
+    bb_brick:  () => { tone({ from: 760, to: 900, dur: 0.06, vol: 0.24 }); noise({ dur: 0.06, vol: 0.14, from: 2600, to: 700 }); },
+    bb_crack:  () => { tone({ type: "triangle", from: 420, to: 330, dur: 0.06, vol: 0.2 }); noise({ dur: 0.05, vol: 0.1, from: 1800, to: 500 }); },
+    bb_steel:  () => tone({ type: "square", from: 190, to: 160, dur: 0.07, vol: 0.2 }),
+    bb_power:  () => { tone({ from: 520, to: 880, dur: 0.11, vol: 0.26 }); tone({ from: 1100, dur: 0.07, vol: 0.2, delay: 0.1 }); },
+    bb_laser:  () => tone({ type: "sawtooth", from: 1500, to: 500, dur: 0.07, vol: 0.14 }),
+    bb_lose:   () => { tone({ type: "sine", from: 320, to: 90, dur: 0.32, vol: 0.34 }); noise({ dur: 0.16, vol: 0.16, from: 800, to: 150, delay: 0.05 }); },
+
+    /* Expansion 11–15 — Pixel Golf */
+    pg_hit:    () => { noise({ dur: 0.05, vol: 0.24, from: 2400, to: 900 }); tone({ type: "sine", from: 210, to: 150, dur: 0.07, vol: 0.3 }); },
+    pg_wall:   () => tone({ type: "square", from: 300, to: 240, dur: 0.05, vol: 0.16 }),
+    pg_sand:   () => noise({ dur: 0.14, vol: 0.22, from: 900, to: 200 }),
+    pg_bumper: () => { tone({ from: 620, to: 900, dur: 0.07, vol: 0.26 }); tone({ from: 1200, dur: 0.05, vol: 0.18, delay: 0.05 }); },
+    pg_sink:   () => { tone({ type: "sine", from: 500, to: 250, dur: 0.1, vol: 0.26 }); tone({ from: 660, dur: 0.08, vol: 0.24, delay: 0.1 }); tone({ from: 880, dur: 0.14, vol: 0.24, delay: 0.18 }); },
+    pg_oob:    () => { tone({ type: "sawtooth", from: 240, to: 110, dur: 0.2, vol: 0.26 }); },
+
+    /* Expansion 11–15 — Typing Rush */
+    tr_key:    () => tone({ type: "square", from: 720, to: 660, dur: 0.03, vol: 0.1 }),
+    tr_err:    () => tone({ type: "sawtooth", from: 200, to: 140, dur: 0.08, vol: 0.2 }),
+    tr_word:   () => { tone({ from: 840, dur: 0.05, vol: 0.22 }); tone({ from: 1180, dur: 0.08, vol: 0.2, delay: 0.05 }); },
+    tr_danger: () => { tone({ type: "sawtooth", from: 320, to: 90, dur: 0.3, vol: 0.34 }); noise({ dur: 0.2, vol: 0.2, from: 900, to: 150 }); },
+
+    /* Expansion 11–15 — Astro Patrol */
+    ap_shoot: () => { tone({ type: "square", from: 880, to: 320, dur: 0.07, vol: 0.13 }); noise({ dur: 0.04, vol: 0.07, from: 3200, to: 900 }); },
+    ap_alarm: () => { tone({ type: "square", from: 620, dur: 0.12, vol: 0.24 }); tone({ type: "square", from: 470, dur: 0.12, vol: 0.24, delay: 0.14 }); tone({ type: "square", from: 620, dur: 0.16, vol: 0.24, delay: 0.28 }); },
   };
 
   return {

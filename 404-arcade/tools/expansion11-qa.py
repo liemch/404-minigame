@@ -774,7 +774,10 @@ def test_old_games(c):
         time.sleep(1.6)
         stage = c.js(sr("!sr.querySelector('[data-ref=stage]')?.hidden"))
         check(f"{title}: mở được", bool(ok) and bool(stage))
+        # đóng qua mọi biến thể nút "Đổi game": frame expansion / start screen Strike / Esc
         c.js(sr("sr.querySelector('.exp-btns button[aria-label=\"Đổi game\"]')?.click(); true"))
+        time.sleep(0.4)
+        c.js(sr("[...sr.querySelectorAll('.sk-start-actions button')].find(b=>b.textContent.includes('Đổi game'))?.click(); true"))
         time.sleep(0.4)
         key(c, "Escape")
         time.sleep(0.6)
