@@ -301,8 +301,94 @@ def test_portal(c):
     console_clean(c, "portal open/close")
 
 
+# ============================= NEON DRIFT =============================
+
+def wait_state(c, var, cond, timeout=15, step=0.4):
+    """Poll biến telemetry window.__XX_STATE__ tới khi cond(state) đúng."""
+    end = time.time() + timeout
+    last = None
+    while time.time() < end:
+        last = c.js(f"window.{var} || null")
+        if last and cond(last):
+            return last
+        time.sleep(step)
+    return last
+
+
+def test_drift(c):
+    print("\n== Neon Drift 404 ==")
+    go_home(c, fresh_storage=True)
+    c.js("window.__ARCADE_EXP5_TEST__ = true; true")
+    check("mở được card Neon Drift", open_game(c, "Neon Drift 404"))
+    check("intro hiện", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'"))
+    c.shot("drift-intro.png")
+
+    c.js(sr("sr.querySelector('.exp-cta').click(); true"))
+    time.sleep(1.0)  # countdown TEST = 0.4s
+    check("vào trận (overlay đóng)", c.js(sr("!sr.querySelector('.exp-screen')")))
+    check("minimap hiển thị", c.js(sr("!!sr.querySelector('.nd-minimap canvas')")))
+
+    # Giữ ga: keydown không keyup
+    c.js("window.dispatchEvent(new KeyboardEvent('keydown', {code:'ArrowUp', key:'ArrowUp'})); true")
+    st = wait_state(c, "__ND_STATE__", lambda s: s.get("speed", 0) > 120, 8)
+    check("xe tăng tốc khi giữ ga", bool(st) and st.get("speed", 0) > 120, f"speed={st and st.get('speed')}")
+    st = wait_state(c, "__ND_STATE__", lambda s: s.get("trackPos", 0) > 40, 8)
+    check("xe tiến theo đường đua", bool(st) and st.get("trackPos", 0) > 40, f"trackPos={st and st.get('trackPos')}")
+
+    # Nitro: giữ Shift 1s → nitro giảm
+    n0 = c.js("window.__ND_STATE__?.nitro")
+    c.js("window.dispatchEvent(new KeyboardEvent('keydown', {code:'ShiftLeft', key:'Shift'})); true")
+    time.sleep(1.2)
+    c.js("window.dispatchEvent(new KeyboardEvent('keyup', {code:'ShiftLeft', key:'Shift'})); true")
+    n1 = c.js("window.__ND_STATE__?.nitro")
+    check("nitro tiêu hao khi giữ SHIFT", n0 is not None and n1 is not None and n1 < n0, f"{n0}% → {n1}%")
+
+    # Checkpoint đúng thứ tự (xe tự ga + trượt tường vẫn tiến)
+    st = wait_state(c, "__ND_STATE__", lambda s: s.get("nextCp", 1) >= 2, 14)
+    check("qua CHECKPOINT 1", bool(st) and st.get("nextCp", 1) >= 2, f"nextCp={st and st.get('nextCp')}")
+    cp_txt = c.js(sr("[...sr.querySelectorAll('.exp-stat')].find(s=>s.querySelector('.lbl')?.textContent==='CHECKPOINT')?.querySelector('.val')?.textContent"))
+    check("HUD CHECKPOINT cập nhật", bool(cp_txt) and cp_txt != "00/08", f"= {cp_txt}")
+    c.shot("drift-play.png")
+
+    # Pause / resume
+    key(c, "Escape")
+    time.sleep(0.3)
+    check("Esc mở pause", c.js(sr("sr.querySelector('.exp-screen')?.dataset.screen === 'pause'")))
+    c.shot("drift-pause.png")
+    c.js(sr("[...sr.querySelectorAll('.exp-menu-btn')].find(b=>b.textContent==='TIẾP TỤC').click(); true"))
+    time.sleep(0.3)
+    check("resume tiếp tục trận", c.js(sr("!sr.querySelector('.exp-screen')")))
+
+    # Chờ hết giờ TEST (18s game-time; headless SwiftShader chạy chậm ~0.5×)
+    check("kết thúc trận (hết giờ/về đích)", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'over'", 60))
+    c.js("window.dispatchEvent(new KeyboardEvent('keyup', {code:'ArrowUp', key:'ArrowUp'})); true")
+    score_txt = c.js(sr("sr.querySelector('.exp-over-score .num')?.textContent"))
+    check("điểm hiển thị trên kết quả", bool(score_txt), f"= {score_txt}")
+    c.shot("drift-over.png")
+    console_clean(c, "drift gameplay")
+
+    # ĐUA LẠI
+    clicked = c.js(sr("(() => { const b = [...sr.querySelectorAll('.exp-ghostbtn')].find(x=>x.textContent.includes('ĐUA LẠI')); if (!b) return false; b.click(); return true; })()"))
+    time.sleep(1.0)
+    check("đua lại được", bool(clicked) and c.js(sr("!sr.querySelector('.exp-screen')")))
+    close_via_switch(c)
+    check("đóng game dọn sạch surface", c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0")))
+
+    # Mở/đóng 3 lần
+    for i in range(3):
+        open_game(c, "Neon Drift 404")
+        wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'", 8)
+        roots = c.js(sr("sr.querySelectorAll('.exp-root').length"))
+        canvases = c.js(sr("sr.querySelectorAll('[data-ref=surface] canvas').length"))
+        check(f"lần mở {i + 1}: 1 root + canvas đúng", roots == 1 and canvases == 2, f"roots={roots} canvases={canvases}")
+        close_via_switch(c)
+    check("surface sạch sau 3 lần", c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0")))
+    console_clean(c, "drift open/close")
+
+
 SECTIONS = {
     "portal": test_portal,
+    "drift": test_drift,
 }
 
 

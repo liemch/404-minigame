@@ -795,6 +795,159 @@ function voidRunnerArt(ctx) {
   }
 }
 
+/* ---------- Neon Drift 404: khúc cua neon + xe drift ---------- */
+function driftArt(ctx) {
+  const rand = seededRand(707);
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#120a2c");
+  bg.addColorStop(1, "#070414");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // nhà neon hai bên
+  for (let i = 0; i < 7; i++) {
+    const bw = 34 + rand() * 40;
+    const bh = 30 + rand() * 46;
+    const x = rand() * (W - bw);
+    const y = rand() > 0.5 ? rand() * 34 : H - bh - rand() * 24;
+    ctx.fillStyle = "#0d0a20";
+    ctx.fillRect(x, y, bw, bh);
+    ctx.strokeStyle = rand() > 0.5 ? "rgba(255,46,230,.55)" : "rgba(32,227,255,.55)";
+    ctx.strokeRect(x, y, bw, bh);
+    ctx.fillStyle = "rgba(32,227,255,.3)";
+    for (let wy = y + 6; wy < y + bh - 4; wy += 9) ctx.fillRect(x + 5, wy, bw - 10, 2.5);
+  }
+
+  // khúc cua: đường asphalt cong với 2 mép neon
+  const roadPath = new Path2D();
+  roadPath.moveTo(-20, 168);
+  roadPath.bezierCurveTo(90, 150, 150, 76, 250, 66);
+  roadPath.lineTo(360, 60);
+  ctx.strokeStyle = "#131120";
+  ctx.lineWidth = 62;
+  ctx.lineCap = "round";
+  ctx.stroke(roadPath);
+  ctx.strokeStyle = "rgba(255,46,230,.3)";
+  ctx.lineWidth = 70;
+  ctx.stroke(roadPath);
+  ctx.strokeStyle = "#131120";
+  ctx.lineWidth = 62;
+  ctx.stroke(roadPath);
+  ctx.strokeStyle = "#ff2ee6";
+  ctx.lineWidth = 3;
+  ctx.save();
+  ctx.translate(0, -33);
+  ctx.stroke(roadPath);
+  ctx.restore();
+  ctx.strokeStyle = "#20e3ff";
+  ctx.save();
+  ctx.translate(0, 33);
+  ctx.stroke(roadPath);
+  ctx.restore();
+  ctx.strokeStyle = "rgba(240,244,255,.5)";
+  ctx.lineWidth = 3;
+  ctx.setLineDash([14, 16]);
+  ctx.stroke(roadPath);
+  ctx.setLineDash([]);
+
+  // vệt drift hồng
+  ctx.strokeStyle = "rgba(255,46,230,.75)";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(78, 172);
+  ctx.quadraticCurveTo(120, 150, 158, 118);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,46,230,.35)";
+  ctx.lineWidth = 8;
+  ctx.stroke();
+
+  // xe người chơi drift
+  ctx.save();
+  ctx.translate(170, 108);
+  ctx.rotate(-0.55);
+  ctx.shadowColor = "#ff2ee6";
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = "#dfe8ff";
+  ctx.beginPath();
+  ctx.roundRect(-17, -9, 34, 18, 6);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#0b1226";
+  ctx.beginPath();
+  ctx.roundRect(-4, -6.5, 11, 13, 4);
+  ctx.fill();
+  ctx.fillStyle = "#20e3ff";
+  ctx.fillRect(-17, -9, 26, 2.4);
+  ctx.fillRect(-17, 6.6, 26, 2.4);
+  ctx.fillStyle = "#ff2ee6";
+  ctx.beginPath();
+  ctx.roundRect(11, -8, 6, 16, 3);
+  ctx.fill();
+  ctx.restore();
+
+  // pickup lục giác lime
+  ctx.save();
+  ctx.translate(238, 82);
+  ctx.shadowColor = "#a8ff3e";
+  ctx.shadowBlur = 10;
+  ctx.strokeStyle = "#a8ff3e";
+  ctx.fillStyle = "rgba(28,46,8,.92)";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i - Math.PI / 6;
+    const x = Math.cos(a) * 11;
+    const y = Math.sin(a) * 11;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#a8ff3e";
+  ctx.beginPath();
+  ctx.moveTo(1.5, -6);
+  ctx.lineTo(-3.5, 1.5);
+  ctx.lineTo(-0.5, 1.5);
+  ctx.lineTo(-1.5, 6);
+  ctx.lineTo(3.5, -1.5);
+  ctx.lineTo(0.5, -1.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // banner CHECKPOINT
+  ctx.fillStyle = "rgba(10,14,8,.9)";
+  ctx.fillRect(224, 26, 88, 18);
+  ctx.strokeStyle = "#a8ff3e";
+  ctx.lineWidth = 1.6;
+  ctx.strokeRect(224, 26, 88, 18);
+  ctx.fillStyle = "#a8ff3e";
+  ctx.font = "800 10px monospace";
+  ctx.textAlign = "center";
+  ctx.shadowColor = "#a8ff3e";
+  ctx.shadowBlur = 8;
+  ctx.fillText("CHECKPOINT", 268, 39);
+  ctx.shadowBlur = 0;
+
+  // minimap góc trái
+  ctx.fillStyle = "rgba(6,9,24,.85)";
+  ctx.strokeStyle = "rgba(32,227,255,.5)";
+  ctx.beginPath();
+  ctx.roundRect(10, 10, 64, 46, 7);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,46,230,.9)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(42, 33, 22, 13, -0.2, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "#4df77f";
+  ctx.beginPath();
+  ctx.arc(56, 28, 2.6, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 const PAINTERS = {
   runner: runnerArt,
   "bug-hunter": bugArt,
@@ -802,6 +955,7 @@ const PAINTERS = {
   snake: snakeArt,
   strike: strikeArt,
   "portal-puzzle": portalArt,
+  "neon-drift": driftArt,
   "void-runner": voidRunnerArt,
 };
 

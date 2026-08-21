@@ -120,6 +120,23 @@ export const GAMES = [
     fullBleed: true,
     ownResults: true,
   },
+  {
+    id: "neon-drift",
+    title: "Neon Drift 404",
+    accent: "pink",
+    kind: "2d",
+    goal: "Đua xe neon nhìn từ trên xuống: qua 8 checkpoint đúng thứ tự, drift ăn combo, thu năng lượng và bung nitro trước khi hết giờ.",
+    hint: { keys: ["← →"], text: "lái · SPACE drift · SHIFT nitro" },
+    controls: [
+      { keys: ["↑ ↓ ← →", "WASD"], text: "ga / phanh / đánh lái" },
+      { keys: ["SPACE"], text: "drift (phanh tay) — giữ để ôm cua" },
+      { keys: ["SHIFT"], text: "nitro (có thanh năng lượng)" },
+      { keys: ["Chạm"], text: "nút ◀ ▶ + NITRO, xe tự ga trên cảm ứng" },
+    ],
+    loader: () => import("../games/neon-drift/index.js"),
+    fullBleed: true,
+    ownResults: true,
+  },
 ];
 
 const byId = new Map(GAMES.map((g) => [g.id, g]));
