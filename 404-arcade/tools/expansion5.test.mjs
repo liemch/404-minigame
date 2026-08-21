@@ -12,6 +12,8 @@ import { createSim } from "../src/games/cyber-defense/engine.js";
 import { WAVES as CD_WAVES, TOWERS as CD_TOWERS } from "../src/games/cyber-defense/data.js";
 import { createArena } from "../src/games/rogue-arena/engine.js";
 import { UPGRADES, MAX_ENEMIES } from "../src/games/rogue-arena/data.js";
+import { createJudge } from "../src/games/rhythm-hack/engine.js";
+import { SONG, buildSong } from "../src/games/rhythm-hack/chart.js";
 
 /* ---------------- Portal Puzzle: 15 level có lời giải hợp lệ ---------------- */
 
@@ -374,4 +376,69 @@ test("rogue-arena: trọn trận 3 phút với auto-chọn nâng cấp → thắ
   assert.ok(sawBoss, "boss phải xuất hiện ở phút thứ 3");
   assert.ok(levelups >= 3, `phải lên cấp nhiều lần (${levelups})`);
   assert.ok(a.kills > 30, `phải hạ đủ nhiều (${a.kills})`);
+});
+
+/* ---------------- Rhythm Hack ---------------- */
+
+test("rhythm-hack: chart hợp lệ — ≥140 note, 4 lane, thời lượng 60–90s, note khớp thứ tự", () => {
+  const { notes, music, duration } = buildSong({});
+  assert.ok(notes.length >= 140, `notes = ${notes.length}`);
+  assert.ok(duration >= 60 && duration <= 90, `duration = ${duration}`);
+  const lanes = new Set(notes.map((n) => n.lane));
+  assert.deepEqual([...lanes].sort(), [0, 1, 2, 3], "phải dùng đủ 4 lane");
+  for (let i = 1; i < notes.length; i++) assert.ok(notes[i].time >= notes[i - 1].time);
+  // mỗi note lead phải có sự kiện nhạc trùng thời điểm (nhạc và note khớp nhau)
+  const musicTimes = new Set(music.map((m) => Math.round(m.time * 1000)));
+  let matched = 0;
+  for (const n of notes) if (musicTimes.has(Math.round(n.time * 1000))) matched++;
+  assert.ok(matched / notes.length > 0.95, `note khớp nhạc ${matched}/${notes.length}`);
+});
+
+test("rhythm-hack: judgement windows Perfect/Great/Good/Miss theo config", () => {
+  const notes = [{ time: 1, lane: 0 }, { time: 2, lane: 1 }, { time: 3, lane: 2 }, { time: 4, lane: 3 }];
+  const j = createJudge(notes, SONG);
+  assert.equal(j.onKey(0, 1.030).judgement, "perfect"); // +30ms
+  assert.equal(j.onKey(1, 2.070).judgement, "great");   // +70ms
+  assert.equal(j.onKey(2, 3.120).judgement, "good");    // +120ms
+  assert.equal(j.onKey(3, 4.2), null, "ngoài 140ms không được chấm bằng phím");
+  const missed = j.tick(4.2);
+  assert.equal(missed.length, 1);
+  assert.equal(j.state.counts.miss, 1);
+});
+
+test("rhythm-hack: một note không bao giờ được chấm 2 lần (key repeat an toàn)", () => {
+  const notes = [{ time: 1, lane: 0 }];
+  const j = createJudge(notes, SONG);
+  const first = j.onKey(0, 1.01);
+  assert.equal(first.judgement, "perfect");
+  // spam thêm 5 lần trong cửa sổ — không note nào còn để chấm
+  for (let i = 0; i < 5; i++) assert.equal(j.onKey(0, 1.02 + i * 0.005), null);
+  assert.equal(j.state.judged, 1);
+  assert.equal(j.state.score, 1000);
+});
+
+test("rhythm-hack: combo multiplier có trần + miss reset combo", () => {
+  const notes = [];
+  for (let i = 0; i < 60; i++) notes.push({ time: i * 0.5, lane: i % 4 });
+  const j = createJudge(notes, SONG);
+  for (let i = 0; i < 40; i++) j.onKey(i % 4, i * 0.5);
+  // combo 40 > trần 30 → multiplier kẹt ở 1.6
+  assert.equal(j.multiplier(), 1 + 30 * 0.02);
+  const before = j.state.combo;
+  assert.ok(before === 40);
+  j.tick(40 * 0.5 + 1); // các note còn lại miss
+  assert.equal(j.state.combo, 0, "miss phải reset combo");
+});
+
+test("rhythm-hack: accuracy theo trọng số judgement", () => {
+  const notes = [
+    { time: 1, lane: 0 }, { time: 2, lane: 0 }, { time: 3, lane: 0 }, { time: 4, lane: 0 },
+  ];
+  const j = createJudge(notes, SONG);
+  j.onKey(0, 1);       // perfect 1.0
+  j.onKey(0, 2.07);    // great 0.7
+  j.onKey(0, 3.12);    // good 0.4
+  j.tick(10);          // miss 0
+  const expected = ((1 + 0.7 + 0.4 + 0) / 4) * 100;
+  assert.ok(Math.abs(j.accuracy() - expected) < 0.001, `${j.accuracy()} vs ${expected}`);
 });

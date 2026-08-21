@@ -169,6 +169,22 @@ export const GAMES = [
     fullBleed: true,
     ownResults: true,
   },
+  {
+    id: "rhythm-hack",
+    title: "Rhythm Hack",
+    accent: "lime",
+    kind: "2d",
+    goal: "Nhấn D F J K đúng lúc note chạm vạch để vá hệ thống: nhạc chiptune tổng hợp trực tiếp, judgement ±45ms, combo và độ chính xác.",
+    hint: { keys: ["D", "F", "J", "K"], text: "gõ theo nhịp" },
+    controls: [
+      { keys: ["D", "F", "J", "K"], text: "đánh 4 lane theo nhịp nhạc" },
+      { keys: ["Chạm"], text: "chạm 4 phím / 4 vùng lane trên tablet" },
+      { keys: ["Esc"], text: "tạm dừng — có chỉnh độ trễ ±ms" },
+    ],
+    loader: () => import("../games/rhythm-hack/index.js"),
+    fullBleed: true,
+    ownResults: true,
+  },
 ];
 
 const byId = new Map(GAMES.map((g) => [g.id, g]));

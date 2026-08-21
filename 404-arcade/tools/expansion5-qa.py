@@ -555,11 +555,87 @@ def test_rogue(c):
     console_clean(c, "rogue open/close")
 
 
+# ============================= RHYTHM HACK =============================
+
+def test_rhythm(c):
+    print("\n== Rhythm Hack ==")
+    go_home(c, fresh_storage=True)
+    c.js("window.__ARCADE_EXP5_TEST__ = true; window.__RH_AUTOPLAY__ = true; true")
+    check("mở được card Rhythm Hack", open_game(c, "Rhythm Hack"))
+    check("intro hiện", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'"))
+    c.shot("rhythm-intro.png")
+
+    c.js(sr("sr.querySelector('.exp-cta').click(); true"))
+    time.sleep(0.6)
+    check("vào bài (overlay đóng)", c.js(sr("!sr.querySelector('.exp-screen')")))
+    check("4 phím D F J K hiển thị", c.js(sr("sr.querySelectorAll('.rh-key').length")) == 4)
+    check("panel trái + phải hiển thị", c.js(sr("sr.querySelectorAll('.rh-panel').length")) == 3 and c.js(sr("sr.querySelectorAll('.rh-side').length")) == 2)
+
+    # autoplay chấm perfect → score/combo tăng, acc 100
+    st = wait_state(c, "__RH_STATE__", lambda s: s.get("judged", 0) >= 4, 20)
+    check("autoplay chấm note theo audio clock", bool(st) and st.get("judged", 0) >= 4, f"judged={st and st.get('judged')}")
+    check("điểm tăng", bool(st) and st.get("score", 0) > 0, f"score={st and st.get('score')}")
+    check("accuracy 100% khi toàn perfect", bool(st) and st.get("acc", 0) == 100, f"acc={st and st.get('acc')}")
+    c.shot("rhythm-play.png")
+
+    # Pause: songTime phải ĐÓNG BĂNG (không lệch chart)
+    key(c, "Escape")
+    time.sleep(0.4)
+    check("Esc mở pause", c.js(sr("sr.querySelector('.exp-screen')?.dataset.screen === 'pause'")))
+    check("pause có slider CĂN CHỈNH ĐỘ TRỄ", c.js(sr("!!sr.querySelector('.exp-range')")))
+    t1 = c.js("window.__RH_STATE__?.songTime")
+    time.sleep(1.2)
+    t2 = c.js("window.__RH_STATE__?.songTime")
+    check("songTime đóng băng khi pause (không lệch)", t1 == t2, f"{t1} → {t2}")
+    c.shot("rhythm-pause.png")
+    c.js(sr("[...sr.querySelectorAll('.exp-menu-btn')].find(b=>b.textContent==='TIẾP TỤC').click(); true"))
+    time.sleep(0.8)
+    st = wait_state(c, "__RH_STATE__", lambda s: s.get("songTime", 0) > (t2 or 0) + 0.3, 6)
+    check("resume chạy tiếp từ đúng chỗ", bool(st), f"songTime={st and st.get('songTime')}")
+
+    # Tắt autoplay → miss xuất hiện + combo reset
+    c.js("window.__RH_AUTOPLAY__ = false; true")
+    st = wait_state(c, "__RH_STATE__", lambda s: s.get("miss", 0) > 0, 15)
+    check("note trôi qua không nhấn → MISS", bool(st) and st.get("miss", 0) > 0, f"miss={st and st.get('miss')}")
+    check("miss reset combo", bool(st) and st.get("combo", 99) == 0, f"combo={st and st.get('combo')}")
+
+    # Nhấn phím không có note trong cửa sổ → không tăng judged (không hit sai)
+    j0 = c.js("window.__RH_STATE__?.judged")
+    m0 = c.js("window.__RH_STATE__?.miss")
+    for _ in range(4):
+        key(c, "KeyD", "d")
+        time.sleep(0.05)
+    time.sleep(0.5)
+    j1 = c.js("window.__RH_STATE__?.judged")
+    m1 = c.js("window.__RH_STATE__?.miss")
+    hits_from_keys = (j1 - j0) - (m1 - m0)
+    check("spam phím không tạo hit sai hàng loạt", hits_from_keys <= 1, f"hit từ 4 lần spam = {hits_from_keys}")
+
+    # Chờ hết bài TEST (~15.5s) → màn kết quả
+    c.js("window.__RH_AUTOPLAY__ = true; true")
+    check("kết thúc bài → màn kết quả", wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'over'", 30))
+    check("kết quả có 5 thẻ judgement", c.js(sr("sr.querySelectorAll('.exp-statcard').length")) == 5)
+    c.shot("rhythm-over.png")
+    console_clean(c, "rhythm gameplay")
+
+    close_via_switch(c)
+    check("đóng game dọn sạch surface", c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0")))
+    for i in range(3):
+        open_game(c, "Rhythm Hack")
+        wait_for(c, "sr.querySelector('.exp-screen')?.dataset.screen === 'intro'", 8)
+        roots = c.js(sr("sr.querySelectorAll('.exp-root').length"))
+        check(f"lần mở {i + 1}: đúng 1 exp-root", roots == 1, f"= {roots}")
+        close_via_switch(c)
+    check("surface sạch sau 3 lần", c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0")))
+    console_clean(c, "rhythm open/close")
+
+
 SECTIONS = {
     "portal": test_portal,
     "drift": test_drift,
     "defense": test_defense,
     "rogue": test_rogue,
+    "rhythm": test_rhythm,
 }
 
 

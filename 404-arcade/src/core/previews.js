@@ -1271,6 +1271,111 @@ function rogueArt(ctx) {
   ctx.fillText("+40 XP", 108, 118);
 }
 
+/* ---------- Rhythm Hack: highway 4 lane phối cảnh ---------- */
+function rhythmArt(ctx) {
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#070b20");
+  bg.addColorStop(1, "#0a0f2a");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const laneColors = ["#20e3ff", "#9a5cff", "#ff2e96", "#a8ff3e"];
+  const topY = 16;
+  const hitY = 158;
+  const topW = 74;
+  const botW = 286;
+  const edgeX = (i, k) => {
+    const w = topW + (botW - topW) * k;
+    return W / 2 - w / 2 + (w / 4) * i;
+  };
+
+  // mặt highway
+  ctx.fillStyle = "rgba(6,9,24,.9)";
+  ctx.beginPath();
+  ctx.moveTo(edgeX(0, 0), topY);
+  ctx.lineTo(edgeX(4, 0), topY);
+  ctx.lineTo(edgeX(4, 1), hitY);
+  ctx.lineTo(edgeX(0, 1), hitY);
+  ctx.closePath();
+  ctx.fill();
+
+  // vạch chia lane
+  for (let i = 0; i <= 4; i++) {
+    ctx.strokeStyle = i === 0 || i === 4 ? "rgba(120,170,255,.55)" : "rgba(120,150,230,.25)";
+    ctx.lineWidth = i === 0 || i === 4 ? 2.4 : 1.4;
+    ctx.beginPath();
+    ctx.moveTo(edgeX(i, 0), topY);
+    ctx.lineTo(edgeX(i, 1), hitY);
+    ctx.stroke();
+  }
+
+  // notes trên các lane
+  const note = (lane, k) => {
+    const y = topY + (hitY - topY) * (k * k * 0.62 + k * 0.38);
+    const w = (edgeX(lane + 1, k) - edgeX(lane, k)) * 0.72;
+    const x = (edgeX(lane, k) + edgeX(lane + 1, k)) / 2;
+    const h = 5 + k * 9;
+    ctx.save();
+    ctx.shadowColor = laneColors[lane];
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = laneColors[lane];
+    ctx.beginPath();
+    ctx.roundRect(x - w / 2, y - h / 2, w, h, h / 2);
+    ctx.fill();
+    ctx.restore();
+  };
+  note(0, 0.3);
+  note(1, 0.55);
+  note(2, 0.75);
+  note(3, 0.42);
+  note(1, 0.16);
+
+  // vạch hit + đế nhận
+  ctx.strokeStyle = "rgba(240,246,255,.85)";
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(edgeX(0, 1) - 6, hitY);
+  ctx.lineTo(edgeX(4, 1) + 6, hitY);
+  ctx.stroke();
+  for (let i = 0; i < 4; i++) {
+    const x = (edgeX(i, 1) + edgeX(i + 1, 1)) / 2;
+    ctx.strokeStyle = laneColors[i];
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.ellipse(x, hitY, 20, 6.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // chữ PERFECT giữa
+  ctx.save();
+  ctx.font = "800 22px monospace";
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#20e3ff";
+  ctx.shadowColor = "#20e3ff";
+  ctx.shadowBlur = 14;
+  ctx.fillText("PERFECT", W / 2, 92);
+  ctx.fillRect(W / 2 - 86, 89, 18, 3);
+  ctx.fillRect(W / 2 + 68, 89, 18, 3);
+  ctx.restore();
+
+  // phím D F J K
+  const keys = ["D", "F", "J", "K"];
+  for (let i = 0; i < 4; i++) {
+    const x = (edgeX(i, 1) + edgeX(i + 1, 1)) / 2;
+    ctx.fillStyle = "rgba(10,14,32,.95)";
+    ctx.strokeStyle = laneColors[i];
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(x - 17, 168, 34, 26, 5);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = laneColors[i];
+    ctx.font = "800 15px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(keys[i], x, 187);
+  }
+}
+
 const PAINTERS = {
   runner: runnerArt,
   "bug-hunter": bugArt,
@@ -1281,6 +1386,7 @@ const PAINTERS = {
   "neon-drift": driftArt,
   "cyber-defense": defenseArt,
   "rogue-arena": rogueArt,
+  "rhythm-hack": rhythmArt,
   "void-runner": voidRunnerArt,
 };
 
