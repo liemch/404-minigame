@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>404 · Arcade — Trang không tồn tại</title>
+  <meta name="description" content="Trang bạn tìm kiếm không tồn tại — nhưng có 4 mini game đang chờ bạn tại 404 Arcade.">
+  <meta name="theme-color" content="#070a17">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cg fill='%23ff58c7'%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='5' y='0' width='1' height='1'/%3E%3Crect x='1' y='1' width='6' height='1'/%3E%3Crect x='0' y='2' width='2' height='1'/%3E%3Crect x='3' y='2' width='2' height='1'/%3E%3Crect x='6' y='2' width='2' height='1'/%3E%3Crect x='0' y='3' width='8' height='1'/%3E%3Crect x='0' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='4' height='1'/%3E%3Crect x='7' y='4' width='1' height='1'/%3E%3Crect x='0' y='5' width='1' height='1'/%3E%3Crect x='7' y='5' width='1' height='1'/%3E%3Crect x='1' y='6' width='1' height='1'/%3E%3Crect x='6' y='6' width='1' height='1'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles/base.css">
+  <link rel="stylesheet" href="./styles/landing.css">
+  <link rel="stylesheet" href="./styles/shell.css">
+  <script type="module" src="./js/main.js"></script>
+</head>
+<body data-home-url="/">
+
+  <!-- Bộ icon SVG dùng chung (không dùng emoji) -->
+  <svg xmlns="http://www.w3.org/2000/svg" hidden aria-hidden="true">
+    <symbol id="i-home" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M12 3 3 10.5h2.5V21H10v-5h4v5h4.5V10.5H21L12 3z"/>
+    </symbol>
+    <symbol id="i-sound-on" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M4 9v6h4l5 4.5v-15L8 9H4z"/>
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M15.5 8.5a5 5 0 0 1 0 7"/>
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M18 6a8.5 8.5 0 0 1 0 12"/>
+    </symbol>
+    <symbol id="i-sound-off" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M4 9v6h4l5 4.5v-15L8 9H4z"/>
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="m15.5 9.5 5 5m0-5-5 5"/>
+    </symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/>
+    </symbol>
+    <symbol id="i-play" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M7 4l13 8-13 8V4z"/>
+    </symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 8h14M14 4l4 4-4 4"/>
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 16H7M10 12l-4 4 4 4"/>
+    </symbol>
+    <symbol id="i-restart" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M20 12a8 8 0 1 1-2.4-5.7"/>
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20.5 3.5v4.2h-4.2"/>
+    </symbol>
+    <symbol id="i-close" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M5 5l14 14M19 5 5 19"/>
+    </symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M12 5l7 10H5l7-10z"/>
+    </symbol>
+  </svg>
+
+  <a class="skip-link" href="#games">Bỏ qua tới danh sách trò chơi</a>
+
+  <!-- Lớp hiệu ứng nền (trang trí) -->
+  <div class="fx-stars" aria-hidden="true"></div>
+  <div class="fx-scanlines" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <span class="topbar-chip" aria-hidden="true"><i class="chip-px"></i>404-arcade.local</span>
+    <div class="topbar-actions">
+      <a class="btn btn-small" data-home-link href="/">
+        <svg class="icon" aria-hidden="true"><use href="#i-home"></use></svg>
+        <span>Về trang chủ</span>
+      </a>
+      <button type="button" class="icon-btn" data-sound-toggle aria-label="Bật hoặc tắt âm thanh" aria-pressed="true">
+        <svg class="icon" aria-hidden="true"><use href="#i-sound-on"></use></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-logo" id="logo">
+        <span class="logo-fallback" aria-hidden="true">404<em>ARCADE</em></span>
+        <span class="sr-only">404 Arcade</span>
+      </div>
+      <div class="hero-copy">
+        <p class="hero-kicker">LỖI 404 — KHÔNG TÌM THẤY TRANG<span class="kicker-cursor" aria-hidden="true"></span></p>
+        <h1 id="hero-title">Bạn vừa đi ra ngoài bản đồ</h1>
+        <p class="hero-lead">Trang bạn tìm kiếm không tồn tại hoặc đã bị dịch chuyển sang một chiều không gian khác. Chọn một trò chơi để tiếp tục hành trình!</p>
+        <div class="hero-actions">
+          <a class="btn btn-solid" data-home-link href="/">
+            <svg class="icon" aria-hidden="true"><use href="#i-home"></use></svg>
+            Về trang chủ
+          </a>
+          <a class="btn" href="#games">Chọn trò chơi</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="games" class="games" aria-labelledby="games-title">
+      <h2 class="section-title" id="games-title"><i class="title-px" aria-hidden="true"></i><span>Chọn trò chơi</span><i class="title-px" aria-hidden="true"></i></h2>
+      <div class="card-grid" id="card-grid">
+        <noscript>
+          <p class="noscript-note">Các mini game cần JavaScript để chạy. Bạn vẫn có thể <a href="/">quay về trang chủ</a>.</p>
+        </noscript>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Mẹo: nhấn <kbd>Esc</kbd> để thoát game · <kbd>P</kbd> để tạm dừng</p>
+    <p class="footer-sub">404 ARCADE — không tìm thấy trang, nhưng tìm thấy niềm vui.</p>
+  </footer>
+
+  <!-- Cửa sổ game (dialog dùng chung cho mọi game) -->
+  <div class="stage-backdrop" id="stage" hidden>
+    <section class="game-window" role="dialog" aria-modal="true" aria-labelledby="stage-title" data-accent="cyan">
+      <header class="window-bar">
+        <span class="traffic" aria-hidden="true"><i></i><i></i><i></i></span>
+        <h2 class="window-title" id="stage-title">Trò chơi</h2>
+        <div class="window-actions">
+          <button type="button" class="bar-btn" id="btn-pause" disabled>
+            <svg class="icon" aria-hidden="true"><use href="#i-pause"></use></svg>
+            <span class="bar-label" id="btn-pause-label">Tạm dừng</span>
+          </button>
+          <button type="button" class="bar-btn icon-only" data-sound-toggle aria-label="Bật hoặc tắt âm thanh" aria-pressed="true">
+            <svg class="icon" aria-hidden="true"><use href="#i-sound-on"></use></svg>
+          </button>
+          <button type="button" class="bar-btn" id="btn-switch">
+            <svg class="icon" aria-hidden="true"><use href="#i-swap"></use></svg>
+            <span class="bar-label">Đổi game</span>
+          </button>
+          <a class="bar-btn icon-only" data-home-link href="/" aria-label="Về trang chủ">
+            <svg class="icon" aria-hidden="true"><use href="#i-home"></use></svg>
+          </a>
+        </div>
+      </header>
+      <div class="window-body">
+        <div class="game-surface" id="game-surface"></div>
+        <aside class="game-hud" id="game-hud" aria-label="Bảng điểm"></aside>
+        <div class="stage-overlay" id="stage-overlay" hidden></div>
+      </div>
+    </section>
+  </div>
+
+</body>
+</html>
