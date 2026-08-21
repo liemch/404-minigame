@@ -2179,6 +2179,38 @@ const GAMES = [
     fullBleed: true,
     ownResults: true,
   },
+  {
+    id: "rogue-arena",
+    title: "Rogue Arena",
+    accent: "magenta",
+    kind: "2d",
+    goal: "Sinh tồn 3 phút: vũ khí tự nhắm, bạn chỉ cần di chuyển và né. Hút XP, chọn nâng cấp mỗi cấp và hạ boss ở phút cuối.",
+    hint: { keys: ["WASD"], text: "di chuyển — vũ khí tự bắn" },
+    controls: [
+      { keys: ["W A S D", "↑ ↓ ← →"], text: "di chuyển (vũ khí tự nhắm bắn)" },
+      { keys: ["1 2 3"], text: "chọn nâng cấp khi lên cấp" },
+      { keys: ["Chạm"], text: "joystick ảo trên màn hình cảm ứng" },
+    ],
+    loader: () => Promise.resolve(__req("games/rogue-arena/index.js")),
+    fullBleed: true,
+    ownResults: true,
+  },
+  {
+    id: "rhythm-hack",
+    title: "Rhythm Hack",
+    accent: "lime",
+    kind: "2d",
+    goal: "Nhấn D F J K đúng lúc note chạm vạch để vá hệ thống: nhạc chiptune tổng hợp trực tiếp, judgement ±45ms, combo và độ chính xác.",
+    hint: { keys: ["D", "F", "J", "K"], text: "gõ theo nhịp" },
+    controls: [
+      { keys: ["D", "F", "J", "K"], text: "đánh 4 lane theo nhịp nhạc" },
+      { keys: ["Chạm"], text: "chạm 4 phím / 4 vùng lane trên tablet" },
+      { keys: ["Esc"], text: "tạm dừng — có chỉnh độ trễ ±ms" },
+    ],
+    loader: () => Promise.resolve(__req("games/rhythm-hack/index.js")),
+    fullBleed: true,
+    ownResults: true,
+  },
 ];
 
 const byId = new Map(GAMES.map((g) => [g.id, g]));
@@ -20329,6 +20361,3547 @@ const CD_CSS = /* css */ `
 
 exports.CD_CSS = CD_CSS;
 };
+__defs["games/rogue-arena/index.js"] = function (exports, __req) {
+/**
+ * Rogue Arena — sinh tồn 3 phút trong đấu trường (game 9).
+ *
+ * Theo plan + ảnh reference: HUD tiêu đề trái + CẤP/XP, đồng hồ giữa,
+ * ĐIỂM / HP / XP / HẠ + nút icon nhỏ bên phải; vũ khí TỰ NHẮM mục tiêu
+ * gần nhất (hysteresis chống rung); XP shard hút về khi gần; LEVEL-UP
+ * DỪNG THẬT gameplay và hiện 3 lựa chọn (panel trái như ảnh, bộ 8 nâng
+ * cấp, không hiện cái đã max); health pickup; spawn tăng dần; boss phút
+ * thứ 3. Hiệu năng: object pool + spatial hash trong engine.js.
+ * Mobile: joystick ảo. 3 chỉ báo kỹ năng tròn dưới đáy như ảnh.
+ */
+
+const { createExpansionFrame } = __req("games/_shared/frame.js");
+const { createKeyboard } = __req("core/input-manager.js");
+const { createLoop } = __req("core/loop.js");
+const { createCanvas } = __req("core/canvas.js");
+const { el, formatScore, formatTime } = __req("core/utils.js");
+const { ARENA_W, ARENA_H, MATCH_TIME, UPGRADES } = __req("games/rogue-arena/data.js");
+const { createArena } = __req("games/rogue-arena/engine.js");
+const { createArenaRenderer, paintUpgradeIcon } = __req("games/rogue-arena/render.js");
+const { RA_CSS } = __req("games/rogue-arena/styles.js");
+
+function createGame() {
+  let ctx = null;
+  let frame = null;
+  let arena = null;
+  let renderer = null;
+  let view = null;
+  let keys = null;
+  let loop = null;
+  let levelPanel = null;
+  let abilityEls = null;
+  let joyEl = null;
+  let joyKnob = null;
+
+  const TEST = typeof window !== "undefined" && window.__ARCADE_EXP5_TEST__;
+
+  let mode = "intro"; // intro | play | levelup | paused | over
+  let time = 0;
+  let stateT = 0;
+  let sfxT = {};
+  const joy = { active: false, id: -1, cx: 0, cy: 0, mx: 0, my: 0 };
+  let choiceButtons = [];
+
+  /* ---------------- HUD ---------------- */
+
+  function updateHud() {
+    frame.setStat("level", String(arena.level).padStart(2, "0"));
+    frame.setStatBar("level", (arena.xp / arena.xpToNext) * 100);
+    frame.setStat("time", formatTime(Math.max(0, MATCH_TIME - arena.time)));
+    frame.setStat("score", formatScore(arena.score));
+    frame.setStat("hp", String(Math.max(0, Math.round(arena.player.hp))));
+    frame.setStatBar("hp", (arena.player.hp / arena.player.maxHp) * 100);
+    frame.setStat("xp", `${Math.round((arena.xp / arena.xpToNext) * 100)}%`);
+    frame.setStatBar("xp", (arena.xp / arena.xpToNext) * 100);
+    frame.setStat("kills", String(arena.kills));
+  }
+
+  function updateAbilities() {
+    const p = arena.player;
+    abilityEls.multishot.textContent = String(p.projectiles);
+    abilityEls.pierce.textContent = String(p.pierce);
+    abilityEls.speed.textContent = (p.speed / 100).toFixed(1);
+  }
+
+  /* ---------------- Level-up (pause thật) ---------------- */
+
+  function openLevelUp() {
+    mode = "levelup";
+    const choices = arena.rollChoices();
+    levelPanel.textContent = "";
+    const inBox = el("div", "in");
+    inBox.appendChild(el("h3", "", "NÂNG CẤP!"));
+    inBox.appendChild(el("div", "sub", "Chọn 1 kỹ năng mới"));
+    choiceButtons = choices.map((u, i) => {
+      const b = el("button", "ra-choice");
+      b.type = "button";
+      b.dataset.tone = u.tone || "cyan";
+      const ico = el("span", "ico");
+      const cv = document.createElement("canvas");
+      paintUpgradeIcon(cv, u.id, u.tone || "cyan");
+      ico.appendChild(cv);
+      b.appendChild(ico);
+      b.appendChild(el("div", "nm", u.name));
+      b.appendChild(el("div", "ds", u.description));
+      if (Number.isFinite(u.maxLevel)) {
+        const pips = el("div", "pips");
+        const cur = arena.upgradeLevels[u.id] || 0;
+        for (let k = 0; k < u.maxLevel; k++) {
+          const p = el("i");
+          if (k < cur) p.classList.add("on");
+          else if (k === cur) p.classList.add("next");
+          pips.appendChild(p);
+        }
+        b.appendChild(pips);
+      }
+      const kbd = el("kbd", "", String(i + 1));
+      b.appendChild(kbd);
+      b.addEventListener("click", () => chooseUpgrade(u));
+      inBox.appendChild(b);
+      return b;
+    });
+    levelPanel.appendChild(inBox);
+    levelPanel.hidden = false;
+    ctx.audio.play("levelup");
+    requestAnimationFrame(() => choiceButtons[0]?.focus());
+  }
+
+  function chooseUpgrade(u) {
+    arena.applyUpgrade(u);
+    ctx.audio.play("upgrade");
+    updateAbilities();
+    if (arena.pendingLevelUps > 0) {
+      openLevelUp(); // dồn nhiều cấp — chọn tiếp
+      return;
+    }
+    levelPanel.hidden = true;
+    mode = "play";
+    keys.clearDown();
+  }
+
+  /* ---------------- Vòng đời ---------------- */
+
+  function startMatch() {
+    arena = createArena({ test: TEST });
+    mode = "play";
+    time = 0;
+    frame.clearScreen();
+    frame.setPaused(false);
+    levelPanel.hidden = true;
+    ctx.onMatchStart();
+    ctx.audio.play("start");
+    frame.banner("SỐNG SÓT 3 PHÚT!");
+    updateHud();
+    updateAbilities();
+    loop.start();
+  }
+
+  function endMatch(victory) {
+    mode = "over";
+    levelPanel.hidden = true;
+    const saved = ctx.onGameOver(arena.score, { kills: arena.kills, level: arena.level, victory });
+    frame.overScreen({
+      kicker: victory ? "// SỐNG SÓT THÀNH CÔNG" : "// TÍN HIỆU MẤT",
+      heading: victory ? "BẠN ĐÃ SỐNG SÓT!" : "GỤC NGÃ TRONG ĐẤU TRƯỜNG",
+      score: arena.score,
+      saved,
+      statCards: [
+        { label: "THỜI GIAN", value: formatTime(Math.min(MATCH_TIME, arena.time)), color: "cyan" },
+        { label: "ĐÃ HẠ", value: arena.kills, color: "red" },
+        { label: "CẤP ĐẠT", value: arena.level, color: "gold" },
+        { label: "XP THU THẬP", value: arena.gemsTaken, color: "green" },
+      ],
+      restartLabel: "CHIẾN LẠI",
+      onRestart: () => startMatch(),
+    });
+    ctx.audio.play(victory ? "win" : "over");
+  }
+
+  function pauseGame() {
+    if (mode !== "play") return;
+    mode = "paused";
+    loop.stop();
+    frame.setPaused(true);
+    frame.pauseMenu({
+      onResume: () => resumeGame(),
+      onRestart: () => startMatch(),
+      restartLabel: "CHIẾN LẠI",
+      buildExtra: (box) => {
+        const row = el("div", "exp-setrow");
+        row.appendChild(el("span", "", "TRẠNG THÁI"));
+        row.appendChild(el("span", "val", `CẤP ${arena.level} · HẠ ${arena.kills} · CÒN ${formatTime(Math.max(0, MATCH_TIME - arena.time))}`));
+        box.appendChild(row);
+      },
+    });
+  }
+
+  function resumeGame() {
+    if (mode !== "paused") return;
+    mode = "play";
+    frame.clearScreen();
+    frame.setPaused(false);
+    keys.clearDown();
+    loop.start();
+  }
+
+  function togglePause() {
+    if (mode === "play") pauseGame();
+    else if (mode === "paused") resumeGame();
+    // đang chọn nâng cấp: Esc không thoát — phải chọn (pause thật)
+  }
+
+  /* ---------------- SFX ---------------- */
+
+  function throttled(name, minGap) {
+    if (time - (sfxT[name] || -9) < minGap) return;
+    sfxT[name] = time;
+    ctx.audio.play(name);
+  }
+
+  function handleEvents(events) {
+    renderer.addEvents(events, arena, time);
+    for (const e of events) {
+      switch (e.type) {
+        case "shoot":
+          throttled("zap", 0.16);
+          break;
+        case "kill":
+          throttled("squash", 0.1);
+          break;
+        case "gem":
+          throttled("xp", 0.08);
+          break;
+        case "heal":
+          ctx.audio.play("pickup");
+          break;
+        case "hurt":
+          ctx.audio.play("hurt2");
+          break;
+        case "levelup":
+          break; // xử lý qua pendingLevelUps
+        case "boss":
+          frame.banner("BOSS XUẤT HIỆN!");
+          ctx.audio.play("wave");
+          break;
+        case "bossdown":
+          frame.banner("BOSS BỊ HẠ! +1500");
+          ctx.audio.play("record");
+          break;
+        case "victory":
+          endMatch(true);
+          break;
+        case "defeat":
+          endMatch(false);
+          break;
+      }
+    }
+  }
+
+  /* ---------------- Vòng lặp ---------------- */
+
+  function gatherInput() {
+    let mx = (keys.isDown("ArrowRight") || keys.isDown("KeyD") ? 1 : 0) - (keys.isDown("ArrowLeft") || keys.isDown("KeyA") ? 1 : 0);
+    let my = (keys.isDown("ArrowDown") || keys.isDown("KeyS") ? 1 : 0) - (keys.isDown("ArrowUp") || keys.isDown("KeyW") ? 1 : 0);
+    if (joy.active) {
+      mx += joy.mx;
+      my += joy.my;
+    }
+    return { mx, my };
+  }
+
+  function update(dt) {
+    time += dt;
+    if (mode === "play") {
+      arena.update(TEST ? dt * 2 : dt, gatherInput());
+      handleEvents(arena.drainEvents());
+      if (mode === "play" && arena.pendingLevelUps > 0) openLevelUp();
+      updateHud();
+      if (TEST) {
+        stateT += dt;
+        if (stateT > 0.4) {
+          stateT = 0;
+          window.__RA_STATE__ = {
+            mode,
+            time: Math.round(arena.time),
+            hp: Math.round(arena.player.hp),
+            level: arena.level,
+            kills: arena.kills,
+            score: arena.score,
+            pending: arena.pendingLevelUps,
+          };
+        }
+      }
+    }
+    renderer.draw(arena, dt, time);
+  }
+
+  /* ---------------- Intro ---------------- */
+
+  function showIntro() {
+    mode = "intro";
+    loop.stop();
+    frame.intro({
+      kicker: "// GIAO THỨC SINH TỒN",
+      heading: [["ROGUE ", ""], ["ARENA", "pink"]],
+      goal:
+        "Sống sót 3 PHÚT trong đấu trường. Vũ khí tự nhắm mục tiêu gần nhất — bạn chỉ cần DI CHUYỂN và né. Hút mảnh XP để lên cấp, mỗi cấp chọn 1 trong 3 nâng cấp. Boss xuất hiện ở phút thứ 3!",
+      rows: [
+        { keys: ["W A S D", "↑↓←→"], text: "di chuyển (mobile: joystick ảo)" },
+        { keys: ["1", "2", "3"], text: "chọn nâng cấp khi lên cấp" },
+        { keys: ["ESC"], text: "tạm dừng" },
+      ],
+      startLabel: "VÀO ĐẤU TRƯỜNG",
+      onStart: () => startMatch(),
+    });
+    renderer.draw(arena, 0, 0);
+  }
+
+  /* ---------------- Interface ---------------- */
+
+  return {
+    async mount(container, context) {
+      ctx = context;
+
+      const rootNode = container.getRootNode();
+      if (rootNode instanceof ShadowRoot && !rootNode.querySelector("#ra-style")) {
+        const style = document.createElement("style");
+        style.id = "ra-style";
+        style.textContent = RA_CSS;
+        rootNode.appendChild(style);
+      }
+
+      frame = createExpansionFrame(container, ctx, {
+        accent: "pink",
+        title: [["ROGUE ", ""], ["ARENA", "pink"]],
+        buttonStyle: "compact",
+        stats: [
+          { id: "level", label: "CẤP", color: "white", value: "01", bar: true },
+          { id: "time", label: "THỜI GIAN", color: "white", value: "03:00" },
+          { id: "score", label: "ĐIỂM", color: "cyan", value: "000000" },
+          { id: "hp", label: "HP", color: "pink", value: "100", bar: true },
+          { id: "xp", label: "XP", color: "green", value: "0%", bar: true, optional: true },
+          { id: "kills", label: "HẠ", color: "red", value: "0" },
+        ],
+        onPauseToggle: togglePause,
+      });
+
+      const stage = el("div", "ra-stage");
+      frame.playfield.appendChild(stage);
+      view = createCanvas(stage, { width: ARENA_W, height: ARENA_H });
+      renderer = createArenaRenderer(view.ctx, { reducedMotion: ctx.reducedMotion });
+      arena = createArena({ test: TEST });
+
+      /* Panel level-up */
+      levelPanel = el("aside", "ra-levelup");
+      levelPanel.hidden = true;
+      frame.playfield.appendChild(levelPanel);
+
+      /* 3 chỉ báo kỹ năng dưới đáy (như ảnh) */
+      const abilities = el("div", "ra-abilities");
+      const mkAb = (id, tone) => {
+        const box = el("div", "ra-ab");
+        box.dataset.tone = tone;
+        const ring = el("div", "ring");
+        const cv = document.createElement("canvas");
+        paintUpgradeIcon(cv, id, tone);
+        ring.appendChild(cv);
+        box.appendChild(ring);
+        const num = el("div", "num", "0");
+        box.appendChild(num);
+        abilities.appendChild(box);
+        return num;
+      };
+      abilityEls = {
+        multishot: mkAb("multishot", "cyan"),
+        pierce: mkAb("pierce", "violet"),
+        speed: mkAb("speed", "lime"),
+      };
+      frame.playfield.appendChild(abilities);
+
+      /* Joystick ảo */
+      joyEl = el("div", "ra-joy");
+      joyKnob = el("div", "knob");
+      joyEl.appendChild(joyKnob);
+      frame.playfield.appendChild(joyEl);
+      const coarse = window.matchMedia("(pointer: coarse)").matches;
+      if (coarse) frame.root.dataset.touch = "1";
+
+      const joyReset = () => {
+        joy.active = false;
+        joy.id = -1;
+        joy.mx = 0;
+        joy.my = 0;
+        joyKnob.style.transform = "translate(-50%, -50%)";
+      };
+      joyEl.addEventListener(
+        "pointerdown",
+        (e) => {
+          e.preventDefault();
+          const r = joyEl.getBoundingClientRect();
+          joy.active = true;
+          joy.id = e.pointerId;
+          joy.cx = r.left + r.width / 2;
+          joy.cy = r.top + r.height / 2;
+        },
+        { signal: ctx.signal }
+      );
+      window.addEventListener(
+        "pointermove",
+        (e) => {
+          if (!joy.active || e.pointerId !== joy.id) return;
+          const dx = e.clientX - joy.cx;
+          const dy = e.clientY - joy.cy;
+          const d = Math.hypot(dx, dy);
+          const max = 44;
+          const k = d > max ? max / d : 1;
+          joy.mx = (dx * k) / max;
+          joy.my = (dy * k) / max;
+          joyKnob.style.transform = `translate(calc(-50% + ${dx * k}px), calc(-50% + ${dy * k}px))`;
+        },
+        { signal: ctx.signal }
+      );
+      window.addEventListener("pointerup", (e) => {
+        if (e.pointerId === joy.id) joyReset();
+      }, { signal: ctx.signal });
+      window.addEventListener("pointercancel", (e) => {
+        if (e.pointerId === joy.id) joyReset();
+      }, { signal: ctx.signal });
+
+      /* Bàn phím */
+      keys = createKeyboard({ signal: ctx.signal });
+      keys.on(["Digit1"], () => {
+        if (mode === "levelup") choiceButtons[0]?.click();
+      });
+      keys.on(["Digit2"], () => {
+        if (mode === "levelup") choiceButtons[1]?.click();
+      });
+      keys.on(["Digit3"], () => {
+        if (mode === "levelup") choiceButtons[2]?.click();
+      });
+      keys.on(["KeyP"], () => togglePause());
+
+      loop = createLoop(update);
+      showIntro();
+    },
+
+    start() {
+      if (mode === "intro") startMatch();
+    },
+
+    pause() {
+      pauseGame();
+    },
+
+    resume() {
+      resumeGame();
+    },
+
+    restart() {
+      if (mode === "intro") return;
+      startMatch();
+    },
+
+    resize() {},
+
+    destroy() {
+      loop?.stop();
+      keys?.destroy();
+      view?.destroy();
+      frame?.destroy();
+      frame = null;
+      renderer = null;
+      arena = null;
+      if (typeof window !== "undefined") delete window.__RA_STATE__;
+    },
+  };
+}
+
+exports.createGame = createGame;
+};
+__defs["games/rogue-arena/data.js"] = function (exports, __req) {
+/**
+ * data.js — dữ liệu Rogue Arena: kích thước đấu trường, 3 loại enemy +
+ * boss, đường cong spawn tăng dần, và bộ 8 nâng cấp theo schema plan
+ * { id, name, description, maxLevel, weight, apply }.
+ */
+
+const ARENA_W = 1360;
+const ARENA_H = 760;
+const WALL = 26; // bề dày tường
+const MATCH_TIME = 180; // 3 phút
+const BOSS_AT = 150; // boss xuất hiện ở phút thứ 3 (còn 0:30)
+
+const PLAYER_BASE = {
+  r: 14,
+  maxHp: 100,
+  speed: 195,
+  fireRate: 2.5,
+  damage: 13,
+  projectiles: 1,
+  pierce: 0,
+  magnet: 135,
+  orbit: 0,
+  boltSpeed: 540,
+};
+
+const ENEMY_TYPES = {
+  chaser: { hp: 26, speed: 96, r: 15, dmg: 12, xp: 2, score: 10, from: 0 },
+  shooter: { hp: 42, speed: 68, r: 15, dmg: 8, xp: 3, score: 15, from: 20, shootEvery: 2.7, boltSpeed: 225, boltDmg: 10 },
+  tank: { hp: 150, speed: 40, r: 22, dmg: 22, xp: 5, score: 25, from: 35 },
+  boss: { hp: 1500, speed: 52, r: 40, dmg: 30, xp: 25, score: 1000, from: 9999, shootEvery: 2.6, boltSpeed: 210, boltDmg: 14, ring: 10 },
+};
+
+/** Máu enemy tăng theo thời gian sống sót. */
+const hpScale = (t) => 1 + (t / 60) * 0.45;
+
+/** Khoảng cách giữa 2 lần spawn (giảm dần) + số lượng mỗi đợt. */
+function spawnCurve(t) {
+  const k = Math.min(1, t / MATCH_TIME);
+  return {
+    interval: 1.15 - k * 0.68, // 1.15s → 0.47s
+    batch: 1 + Math.floor(k * 1.9), // 1 → 2 (cuối trận thi thoảng 3)
+  };
+}
+
+const MAX_ENEMIES = 70;
+
+/** Tỉ trọng loại enemy theo thời gian. */
+function pickEnemyType(t, roll) {
+  const opts = [];
+  opts.push(["chaser", 62]);
+  if (t >= ENEMY_TYPES.shooter.from) opts.push(["shooter", 20]);
+  if (t >= ENEMY_TYPES.tank.from) opts.push(["tank", 16]);
+  const total = opts.reduce((s, o) => s + o[1], 0);
+  let x = roll * total;
+  for (const [type, w] of opts) {
+    x -= w;
+    if (x <= 0) return type;
+  }
+  return "chaser";
+}
+
+/** XP cần cho cấp tiếp theo. */
+const xpNeed = (level) => 8 + (level - 1) * 5;
+
+/* ---------------- 8 nâng cấp (schema theo plan) ---------------- */
+
+const UPGRADES = [
+  {
+    id: "damage",
+    name: "HỎA LỰC",
+    description: "Tăng 25% sát thương tia điện.",
+    maxLevel: 5,
+    weight: 10,
+    tone: "pink",
+    apply: (p) => {
+      p.damage = Math.round(p.damage * 1.25);
+    },
+  },
+  {
+    id: "firerate",
+    name: "NẠP NHANH",
+    description: "Tăng 20% tốc độ bắn.",
+    maxLevel: 5,
+    weight: 10,
+    tone: "cyan",
+    apply: (p) => {
+      p.fireRate *= 1.2;
+    },
+  },
+  {
+    id: "multishot",
+    name: "TIA CHỚP",
+    description: "Tăng 1 tia điện.",
+    maxLevel: 3,
+    weight: 7,
+    tone: "cyan",
+    apply: (p) => {
+      p.projectiles += 1;
+    },
+  },
+  {
+    id: "pierce",
+    name: "LAN TỎA",
+    description: "Đạn xuyên thêm 1 mục tiêu.",
+    maxLevel: 3,
+    weight: 7,
+    tone: "violet",
+    apply: (p) => {
+      p.pierce += 1;
+    },
+  },
+  {
+    id: "speed",
+    name: "TỐC ĐỘ",
+    description: "Tăng 10% tốc độ di chuyển.",
+    maxLevel: 4,
+    weight: 8,
+    tone: "lime",
+    apply: (p) => {
+      p.speed *= 1.1;
+    },
+  },
+  {
+    id: "maxhp",
+    name: "GIÁP LÕI",
+    description: "+25 HP tối đa và hồi 25 HP.",
+    maxLevel: 4,
+    weight: 8,
+    tone: "green",
+    apply: (p) => {
+      p.maxHp += 25;
+      p.hp = Math.min(p.maxHp, p.hp + 25);
+    },
+  },
+  {
+    id: "magnet",
+    name: "NAM CHÂM",
+    description: "Hút mảnh XP xa hơn 40%.",
+    maxLevel: 3,
+    weight: 6,
+    tone: "gold",
+    apply: (p) => {
+      p.magnet *= 1.4;
+    },
+  },
+  {
+    id: "orbit",
+    name: "VỆ TINH",
+    description: "Thêm 1 quả cầu năng lượng quay quanh bảo vệ.",
+    maxLevel: 3,
+    weight: 6,
+    tone: "violet",
+    apply: (p) => {
+      p.orbit += 1;
+    },
+  },
+];
+
+/** Lựa chọn dự phòng khi mọi nâng cấp đã max. */
+const REPAIR_CHOICE = {
+  id: "repair",
+  name: "SỬA CHỮA",
+  description: "Hồi 40 HP ngay lập tức.",
+  maxLevel: Infinity,
+  weight: 1,
+  tone: "green",
+  apply: (p) => {
+    p.hp = Math.min(p.maxHp, p.hp + 40);
+  },
+};
+
+exports.spawnCurve = spawnCurve; exports.pickEnemyType = pickEnemyType; exports.ARENA_W = ARENA_W; exports.ARENA_H = ARENA_H; exports.WALL = WALL; exports.MATCH_TIME = MATCH_TIME; exports.BOSS_AT = BOSS_AT; exports.PLAYER_BASE = PLAYER_BASE; exports.ENEMY_TYPES = ENEMY_TYPES; exports.hpScale = hpScale; exports.MAX_ENEMIES = MAX_ENEMIES; exports.xpNeed = xpNeed; exports.UPGRADES = UPGRADES; exports.REPAIR_CHOICE = REPAIR_CHOICE;
+};
+__defs["games/rogue-arena/engine.js"] = function (exports, __req) {
+/**
+ * engine.js — mô phỏng thuần Rogue Arena (không DOM, test bằng node).
+ *
+ * Hiệu năng theo plan:
+ *  - OBJECT POOL cho enemy / đạn / đạn địch / mảnh XP / hạt — không cấp
+ *    phát object mới trong vòng lặp (không GC churn).
+ *  - SPATIAL HASH (ô 96px) cho truy vấn lân cận: nhắm mục tiêu, va chạm
+ *    đạn, va chạm thân — KHÔNG quét O(n²).
+ *  - Auto-aim có HYSTERESIS: giữ mục tiêu hiện tại tới khi chết/ra khỏi
+ *    1.15× tầm — không rung khi nhiều mục tiêu cùng khoảng cách.
+ *  - Level-up: engine phát sự kiện và KHÔNG tự mở khóa — lớp ngoài dừng
+ *    update cho tới khi người chơi chọn nâng cấp (pause thật).
+ */
+
+const { ARENA_W, ARENA_H, WALL, MATCH_TIME, BOSS_AT, PLAYER_BASE, ENEMY_TYPES, hpScale, spawnCurve, MAX_ENEMIES, pickEnemyType, xpNeed, UPGRADES, REPAIR_CHOICE } = __req("games/rogue-arena/data.js");
+
+const CELL = 96;
+const COLS = Math.ceil(ARENA_W / CELL);
+const ROWS = Math.ceil(ARENA_H / CELL);
+
+/* ---------------- Object pool ---------------- */
+
+function makePool(n, factory) {
+  const items = new Array(n);
+  for (let i = 0; i < n; i++) {
+    items[i] = factory();
+    items[i].alive = false;
+  }
+  return {
+    items,
+    /** Lấy một slot trống (hoặc null nếu pool đầy). */
+    acquire() {
+      for (let i = 0; i < n; i++) {
+        if (!items[i].alive) {
+          items[i].alive = true;
+          return items[i];
+        }
+      }
+      return null;
+    },
+  };
+}
+
+function createArena({ test = false, rng = Math.random } = {}) {
+  const player = {
+    x: ARENA_W / 2,
+    y: ARENA_H / 2,
+    ...structuredClonePlayer(),
+    hp: PLAYER_BASE.maxHp,
+    ifr: 0,
+    orbitAngle: 0,
+  };
+
+  function structuredClonePlayer() {
+    return { ...PLAYER_BASE };
+  }
+
+  const arena = {
+    time: 0, // thời gian đã sống sót
+    player,
+    level: 1,
+    xp: 0,
+    xpToNext: test ? 3 : xpNeed(1),
+    kills: 0,
+    score: 0,
+    gemsTaken: 0,
+    upgradeLevels: {}, // id → level hiện tại
+    pendingLevelUps: 0,
+    bossSpawned: false,
+    bossId: -1,
+    over: false,
+    victory: false,
+    events: [],
+    targetId: -1,
+    fireT: 0,
+    spawnT: test ? 0.2 : 1.0,
+    scoreT: 0,
+    enemies: makePool(MAX_ENEMIES + 6, () => ({
+      id: 0, type: "chaser", x: 0, y: 0, vx: 0, vy: 0, hp: 0, maxHp: 0,
+      r: 15, speed: 0, dmg: 0, xp: 1, score: 10, shootT: 0, orbHitT: 0, hitFlash: 0, alive: false,
+    })),
+    bolts: makePool(240, () => ({ x: 0, y: 0, vx: 0, vy: 0, dmg: 0, pierce: 0, life: 0, alive: false })),
+    ebolts: makePool(90, () => ({ x: 0, y: 0, vx: 0, vy: 0, dmg: 0, life: 0, alive: false })),
+    gems: makePool(150, () => ({ x: 0, y: 0, vx: 0, vy: 0, value: 1, big: false, heal: false, t: 0, alive: false })),
+  };
+
+  let nextId = 1;
+
+  /* ---------------- Spatial hash ---------------- */
+
+  const grid = new Array(COLS * ROWS);
+  for (let i = 0; i < grid.length; i++) grid[i] = [];
+
+  function rebuildGrid() {
+    for (let i = 0; i < grid.length; i++) grid[i].length = 0;
+    const list = arena.enemies.items;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i];
+      if (!e.alive) continue;
+      const cx = Math.max(0, Math.min(COLS - 1, (e.x / CELL) | 0));
+      const cy = Math.max(0, Math.min(ROWS - 1, (e.y / CELL) | 0));
+      grid[cy * COLS + cx].push(i);
+    }
+  }
+
+  /** Duyệt enemy sống trong bán kính r quanh (x,y) — chỉ các ô lân cận. */
+  function queryCircle(x, y, r, fn) {
+    const x0 = Math.max(0, ((x - r) / CELL) | 0);
+    const x1 = Math.min(COLS - 1, ((x + r) / CELL) | 0);
+    const y0 = Math.max(0, ((y - r) / CELL) | 0);
+    const y1 = Math.min(ROWS - 1, ((y + r) / CELL) | 0);
+    const r2 = r * r;
+    for (let cy = y0; cy <= y1; cy++) {
+      for (let cx = x0; cx <= x1; cx++) {
+        const bucket = grid[cy * COLS + cx];
+        for (let k = 0; k < bucket.length; k++) {
+          const e = arena.enemies.items[bucket[k]];
+          if (!e.alive) continue;
+          const dx = e.x - x;
+          const dy = e.y - y;
+          if (dx * dx + dy * dy <= r2) {
+            if (fn(e, dx * dx + dy * dy) === false) return;
+          }
+        }
+      }
+    }
+  }
+
+  arena.queryCircle = queryCircle;
+
+  /* ---------------- Spawn ---------------- */
+
+  function spawnEnemy(type) {
+    const e = arena.enemies.acquire();
+    if (!e) return null;
+    const def = ENEMY_TYPES[type];
+    // sinh ở mép trong tường — KHÔNG sinh sát người chơi (tối thiểu 300px)
+    const m = WALL + 22;
+    let px = m;
+    let py = m;
+    for (let attempt = 0; attempt < 7; attempt++) {
+      const side = (rng() * 4) | 0;
+      if (side === 0) { px = m + rng() * (ARENA_W - m * 2); py = m; }
+      else if (side === 1) { px = ARENA_W - m; py = m + rng() * (ARENA_H - m * 2); }
+      else if (side === 2) { px = m + rng() * (ARENA_W - m * 2); py = ARENA_H - m; }
+      else { px = m; py = m + rng() * (ARENA_H - m * 2); }
+      const dx = px - player.x;
+      const dy = py - player.y;
+      if (dx * dx + dy * dy >= 300 * 300) break;
+    }
+    e.x = px;
+    e.y = py;
+    e.id = nextId++;
+    e.type = type;
+    e.maxHp = def.hp * hpScale(arena.time) * (test ? 0.6 : 1);
+    e.hp = e.maxHp;
+    e.r = def.r;
+    e.speed = def.speed;
+    e.dmg = def.dmg;
+    e.xp = def.xp;
+    e.score = def.score;
+    e.shootT = def.shootEvery ? def.shootEvery * (0.5 + rng() * 0.5) : 0;
+    e.orbHitT = 0;
+    e.hitFlash = 0;
+    e.vx = 0;
+    e.vy = 0;
+    return e;
+  }
+
+  function spawnBoss() {
+    const e = spawnEnemy("boss");
+    if (!e) return;
+    e.x = ARENA_W / 2;
+    e.y = WALL + 60;
+    arena.bossSpawned = true;
+    arena.bossId = e.id;
+    arena.events.push({ type: "boss" });
+  }
+
+  function dropGem(x, y, e) {
+    const g = arena.gems.acquire();
+    if (!g) return;
+    g.x = x + (rng() - 0.5) * 10;
+    g.y = y + (rng() - 0.5) * 10;
+    g.vx = 0;
+    g.vy = 0;
+    g.value = e.xp;
+    g.big = e.type === "tank" || e.type === "boss" ? rng() < 0.6 : rng() < 0.06;
+    if (g.big) g.value += 6;
+    g.heal = false;
+    g.t = 0;
+    // health pickup rơi riêng với tỉ lệ nhỏ
+    if (rng() < 0.055) {
+      const h = arena.gems.acquire();
+      if (h) {
+        h.x = x + 14;
+        h.y = y;
+        h.vx = 0;
+        h.vy = 0;
+        h.value = 0;
+        h.big = false;
+        h.heal = true;
+        h.t = 0;
+      }
+    }
+  }
+
+  /* ---------------- Sát thương ---------------- */
+
+  function damageEnemy(e, dmg) {
+    if (!e.alive) return false;
+    e.hp -= dmg;
+    e.hitFlash = 0.1;
+    if (e.hp <= 0) {
+      e.alive = false;
+      arena.kills += 1;
+      arena.score += e.score;
+      dropGem(e.x, e.y, e);
+      arena.events.push({ type: "kill", x: e.x, y: e.y, big: e.type === "tank" || e.type === "boss" });
+      if (e.id === arena.bossId) {
+        arena.score += 500;
+        arena.events.push({ type: "bossdown", x: e.x, y: e.y });
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function hurtPlayer(dmg) {
+    if (player.ifr > 0 || arena.over) return;
+    player.hp -= dmg;
+    player.ifr = 0.6;
+    arena.events.push({ type: "hurt", hp: player.hp });
+    if (player.hp <= 0) {
+      player.hp = 0;
+      arena.over = true;
+      arena.victory = false;
+      arena.events.push({ type: "defeat" });
+    }
+  }
+
+  /* ---------------- Nâng cấp ---------------- */
+
+  arena.rollChoices = () => {
+    const avail = UPGRADES.filter((u) => (arena.upgradeLevels[u.id] || 0) < u.maxLevel);
+    const picks = [];
+    const poolCopy = avail.slice();
+    while (picks.length < 3 && poolCopy.length > 0) {
+      const total = poolCopy.reduce((s, u) => s + u.weight, 0);
+      let x = rng() * total;
+      let idx = 0;
+      for (let i = 0; i < poolCopy.length; i++) {
+        x -= poolCopy[i].weight;
+        if (x <= 0) {
+          idx = i;
+          break;
+        }
+      }
+      picks.push(poolCopy.splice(idx, 1)[0]);
+    }
+    while (picks.length < 3) picks.push(REPAIR_CHOICE);
+    return picks;
+  };
+
+  arena.applyUpgrade = (u) => {
+    u.apply(player);
+    if (u.id !== "repair") {
+      arena.upgradeLevels[u.id] = (arena.upgradeLevels[u.id] || 0) + 1;
+    }
+    arena.pendingLevelUps = Math.max(0, arena.pendingLevelUps - 1);
+    arena.events.push({ type: "upgraded", id: u.id });
+  };
+
+  function gainXp(v) {
+    arena.xp += v;
+    arena.score += v * 2;
+    while (arena.xp >= arena.xpToNext) {
+      arena.xp -= arena.xpToNext;
+      arena.level += 1;
+      arena.xpToNext = test ? 3 : xpNeed(arena.level);
+      arena.pendingLevelUps += 1;
+      arena.events.push({ type: "levelup", level: arena.level });
+    }
+  }
+
+  /* ---------------- Auto-aim hysteresis ---------------- */
+
+  const ACQUIRE = 430;
+
+  function currentTarget() {
+    if (arena.targetId >= 0) {
+      const list = arena.enemies.items;
+      for (let i = 0; i < list.length; i++) {
+        const e = list[i];
+        if (e.alive && e.id === arena.targetId) {
+          const dx = e.x - player.x;
+          const dy = e.y - player.y;
+          // giữ mục tiêu tới 1.15× tầm — chống rung giữa nhiều mục tiêu
+          if (dx * dx + dy * dy <= ACQUIRE * 1.15 * (ACQUIRE * 1.15)) return e;
+          break;
+        }
+      }
+      arena.targetId = -1;
+    }
+    let best = null;
+    let bestD = Infinity;
+    queryCircle(player.x, player.y, ACQUIRE, (e, d2) => {
+      if (d2 < bestD) {
+        bestD = d2;
+        best = e;
+      }
+    });
+    if (best) arena.targetId = best.id;
+    return best;
+  }
+
+  /* ---------------- Update ---------------- */
+
+  arena.update = (dt, input) => {
+    if (arena.over) return;
+    arena.time += dt;
+
+    // điểm sống sót
+    arena.scoreT += dt;
+    while (arena.scoreT >= 1) {
+      arena.scoreT -= 1;
+      arena.score += 5;
+    }
+
+    // thắng khi sống hết 3 phút
+    if (arena.time >= MATCH_TIME) {
+      arena.over = true;
+      arena.victory = true;
+      arena.events.push({ type: "victory" });
+      return;
+    }
+
+    // boss phút thứ 3
+    if (!arena.bossSpawned && arena.time >= (test ? 20 : BOSS_AT)) spawnBoss();
+
+    /* --- người chơi --- */
+    const mlen = Math.hypot(input.mx, input.my);
+    if (mlen > 0.01) {
+      const nx = input.mx / Math.max(1, mlen);
+      const ny = input.my / Math.max(1, mlen);
+      player.x += nx * player.speed * dt;
+      player.y += ny * player.speed * dt;
+    }
+    const m = WALL + player.r;
+    player.x = Math.max(m, Math.min(ARENA_W - m, player.x));
+    player.y = Math.max(m, Math.min(ARENA_H - m, player.y));
+    if (player.ifr > 0) player.ifr -= dt;
+    player.orbitAngle += dt * 2.6;
+
+    rebuildGrid();
+
+    /* --- spawn --- */
+    arena.spawnT -= dt;
+    if (arena.spawnT <= 0) {
+      const curve = spawnCurve(arena.time);
+      arena.spawnT = test ? curve.interval * 0.5 : curve.interval;
+      let aliveCount = 0;
+      for (const e of arena.enemies.items) if (e.alive) aliveCount++;
+      for (let i = 0; i < curve.batch && aliveCount + i < MAX_ENEMIES; i++) {
+        spawnEnemy(pickEnemyType(arena.time, rng()));
+      }
+    }
+
+    /* --- bắn tự động --- */
+    arena.fireT -= dt;
+    if (arena.fireT <= 0) {
+      const target = currentTarget();
+      if (target) {
+        arena.fireT = 1 / player.fireRate;
+        const base = Math.atan2(target.y - player.y, target.x - player.x);
+        const n = player.projectiles;
+        for (let i = 0; i < n; i++) {
+          const b = arena.bolts.acquire();
+          if (!b) break;
+          const spread = n > 1 ? (i - (n - 1) / 2) * 0.13 : 0;
+          const a = base + spread;
+          b.x = player.x;
+          b.y = player.y;
+          b.vx = Math.cos(a) * player.boltSpeed;
+          b.vy = Math.sin(a) * player.boltSpeed;
+          b.dmg = player.damage;
+          b.pierce = player.pierce;
+          b.life = 1.1;
+        }
+        arena.events.push({ type: "shoot" });
+      } else {
+        arena.fireT = 0.08;
+      }
+    }
+
+    /* --- đạn người chơi --- */
+    for (const b of arena.bolts.items) {
+      if (!b.alive) continue;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.life -= dt;
+      if (b.life <= 0 || b.x < WALL || b.x > ARENA_W - WALL || b.y < WALL || b.y > ARENA_H - WALL) {
+        b.alive = false;
+        continue;
+      }
+      queryCircle(b.x, b.y, 34, (e) => {
+        const rr = e.r + 5;
+        const dx = e.x - b.x;
+        const dy = e.y - b.y;
+        if (dx * dx + dy * dy > rr * rr) return;
+        const killed = damageEnemy(e, b.dmg);
+        arena.events.push({ type: "hit", x: b.x, y: b.y, killed });
+        if (b.pierce > 0) b.pierce -= 1;
+        else b.alive = false;
+        return false; // một đạn chỉ trúng 1 mục tiêu mỗi frame
+      });
+    }
+
+    /* --- quả cầu vệ tinh --- */
+    if (player.orbit > 0) {
+      for (let i = 0; i < player.orbit; i++) {
+        const a = player.orbitAngle + (i * Math.PI * 2) / player.orbit;
+        const ox = player.x + Math.cos(a) * 56;
+        const oy = player.y + Math.sin(a) * 56;
+        queryCircle(ox, oy, 20, (e) => {
+          if (arena.time - e.orbHitT < 0.45) return;
+          e.orbHitT = arena.time;
+          damageEnemy(e, 16);
+          arena.events.push({ type: "hit", x: ox, y: oy, killed: !e.alive });
+        });
+      }
+    }
+
+    /* --- enemy --- */
+    for (const e of arena.enemies.items) {
+      if (!e.alive) continue;
+      if (e.hitFlash > 0) e.hitFlash -= dt;
+      const dx = player.x - e.x;
+      const dy = player.y - e.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const def = ENEMY_TYPES[e.type];
+
+      if (e.type === "shooter") {
+        // giữ khoảng cách rồi bắn
+        let mx = 0;
+        let my = 0;
+        if (d > 300) { mx = dx / d; my = dy / d; }
+        else if (d < 200) { mx = -dx / d; my = -dy / d; }
+        else { mx = -dy / d * 0.6; my = dx / d * 0.6; }
+        e.x += mx * e.speed * dt;
+        e.y += my * e.speed * dt;
+        e.shootT -= dt;
+        if (e.shootT <= 0 && d < 460) {
+          e.shootT = def.shootEvery;
+          const eb = arena.ebolts.acquire();
+          if (eb) {
+            eb.x = e.x;
+            eb.y = e.y;
+            eb.vx = (dx / d) * def.boltSpeed;
+            eb.vy = (dy / d) * def.boltSpeed;
+            eb.dmg = def.boltDmg;
+            eb.life = 3;
+            arena.events.push({ type: "eshoot", x: e.x, y: e.y });
+          }
+        }
+      } else if (e.type === "boss") {
+        e.x += (dx / d) * e.speed * dt;
+        e.y += (dy / d) * e.speed * dt;
+        e.shootT -= dt;
+        if (e.shootT <= 0) {
+          e.shootT = def.shootEvery;
+          for (let k = 0; k < def.ring; k++) {
+            const a = (Math.PI * 2 * k) / def.ring + arena.time;
+            const eb = arena.ebolts.acquire();
+            if (!eb) break;
+            eb.x = e.x;
+            eb.y = e.y;
+            eb.vx = Math.cos(a) * def.boltSpeed;
+            eb.vy = Math.sin(a) * def.boltSpeed;
+            eb.dmg = def.boltDmg;
+            eb.life = 4;
+          }
+          arena.events.push({ type: "eshoot", x: e.x, y: e.y });
+        }
+      } else {
+        e.x += (dx / d) * e.speed * dt;
+        e.y += (dy / d) * e.speed * dt;
+      }
+
+      const em = WALL + e.r;
+      e.x = Math.max(em, Math.min(ARENA_W - em, e.x));
+      e.y = Math.max(em, Math.min(ARENA_H - em, e.y));
+    }
+
+    /* --- chạm thân người chơi (truy vấn hash quanh player) --- */
+    queryCircle(player.x, player.y, 70, (e) => {
+      const rr = e.r + player.r - 4;
+      const dx = e.x - player.x;
+      const dy = e.y - player.y;
+      if (dx * dx + dy * dy <= rr * rr) {
+        hurtPlayer(e.dmg);
+        return false;
+      }
+    });
+
+    /* --- đạn địch --- */
+    for (const eb of arena.ebolts.items) {
+      if (!eb.alive) continue;
+      eb.x += eb.vx * dt;
+      eb.y += eb.vy * dt;
+      eb.life -= dt;
+      if (eb.life <= 0 || eb.x < WALL || eb.x > ARENA_W - WALL || eb.y < WALL || eb.y > ARENA_H - WALL) {
+        eb.alive = false;
+        continue;
+      }
+      const dx = eb.x - player.x;
+      const dy = eb.y - player.y;
+      const rr = player.r + 5;
+      if (dx * dx + dy * dy <= rr * rr) {
+        eb.alive = false;
+        hurtPlayer(eb.dmg);
+      }
+    }
+
+    /* --- mảnh XP + hồi máu --- */
+    for (const g of arena.gems.items) {
+      if (!g.alive) continue;
+      g.t += dt;
+      const dx = player.x - g.x;
+      const dy = player.y - g.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const magnetR = g.heal ? 60 : player.magnet;
+      if (d < magnetR) {
+        const pull = 340 * (1 - d / magnetR) + 120;
+        g.vx += (dx / d) * pull * dt * 4;
+        g.vy += (dy / d) * pull * dt * 4;
+      }
+      g.vx *= 1 - Math.min(1, dt * 3);
+      g.vy *= 1 - Math.min(1, dt * 3);
+      g.x += g.vx * dt;
+      g.y += g.vy * dt;
+      if (d < 20) {
+        g.alive = false;
+        if (g.heal) {
+          player.hp = Math.min(player.maxHp, player.hp + 30);
+          arena.events.push({ type: "heal", x: g.x, y: g.y });
+        } else {
+          arena.gemsTaken += 1;
+          gainXp(g.value);
+          arena.events.push({ type: "gem", x: g.x, y: g.y, value: g.value, big: g.big });
+        }
+      }
+    }
+  };
+
+  arena.drainEvents = () => {
+    const out = arena.events.slice();
+    arena.events.length = 0;
+    return out;
+  };
+
+  return arena;
+}
+
+exports.createArena = createArena;
+};
+__defs["games/rogue-arena/render.js"] = function (exports, __req) {
+/**
+ * render.js — vẽ Rogue Arena theo ảnh reference: sàn đấu tối với vòng
+ * tròn đồng tâm giữa, khung tường + dải neon góc hồng/cyan, robot trắng
+ * mắt cyan, tia điện xanh tỏa ra, enemy hình học neon (tam giác hồng /
+ * khối đỏ có tâm ngắm / khối tím), gem XP kim cương xanh, hex XP lime,
+ * hex hồi máu, boss kim tự tháp đỏ, chữ nổi "+N XP".
+ */
+
+const { ARENA_W, ARENA_H, WALL } = __req("games/rogue-arena/data.js");
+
+function createArenaRenderer(g, { reducedMotion = false } = {}) {
+  let staticLayer = null;
+  const parts = []; // hạt {x,y,vx,vy,life,color,size}
+  const floats = []; // chữ nổi
+  const rings = []; // vòng nổ
+
+  /* ---------------- lớp tĩnh ---------------- */
+
+  function buildStatic() {
+    staticLayer = document.createElement("canvas");
+    const S = 1.2;
+    staticLayer.width = ARENA_W * S;
+    staticLayer.height = ARENA_H * S;
+    const s = staticLayer.getContext("2d");
+    s.scale(S, S);
+
+    // sàn
+    const bg = s.createRadialGradient(ARENA_W / 2, ARENA_H / 2, 80, ARENA_W / 2, ARENA_H / 2, 720);
+    bg.addColorStop(0, "#0d1330");
+    bg.addColorStop(1, "#060a1c");
+    s.fillStyle = bg;
+    s.fillRect(0, 0, ARENA_W, ARENA_H);
+
+    // lưới mờ
+    s.strokeStyle = "rgba(90, 110, 200, 0.07)";
+    s.lineWidth = 1;
+    for (let x = WALL; x < ARENA_W; x += 68) {
+      s.beginPath();
+      s.moveTo(x, WALL);
+      s.lineTo(x, ARENA_H - WALL);
+      s.stroke();
+    }
+    for (let y = WALL; y < ARENA_H; y += 68) {
+      s.beginPath();
+      s.moveTo(WALL, y);
+      s.lineTo(ARENA_W - WALL, y);
+      s.stroke();
+    }
+
+    // vòng tròn đồng tâm giữa sàn (như ảnh)
+    s.strokeStyle = "rgba(100, 140, 255, 0.12)";
+    s.lineWidth = 2;
+    for (const r of [70, 120, 170]) {
+      s.beginPath();
+      s.arc(ARENA_W / 2, ARENA_H / 2, r, 0, Math.PI * 2);
+      s.stroke();
+    }
+    s.strokeStyle = "rgba(100, 140, 255, 0.1)";
+    s.beginPath();
+    s.moveTo(ARENA_W / 2 - 190, ARENA_H / 2);
+    s.lineTo(ARENA_W / 2 + 190, ARENA_H / 2);
+    s.moveTo(ARENA_W / 2, ARENA_H / 2 - 190);
+    s.lineTo(ARENA_W / 2, ARENA_H / 2 + 190);
+    s.stroke();
+
+    // tường
+    s.fillStyle = "#0a0e22";
+    s.fillRect(0, 0, ARENA_W, WALL);
+    s.fillRect(0, ARENA_H - WALL, ARENA_W, WALL);
+    s.fillRect(0, 0, WALL, ARENA_H);
+    s.fillRect(ARENA_W - WALL, 0, WALL, ARENA_H);
+    s.strokeStyle = "rgba(110, 130, 210, 0.35)";
+    s.lineWidth = 2;
+    s.strokeRect(WALL, WALL, ARENA_W - WALL * 2, ARENA_H - WALL * 2);
+    // vạch kỹ thuật trên tường
+    s.fillStyle = "rgba(110,130,210,0.2)";
+    for (let x = 60; x < ARENA_W - 60; x += 120) {
+      s.fillRect(x, WALL / 2 - 2, 34, 4);
+      s.fillRect(x, ARENA_H - WALL / 2 - 2, 34, 4);
+    }
+
+    // dải neon góc: trái hồng, phải cyan (như ảnh)
+    const corner = (x, y, dx, dy, color) => {
+      s.strokeStyle = color;
+      s.lineWidth = 5;
+      s.beginPath();
+      s.moveTo(x + dx * 130, y);
+      s.lineTo(x, y);
+      s.lineTo(x, y + dy * 130);
+      s.stroke();
+      s.strokeStyle = color.replace("1)", "0.35)");
+      s.lineWidth = 11;
+      s.beginPath();
+      s.moveTo(x + dx * 130, y);
+      s.lineTo(x, y);
+      s.lineTo(x, y + dy * 130);
+      s.stroke();
+    };
+    corner(WALL + 6, WALL + 6, 1, 1, "rgba(255,46,150,1)");
+    corner(WALL + 6, ARENA_H - WALL - 6, 1, -1, "rgba(255,46,150,1)");
+    corner(ARENA_W - WALL - 6, WALL + 6, -1, 1, "rgba(32,227,255,1)");
+    corner(ARENA_W - WALL - 6, ARENA_H - WALL - 6, -1, -1, "rgba(32,227,255,1)");
+  }
+
+  /* ---------------- entity painter ---------------- */
+
+  function drawPlayer(p, time) {
+    g.save();
+    g.translate(p.x, p.y);
+    // vòng sáng dưới chân
+    g.strokeStyle = "rgba(32,227,255,0.35)";
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(0, 6, 20, 0, Math.PI * 2);
+    g.stroke();
+    // nhấp nháy khi bất tử
+    if (p.ifr > 0 && Math.floor(time * 14) % 2 === 0) g.globalAlpha = 0.45;
+    const bob = Math.sin(time * 5) * 1.4;
+    g.translate(0, bob);
+    // chân
+    g.fillStyle = "#8f9ec4";
+    g.fillRect(-8, 8, 6, 7);
+    g.fillRect(2, 8, 6, 7);
+    // thân trắng
+    g.fillStyle = "#e8edff";
+    g.beginPath();
+    g.roundRect(-11, -12, 22, 22, 6);
+    g.fill();
+    // vai
+    g.fillStyle = "#b9c3de";
+    g.fillRect(-15, -6, 5, 10);
+    g.fillRect(10, -6, 5, 10);
+    // visor cyan
+    g.fillStyle = "#0a1224";
+    g.beginPath();
+    g.roundRect(-7, -8, 14, 8, 3);
+    g.fill();
+    g.save();
+    g.shadowColor = "#20e3ff";
+    g.shadowBlur = 8;
+    g.fillStyle = "#20e3ff";
+    g.fillRect(-5, -6, 10, 3.4);
+    g.restore();
+    g.restore();
+  }
+
+  function drawOrbits(p, time) {
+    if (p.orbit <= 0) return;
+    for (let i = 0; i < p.orbit; i++) {
+      const a = p.orbitAngle + (i * Math.PI * 2) / p.orbit;
+      const ox = p.x + Math.cos(a) * 56;
+      const oy = p.y + Math.sin(a) * 56;
+      g.save();
+      g.shadowColor = "#9a5cff";
+      g.shadowBlur = 10;
+      g.fillStyle = "#b98cff";
+      g.beginPath();
+      g.arc(ox, oy, 8, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = "#eadffd";
+      g.beginPath();
+      g.arc(ox - 2, oy - 2, 3, 0, Math.PI * 2);
+      g.fill();
+      g.restore();
+      void time;
+    }
+  }
+
+  function drawEnemy(e, time) {
+    g.save();
+    g.translate(e.x, e.y);
+    const flash = e.hitFlash > 0;
+
+    if (e.type === "chaser") {
+      const a = Math.atan2(0, 1);
+      void a;
+      g.rotate(Math.sin(time * 3 + e.id) * 0.15);
+      g.fillStyle = flash ? "#ffd7ec" : "#3d1030";
+      g.strokeStyle = "#ff2e96";
+      g.lineWidth = 2.4;
+      g.beginPath();
+      g.moveTo(0, -e.r);
+      g.lineTo(e.r * 0.95, e.r * 0.75);
+      g.lineTo(-e.r * 0.95, e.r * 0.75);
+      g.closePath();
+      g.fill();
+      g.stroke();
+      g.strokeStyle = "rgba(255,46,150,0.6)";
+      g.beginPath();
+      g.moveTo(0, -e.r * 0.5);
+      g.lineTo(e.r * 0.45, e.r * 0.45);
+      g.lineTo(-e.r * 0.45, e.r * 0.45);
+      g.closePath();
+      g.stroke();
+    } else if (e.type === "shooter") {
+      g.rotate(Math.sin(time * 2 + e.id) * 0.1);
+      g.fillStyle = flash ? "#ffe2e2" : "#38080c";
+      g.strokeStyle = "#ff3b4f";
+      g.lineWidth = 2.4;
+      g.beginPath();
+      g.roundRect(-e.r, -e.r, e.r * 2, e.r * 2, 4);
+      g.fill();
+      g.stroke();
+      // icon tâm ngắm (như ảnh)
+      g.strokeStyle = "#ff8091";
+      g.lineWidth = 1.8;
+      g.beginPath();
+      g.arc(0, 0, e.r * 0.5, 0, Math.PI * 2);
+      g.stroke();
+      g.beginPath();
+      g.arc(0, 0, e.r * 0.18, 0, Math.PI * 2);
+      g.stroke();
+    } else if (e.type === "tank") {
+      g.fillStyle = flash ? "#f0e2ff" : "#241040";
+      g.strokeStyle = "#9a5cff";
+      g.lineWidth = 3;
+      g.beginPath();
+      g.roundRect(-e.r, -e.r, e.r * 2, e.r * 2, 5);
+      g.fill();
+      g.stroke();
+      g.strokeStyle = "rgba(154,92,255,0.55)";
+      g.lineWidth = 2;
+      g.strokeRect(-e.r * 0.55, -e.r * 0.55, e.r * 1.1, e.r * 1.1);
+      g.fillStyle = "#c9a6ff";
+      g.beginPath();
+      g.arc(0, 0, 3.4, 0, Math.PI * 2);
+      g.fill();
+    } else if (e.type === "boss") {
+      g.rotate(Math.sin(time * 1.6) * 0.08);
+      g.save();
+      g.shadowColor = "#ff3b4f";
+      g.shadowBlur = 22;
+      g.fillStyle = flash ? "#ffd7d7" : "#3c0a12";
+      g.strokeStyle = "#ff3b4f";
+      g.lineWidth = 4;
+      g.beginPath();
+      g.moveTo(0, -e.r);
+      g.lineTo(e.r, e.r * 0.8);
+      g.lineTo(-e.r, e.r * 0.8);
+      g.closePath();
+      g.fill();
+      g.stroke();
+      g.restore();
+      g.strokeStyle = "rgba(255,59,79,0.7)";
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(0, -e.r * 0.45);
+      g.lineTo(e.r * 0.5, e.r * 0.45);
+      g.lineTo(-e.r * 0.5, e.r * 0.45);
+      g.closePath();
+      g.stroke();
+      // thanh máu boss
+      const w = 90;
+      g.fillStyle = "rgba(8,8,16,0.85)";
+      g.fillRect(-w / 2, -e.r - 18, w, 7);
+      g.fillStyle = "#ff3b4f";
+      g.fillRect(-w / 2 + 1, -e.r - 17, (w - 2) * Math.max(0, e.hp / e.maxHp), 5);
+    }
+
+    // thanh máu nhỏ (trừ boss đã có)
+    if (e.type !== "boss" && e.hp < e.maxHp) {
+      const w = e.r * 1.7;
+      g.fillStyle = "rgba(8,8,16,0.8)";
+      g.fillRect(-w / 2, -e.r - 9, w, 3.4);
+      g.fillStyle = "#ff3b4f";
+      g.fillRect(-w / 2, -e.r - 9, w * Math.max(0, e.hp / e.maxHp), 3.4);
+    }
+    g.restore();
+  }
+
+  function drawBolt(b) {
+    const a = Math.atan2(b.vy, b.vx);
+    g.save();
+    g.translate(b.x, b.y);
+    g.rotate(a);
+    g.fillStyle = "rgba(32,227,255,0.28)";
+    g.beginPath();
+    g.ellipse(-6, 0, 13, 4.5, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = "#9ff1ff";
+    g.beginPath();
+    g.ellipse(0, 0, 8, 2.6, 0, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+  }
+
+  function drawEbolt(b, time) {
+    g.save();
+    g.translate(b.x, b.y);
+    g.fillStyle = "rgba(255,59,110,0.32)";
+    g.beginPath();
+    g.arc(0, 0, 7 + Math.sin(time * 12) * 1, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = "#ff5d7d";
+    g.beginPath();
+    g.arc(0, 0, 3.6, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+  }
+
+  function drawGem(gem, time) {
+    g.save();
+    g.translate(gem.x, gem.y + Math.sin(time * 4 + gem.x) * 2);
+    if (gem.heal) {
+      // hex hồi máu xanh lá (như ảnh)
+      g.strokeStyle = "#4df77f";
+      g.fillStyle = "rgba(10,40,20,0.9)";
+      g.lineWidth = 2;
+      hexPath(12);
+      g.fill();
+      g.stroke();
+      g.fillStyle = "#4df77f";
+      g.fillRect(-1.8, -6, 3.6, 12);
+      g.fillRect(-6, -1.8, 12, 3.6);
+    } else if (gem.big) {
+      // hex XP lime (như ảnh)
+      g.strokeStyle = "#a8ff3e";
+      g.fillStyle = "rgba(30,46,8,0.92)";
+      g.lineWidth = 2;
+      hexPath(13);
+      g.fill();
+      g.stroke();
+      g.fillStyle = "#a8ff3e";
+      g.font = "800 9px 'JetBrains Mono', monospace";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillText("XP", 0, 0.5);
+    } else {
+      // kim cương xanh
+      const c = gem.value >= 3 ? "#7dc4ff" : "#20e3ff";
+      g.fillStyle = c;
+      g.beginPath();
+      g.moveTo(0, -7);
+      g.lineTo(5, 0);
+      g.lineTo(0, 7);
+      g.lineTo(-5, 0);
+      g.closePath();
+      g.fill();
+      g.fillStyle = "rgba(255,255,255,0.7)";
+      g.beginPath();
+      g.moveTo(0, -7);
+      g.lineTo(5, 0);
+      g.lineTo(0, 0);
+      g.closePath();
+      g.fill();
+    }
+    g.restore();
+
+    function hexPath(r) {
+      g.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i - Math.PI / 6;
+        const x = Math.cos(a) * r;
+        const y = Math.sin(a) * r;
+        if (i === 0) g.moveTo(x, y);
+        else g.lineTo(x, y);
+      }
+      g.closePath();
+    }
+  }
+
+  /* ---------------- hiệu ứng ---------------- */
+
+  function burst(x, y, color, n) {
+    const count = reducedMotion ? Math.ceil(n / 2) : n;
+    for (let i = 0; i < count; i++) {
+      if (parts.length > 230) break;
+      const a = Math.random() * Math.PI * 2;
+      const sp = 60 + Math.random() * 160;
+      parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.5, color, size: 2 + Math.random() * 2 });
+    }
+  }
+
+  function addEvents(events, arena, time) {
+    for (const e of events) {
+      switch (e.type) {
+        case "kill":
+          burst(e.x, e.y, e.big ? "#ff3b4f" : "#ff2e96", e.big ? 16 : 8);
+          break;
+        case "hit":
+          if (!reducedMotion && parts.length < 220) {
+            parts.push({ x: e.x, y: e.y, vx: 0, vy: -30, life: 0.2, color: "#9ff1ff", size: 2 });
+          }
+          break;
+        case "gem":
+          if (e.big || e.value >= 3) {
+            floats.push({ x: e.x, y: e.y - 10, text: `+${e.value * 10} XP`, t: time, ttl: 0.8, color: "#20e3ff" });
+          }
+          break;
+        case "heal":
+          floats.push({ x: e.x, y: e.y - 10, text: "+30 HP", t: time, ttl: 0.9, color: "#4df77f" });
+          break;
+        case "hurt":
+          rings.push({ x: arena.player.x, y: arena.player.y, r0: 14, r1: 44, t: time, ttl: 0.3, color: "255,59,79" });
+          break;
+        case "levelup":
+          rings.push({ x: arena.player.x, y: arena.player.y, r0: 16, r1: 90, t: time, ttl: 0.55, color: "255,210,63" });
+          break;
+        case "bossdown":
+          burst(e.x, e.y, "#ffd23f", 26);
+          break;
+      }
+    }
+  }
+
+  function drawFx(dt, time) {
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      p.life -= dt;
+      if (p.life <= 0) {
+        parts.splice(i, 1);
+        continue;
+      }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      g.globalAlpha = Math.min(1, p.life * 2.4);
+      g.fillStyle = p.color;
+      g.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      g.globalAlpha = 1;
+    }
+    for (let i = rings.length - 1; i >= 0; i--) {
+      const r = rings[i];
+      const k = (time - r.t) / r.ttl;
+      if (k > 1) {
+        rings.splice(i, 1);
+        continue;
+      }
+      g.strokeStyle = `rgba(${r.color},${1 - k})`;
+      g.lineWidth = 3;
+      g.beginPath();
+      g.arc(r.x, r.y, r.r0 + (r.r1 - r.r0) * k, 0, Math.PI * 2);
+      g.stroke();
+    }
+    g.textAlign = "center";
+    for (let i = floats.length - 1; i >= 0; i--) {
+      const f = floats[i];
+      const k = (time - f.t) / f.ttl;
+      if (k > 1) {
+        floats.splice(i, 1);
+        continue;
+      }
+      g.globalAlpha = 1 - k;
+      g.fillStyle = f.color;
+      g.font = "800 13px 'JetBrains Mono', monospace";
+      g.fillText(f.text, f.x, f.y - k * 24);
+      g.globalAlpha = 1;
+    }
+  }
+
+  /* ---------------- khung hình ---------------- */
+
+  function draw(arena, dt, time) {
+    if (!staticLayer) buildStatic();
+    g.clearRect(0, 0, ARENA_W, ARENA_H);
+    g.drawImage(staticLayer, 0, 0, ARENA_W, ARENA_H);
+
+    for (const gem of arena.gems.items) if (gem.alive) drawGem(gem, time);
+    for (const b of arena.bolts.items) if (b.alive) drawBolt(b);
+    for (const e of arena.enemies.items) if (e.alive) drawEnemy(e, time);
+    for (const b of arena.ebolts.items) if (b.alive) drawEbolt(b, time);
+    drawOrbits(arena.player, time);
+    drawPlayer(arena.player, time);
+    drawFx(dt, time);
+
+    // viền đỏ khi máu thấp
+    if (arena.player.hp <= 30 && !arena.over) {
+      const a = 0.16 + Math.sin(time * 5) * 0.08;
+      const grad = g.createRadialGradient(ARENA_W / 2, ARENA_H / 2, ARENA_H / 3, ARENA_W / 2, ARENA_H / 2, ARENA_H / 1.1);
+      grad.addColorStop(0, "rgba(255,40,60,0)");
+      grad.addColorStop(1, `rgba(255,40,60,${a})`);
+      g.fillStyle = grad;
+      g.fillRect(0, 0, ARENA_W, ARENA_H);
+    }
+  }
+
+  return { draw, addEvents };
+}
+
+/** Icon nâng cấp cho card level-up + chỉ báo kỹ năng (canvas nhỏ). */
+function paintUpgradeIcon(canvas, id, tone) {
+  const size = 34;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  const g = canvas.getContext("2d");
+  g.scale(dpr, dpr);
+  const colors = {
+    cyan: "#20e3ff", pink: "#ff2e96", violet: "#9a5cff",
+    lime: "#a8ff3e", green: "#4df77f", gold: "#ffd23f",
+  };
+  const c = colors[tone] || "#20e3ff";
+  g.translate(size / 2, size / 2);
+  g.strokeStyle = c;
+  g.fillStyle = c;
+  g.lineWidth = 2.4;
+  g.lineJoin = "round";
+  g.lineCap = "round";
+  switch (id) {
+    case "damage": // đầu đạn
+      g.beginPath();
+      g.moveTo(0, -10);
+      g.lineTo(7, 2);
+      g.lineTo(3, 2);
+      g.lineTo(3, 10);
+      g.lineTo(-3, 10);
+      g.lineTo(-3, 2);
+      g.lineTo(-7, 2);
+      g.closePath();
+      g.fill();
+      break;
+    case "firerate": // 3 vạch tốc độ
+      for (let i = 0; i < 3; i++) {
+        g.beginPath();
+        g.moveTo(-9 + i * 7, -8);
+        g.lineTo(-3 + i * 7, 0);
+        g.lineTo(-9 + i * 7, 8);
+        g.stroke();
+      }
+      break;
+    case "multishot": // tia sét (như ảnh TIA CHỚP)
+      g.beginPath();
+      g.moveTo(3, -11);
+      g.lineTo(-6, 2);
+      g.lineTo(-0.5, 2);
+      g.lineTo(-3, 11);
+      g.lineTo(6, -2);
+      g.lineTo(0.5, -2);
+      g.closePath();
+      g.fill();
+      break;
+    case "pierce": // 4 mũi tên tỏa (như ảnh LAN TỎA)
+      for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+        g.beginPath();
+        g.moveTo(dx * 3, dy * 3);
+        g.lineTo(dx * 10, dy * 10);
+        g.stroke();
+        g.beginPath();
+        g.moveTo(dx * 10 + (dy - dx) * 3.4, dy * 10 + (-dx - dy) * 3.4);
+        g.lineTo(dx * 12, dy * 12);
+        g.lineTo(dx * 10 + (-dy - dx) * 3.4, dy * 10 + (dx - dy) * 3.4);
+        g.stroke();
+      }
+      break;
+    case "speed": // chevron đôi (như ảnh TỐC ĐỘ)
+      for (let i = 0; i < 2; i++) {
+        g.beginPath();
+        g.moveTo(-8, 6 - i * 8);
+        g.lineTo(0, -1 - i * 8 + 4);
+        g.lineTo(8, 6 - i * 8);
+        g.stroke();
+      }
+      break;
+    case "maxhp": // khiên
+      g.beginPath();
+      g.moveTo(0, -10);
+      g.lineTo(9, -6);
+      g.lineTo(9, 2);
+      g.quadraticCurveTo(9, 9, 0, 12);
+      g.quadraticCurveTo(-9, 9, -9, 2);
+      g.lineTo(-9, -6);
+      g.closePath();
+      g.stroke();
+      g.fillRect(-1.5, -5, 3, 8);
+      g.fillRect(-4.5, -2, 9, 3);
+      break;
+    case "magnet": // nam châm chữ U
+      g.beginPath();
+      g.arc(0, -1, 7.5, Math.PI, 0, false);
+      g.moveTo(-7.5, -1);
+      g.lineTo(-7.5, 8);
+      g.moveTo(7.5, -1);
+      g.lineTo(7.5, 8);
+      g.stroke();
+      g.fillRect(-9.5, 6, 4, 4);
+      g.fillRect(5.5, 6, 4, 4);
+      break;
+    case "orbit": // quỹ đạo + vệ tinh
+      g.beginPath();
+      g.ellipse(0, 0, 10, 5.5, -0.5, 0, Math.PI * 2);
+      g.stroke();
+      g.beginPath();
+      g.arc(0, 0, 3.4, 0, Math.PI * 2);
+      g.fill();
+      g.beginPath();
+      g.arc(8, -4, 2.6, 0, Math.PI * 2);
+      g.fill();
+      break;
+    default: // repair — cờ lê đơn giản
+      g.beginPath();
+      g.arc(-4, -4, 5, 0.5, Math.PI * 1.6);
+      g.stroke();
+      g.beginPath();
+      g.moveTo(-1, -1);
+      g.lineTo(8, 8);
+      g.stroke();
+      break;
+  }
+}
+
+exports.createArenaRenderer = createArenaRenderer; exports.paintUpgradeIcon = paintUpgradeIcon;
+};
+__defs["games/rogue-arena/styles.js"] = function (exports, __req) {
+/**
+ * styles.js — CSS riêng Rogue Arena: panel NÂNG CẤP! bên trái với 3 thẻ
+ * kỹ năng (icon + tên + mô tả + chấm cấp như ảnh), 3 chỉ báo kỹ năng
+ * tròn dưới đáy, và joystick ảo cho mobile.
+ */
+
+const RA_CSS = /* css */ `
+.ra-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+/* ---------- panel level-up ---------- */
+.ra-levelup {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 40;
+  width: 236px;
+  padding: 1px;
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--gold) 65%, transparent), color-mix(in srgb, var(--gold) 16%, transparent));
+  animation: raPanelIn 0.24s ease;
+}
+
+@keyframes raPanelIn {
+  from { opacity: 0; transform: translateY(-50%) translateX(-14px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ra-levelup { animation: none; }
+}
+
+.ra-levelup > .in {
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  background: rgba(7, 11, 28, 0.97);
+  padding: 15px 14px;
+}
+
+.ra-levelup h3 {
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+  text-shadow: 0 0 16px color-mix(in srgb, var(--gold) 55%, transparent);
+}
+
+.ra-levelup .sub {
+  text-align: center;
+  font-size: 0.66rem;
+  color: var(--text-1);
+  margin: 3px 0 12px;
+  letter-spacing: 0.08em;
+}
+
+.ra-choice {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 4px 10px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 10px 11px;
+  margin-bottom: 9px;
+  border: 1px solid color-mix(in srgb, var(--tone, var(--cyan)) 45%, transparent);
+  border-radius: 9px;
+  background: rgba(11, 17, 40, 0.85);
+  color: var(--text-0);
+  font-family: inherit;
+  cursor: pointer;
+  transition: box-shadow 0.14s ease, transform 0.14s ease, background 0.14s ease;
+}
+
+.ra-choice[data-tone="cyan"]   { --tone: var(--cyan); }
+.ra-choice[data-tone="pink"]   { --tone: var(--pink); }
+.ra-choice[data-tone="violet"] { --tone: var(--violet); }
+.ra-choice[data-tone="lime"]   { --tone: var(--lime); }
+.ra-choice[data-tone="green"]  { --tone: var(--green); }
+.ra-choice[data-tone="gold"]   { --tone: var(--gold); }
+
+.ra-choice:hover,
+.ra-choice:focus-visible {
+  background: color-mix(in srgb, var(--tone) 12%, rgba(11, 17, 40, 0.85));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--tone) 35%, transparent);
+  transform: translateX(3px);
+}
+
+.ra-choice .ico {
+  grid-row: span 2;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--tone) 55%, transparent);
+  border-radius: 8px;
+  background: rgba(7, 10, 24, 0.9);
+}
+
+.ra-choice .ico canvas { width: 30px; height: 30px; }
+
+.ra-choice .nm {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--tone);
+}
+
+.ra-choice .ds {
+  font-size: 0.64rem;
+  line-height: 1.45;
+  color: var(--text-1);
+}
+
+.ra-choice .pips {
+  grid-column: 2;
+  display: flex;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.ra-choice .pips i {
+  width: 12px;
+  height: 5px;
+  border-radius: 2px;
+  background: rgba(244, 247, 255, 0.14);
+}
+
+.ra-choice .pips i.on { background: var(--tone); }
+.ra-choice .pips i.next { background: color-mix(in srgb, var(--tone) 45%, transparent); outline: 1px dashed var(--tone); }
+
+.ra-choice kbd {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  font-size: 0.58rem;
+  color: var(--text-2);
+  border: 1px solid rgba(244,247,255,0.2);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* ---------- 3 chỉ báo kỹ năng dưới đáy (như ảnh) ---------- */
+.ra-abilities {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 24;
+  display: flex;
+  gap: 20px;
+  pointer-events: none;
+}
+
+.ra-ab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ra-ab .ring {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 2.4px solid var(--tone, var(--cyan));
+  background: radial-gradient(circle at 50% 38%, rgba(255,255,255,0.08), rgba(7, 10, 24, 0.88) 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--tone, var(--cyan)) 35%, transparent);
+}
+
+.ra-ab[data-tone="cyan"]   { --tone: var(--cyan); }
+.ra-ab[data-tone="violet"] { --tone: var(--violet); }
+.ra-ab[data-tone="lime"]   { --tone: var(--lime); }
+
+.ra-ab .ring canvas { width: 30px; height: 30px; }
+
+.ra-ab .num {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text-0);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+}
+
+/* ---------- joystick mobile ---------- */
+.ra-joy {
+  position: absolute;
+  left: 26px;
+  bottom: 26px;
+  z-index: 30;
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  border: 2px solid rgba(32, 227, 255, 0.4);
+  background: rgba(8, 12, 30, 0.5);
+  display: none;
+  touch-action: none;
+}
+
+.exp-root[data-touch="1"] .ra-joy { display: block; }
+
+.ra-joy .knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 36%, rgba(32,227,255,0.45), rgba(10, 16, 38, 0.95) 72%);
+  border: 2px solid var(--cyan);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 16px rgba(32, 227, 255, 0.35);
+}
+
+@media (max-width: 760px) {
+  .ra-levelup { width: 210px; left: 10px; }
+  .ra-abilities { transform: translateX(-50%) scale(0.85); bottom: 6px; }
+}
+`;
+
+exports.RA_CSS = RA_CSS;
+};
+__defs["games/rhythm-hack/index.js"] = function (exports, __req) {
+/**
+ * Rhythm Hack — game nhịp điệu 4 lane D/F/J/K (game 10).
+ *
+ * Theo plan + ảnh reference: highway phối cảnh 4 lane màu, panel ĐIỂM /
+ * COMBO / CHÍNH XÁC bên trái, SYSTEM REPAIR (tim pixel + tiến trình) và
+ * TERMINAL bên phải, hàng phím D F J K dưới đáy (đồng thời là 4 vùng
+ * chạm). Nhạc chiptune TỰ TỔNG HỢP đồng bộ với chart; đồng hồ chuẩn là
+ * audioContext.currentTime (pause = suspend → không bao giờ lệch nhịp).
+ * Judgement ±45/±90/±140ms, scoring 1000/700/400 + combo multiplier có
+ * trần, accuracy trọng số, calibration offset ±150ms trong pause menu.
+ */
+
+const { createExpansionFrame } = __req("games/_shared/frame.js");
+const { createKeyboard } = __req("core/input-manager.js");
+const { createLoop } = __req("core/loop.js");
+const { el, formatScore, formatTime } = __req("core/utils.js");
+const { SONG, buildSong } = __req("games/rhythm-hack/chart.js");
+const { createMusic } = __req("games/rhythm-hack/audio.js");
+const { createJudge } = __req("games/rhythm-hack/engine.js");
+const { createHighwayRenderer, paintHeart, LANE_COLORS } = __req("games/rhythm-hack/render.js");
+const { RH_CSS } = __req("games/rhythm-hack/styles.js");
+
+const OFFSET_KEY = "rhythm-offset";
+const KEY_LANES = { KeyD: 0, KeyF: 1, KeyJ: 2, KeyK: 3 };
+const JUDGE_LABEL = { perfect: "PERFECT", great: "GREAT", good: "GOOD" };
+const JUDGE_COLOR = { perfect: "#20e3ff", great: "#9a5cff", good: "#ffd23f", miss: "#ff3b4f" };
+
+const TERMINAL_SCRIPT = [
+  [2, "> Scanning system...", "ok"],
+  [7, "> Detecting errors...", "ok"],
+  [14, "> Uploading patches...", "ok"],
+  [24, "> Synchronizing...", "info"],
+  [36, "> Defragmenting core...", "ok"],
+  [48, "> System improving...", "info"],
+];
+
+function createGame() {
+  let ctx = null;
+  let frame = null;
+  let renderer = null;
+  let canvas = null;
+  let keys = null;
+  let loop = null;
+  let song = null;
+  let judge = null;
+  let music = null;
+
+  let scoreEl = null;
+  let comboEl = null;
+  let accEl = null;
+  let heartCanvas = null;
+  let progressFill = null;
+  let progressPct = null;
+  let termLines = null;
+  let keyEls = [];
+
+  const TEST = typeof window !== "undefined" && window.__ARCADE_EXP5_TEST__;
+
+  let mode = "intro"; // intro | play | paused | over
+  let offsetMs = 0;
+  let heartStep = -1;
+  let termIdx = 0;
+  let autoIdx = 0;
+  let missSfxT = 0;
+  let stateT = 0;
+  let time = 0;
+
+  /* ---------------- HUD panels ---------------- */
+
+  function updatePanels() {
+    const st = judge.state;
+    scoreEl.textContent = formatScore(st.score);
+    comboEl.textContent = `×${st.combo}`;
+    accEl.textContent = `${judge.accuracy().toFixed(1)}%`;
+  }
+
+  function termLog(text, cls) {
+    const span = el("span", cls, text);
+    termLines.insertBefore(span, termLines.lastElementChild);
+    while (termLines.children.length > 7) termLines.removeChild(termLines.firstElementChild);
+  }
+
+  function updateSidePanels(songTime) {
+    const progress = Math.max(0, Math.min(1, songTime / song.duration));
+    const step = Math.floor(progress * 40);
+    if (step !== heartStep) {
+      heartStep = step;
+      paintHeart(heartCanvas, progress);
+      progressFill.style.width = `${Math.round(progress * 100)}%`;
+      progressPct.textContent = `${Math.round(progress * 100)}%`;
+    }
+    while (termIdx < TERMINAL_SCRIPT.length && TERMINAL_SCRIPT[termIdx][0] <= songTime) {
+      const [, text, cls] = TERMINAL_SCRIPT[termIdx];
+      termLog(text, cls);
+      termIdx++;
+    }
+  }
+
+  /* ---------------- Nhấn lane ---------------- */
+
+  function hitLane(lane) {
+    if (mode !== "play") return;
+    renderer.press(lane);
+    keyEls[lane]?.classList.add("held");
+    const songTime = music.now();
+    if (songTime < -0.05) return;
+    const r = judge.onKey(lane, songTime + offsetMs / 1000);
+    if (r) {
+      renderer.pop(JUDGE_LABEL[r.judgement], JUDGE_COLOR[r.judgement]);
+      renderer.burst(lane, LANE_COLORS[lane], r.judgement === "perfect" ? 14 : 8);
+      if (judge.state.combo > 0 && judge.state.combo % 50 === 0) {
+        termLog(`> Combo x${judge.state.combo} — stable`, "info");
+      }
+      updatePanels();
+    }
+  }
+
+  function releaseLane(lane) {
+    keyEls[lane]?.classList.remove("held");
+  }
+
+  /* ---------------- Vòng đời ---------------- */
+
+  function startMatch() {
+    song = buildSong({ test: TEST });
+    judge = createJudge(song.notes, SONG);
+    music?.stop();
+    music = createMusic(ctx.audio.getContext(), song.music);
+    autoIdx = 0;
+    termIdx = 0;
+    heartStep = -1;
+    mode = "play";
+    frame.clearScreen();
+    frame.setPaused(false);
+    termLines.textContent = "";
+    termLines.appendChild(el("span", "cursor", "_ Working..."));
+    ctx.onMatchStart();
+    updatePanels();
+    music.start(TEST ? 1.2 : 3 * song.beat + 0.2);
+    loop.start();
+    if (!music.hasAudio) frame.toast("KHÔNG CÓ WEBAUDIO — CHẠY CHẾ ĐỘ IM LẶNG");
+  }
+
+  function endMatch() {
+    mode = "over";
+    music.pause();
+    const st = judge.state;
+    const acc = judge.accuracy();
+    const rank = acc >= 95 ? "S" : acc >= 88 ? "A" : acc >= 75 ? "B" : acc >= 60 ? "C" : "D";
+    const saved = ctx.onGameOver(st.score, { accuracy: Math.round(acc * 10) / 10, maxCombo: st.maxCombo, rank });
+    frame.overScreen({
+      kicker: "// VÁ HỆ THỐNG HOÀN TẤT",
+      heading: `HẠNG ${rank} — ${acc.toFixed(1)}%`,
+      score: st.score,
+      saved,
+      statCards: [
+        { label: "PERFECT", value: st.counts.perfect, color: "cyan" },
+        { label: "GREAT", value: st.counts.great, color: "violet" },
+        { label: "GOOD", value: st.counts.good, color: "gold" },
+        { label: "MISS", value: st.counts.miss, color: "red" },
+        { label: "COMBO CAO NHẤT", value: `×${st.maxCombo}`, color: "pink" },
+      ],
+      restartLabel: "CHƠI LẠI BÀI",
+      onRestart: () => startMatch(),
+    });
+    ctx.audio.play(acc >= 75 ? "win" : "over");
+  }
+
+  function pauseGame() {
+    if (mode !== "play") return;
+    mode = "paused";
+    music.pause(); // suspend audio clock — chart không lệch
+    loop.stop();
+    frame.setPaused(true);
+    frame.pauseMenu({
+      onResume: () => resumeGame(),
+      onRestart: () => startMatch(),
+      restartLabel: "CHƠI LẠI BÀI",
+      buildExtra: (box) => {
+        const row = el("div", "exp-setrow");
+        row.appendChild(el("span", "", "CĂN CHỈNH ĐỘ TRỄ"));
+        const val = el("span", "val", `${offsetMs > 0 ? "+" : ""}${offsetMs}ms`);
+        row.appendChild(val);
+        box.appendChild(row);
+        const range = document.createElement("input");
+        range.type = "range";
+        range.className = "exp-range";
+        range.min = "-150";
+        range.max = "150";
+        range.step = "5";
+        range.value = String(offsetMs);
+        range.setAttribute("aria-label", "Căn chỉnh độ trễ âm thanh (ms)");
+        const paint = () => {
+          const pct = ((Number(range.value) + 150) / 300) * 100;
+          range.style.setProperty("--fill", `${pct}%`);
+          val.textContent = `${Number(range.value) > 0 ? "+" : ""}${range.value}ms`;
+        };
+        paint();
+        range.addEventListener("input", () => {
+          offsetMs = Number(range.value);
+          ctx.storage.setPref(OFFSET_KEY, offsetMs);
+          paint();
+        });
+        box.appendChild(range);
+        const note = el("div", "exp-setrow");
+        note.appendChild(el("span", "", "NOTE TRỄ SO VỚI NHẠC → KÉO DƯƠNG"));
+        box.appendChild(note);
+      },
+    });
+  }
+
+  function resumeGame() {
+    if (mode !== "paused") return;
+    mode = "play";
+    frame.clearScreen();
+    frame.setPaused(false);
+    keys.clearDown();
+    music.resume();
+    loop.start();
+  }
+
+  function togglePause() {
+    if (mode === "play") pauseGame();
+    else if (mode === "paused") resumeGame();
+  }
+
+  /* ---------------- Vòng lặp ---------------- */
+
+  function update(dt) {
+    time += dt;
+    const songTime = music.now();
+
+    if (mode === "play") {
+      // autoplay cho QA tự động (chỉ khi TEST)
+      if (TEST && window.__RH_AUTOPLAY__) {
+        const jt = songTime + offsetMs / 1000;
+        while (autoIdx < song.notes.length && song.notes[autoIdx].time <= jt) {
+          if (!judge.isDone(autoIdx)) {
+            const n = song.notes[autoIdx];
+            const r = judge.onKey(n.lane, n.time);
+            if (r) {
+              renderer.press(n.lane);
+              renderer.pop(JUDGE_LABEL[r.judgement], JUDGE_COLOR[r.judgement]);
+              renderer.burst(n.lane, LANE_COLORS[n.lane], 6);
+            }
+          }
+          autoIdx++;
+        }
+        updatePanels();
+      }
+
+      // quét miss theo đồng hồ audio
+      const missed = judge.tick(songTime + offsetMs / 1000);
+      if (missed.length) {
+        for (const i of missed) {
+          renderer.miss(song.notes[i].lane);
+        }
+        renderer.pop("MISS", JUDGE_COLOR.miss);
+        termLog("> Patch failed!", "fail");
+        if (time - missSfxT > 0.35) {
+          missSfxT = time;
+          ctx.audio.play("miss");
+        }
+        updatePanels();
+      }
+
+      frame.setStat("time", formatTime(Math.max(0, songTime)));
+      frame.setStatBar("time", (songTime / song.duration) * 100);
+      updateSidePanels(songTime);
+
+      if (songTime > song.duration + 0.8) {
+        endMatch();
+        return;
+      }
+
+      if (TEST) {
+        stateT += dt;
+        if (stateT > 0.4) {
+          stateT = 0;
+          window.__RH_STATE__ = {
+            mode,
+            songTime: Math.round(songTime * 100) / 100,
+            score: judge.state.score,
+            combo: judge.state.combo,
+            judged: judge.state.judged,
+            miss: judge.state.counts.miss,
+            acc: Math.round(judge.accuracy() * 10) / 10,
+            hasAudio: music.hasAudio,
+          };
+        }
+      }
+    }
+
+    renderer.draw(songTime, song.notes, judge, song.beat, dt);
+  }
+
+  /* ---------------- Intro ---------------- */
+
+  function showIntro() {
+    mode = "intro";
+    loop.stop();
+    frame.intro({
+      kicker: "// GIAO THỨC SỬA CHỮA",
+      heading: [["RHYTHM ", ""], ["HACK", "cyan"]],
+      goal:
+        `Bài "${SONG.title}" — ${SONG.bpm} BPM, nhạc chiptune tổng hợp trực tiếp. Nhấn đúng lúc note chạm VẠCH SÁNG để vá hệ thống: PERFECT ±45ms · GREAT ±90ms · GOOD ±140ms. Miss sẽ reset combo!`,
+      rows: [
+        { keys: ["D", "F", "J", "K"], text: "đánh 4 lane theo nhịp" },
+        { keys: ["Chạm"], text: "chạm 4 phím / 4 vùng lane trên tablet" },
+        { keys: ["ESC"], text: "tạm dừng (có chỉnh độ trễ ±ms)" },
+      ],
+      startLabel: "BẮT ĐẦU HACK",
+      onStart: () => startMatch(),
+      note: "Mẹo: nếu cảm giác note lệch so với nhạc, mở TẠM DỪNG và kéo thanh CĂN CHỈNH ĐỘ TRỄ.",
+    });
+    renderer.fit();
+    renderer.draw(-1, song.notes, judge, song.beat, 0);
+  }
+
+  /* ---------------- Interface ---------------- */
+
+  return {
+    async mount(container, context) {
+      ctx = context;
+      offsetMs = Number(ctx.storage.getPref(OFFSET_KEY, 0)) || 0;
+
+      const rootNode = container.getRootNode();
+      if (rootNode instanceof ShadowRoot && !rootNode.querySelector("#rh-style")) {
+        const style = document.createElement("style");
+        style.id = "rh-style";
+        style.textContent = RH_CSS;
+        rootNode.appendChild(style);
+      }
+
+      frame = createExpansionFrame(container, ctx, {
+        accent: "cyan",
+        title: [["RHYTHM ", ""], ["HACK", "cyan"]],
+        buttonStyle: "inline",
+        buttonLabels: { pause: "PAUSE", resume: "RESUME", sound: "SOUND", switch: "ĐỔI GAME", home: "HOME" },
+        stats: [{ id: "time", label: "THỜI GIAN", color: "cyan", value: "00:00", bar: true }],
+        onPauseToggle: togglePause,
+      });
+
+      const layout = el("div", "rh-layout");
+
+      /* Cột trái: ĐIỂM / COMBO / CHÍNH XÁC */
+      const left = el("div", "rh-col");
+      const mkStat = (label, tone, initial) => {
+        const p = el("div", "rh-panel");
+        p.dataset.tone = tone;
+        const inBox = el("div", "in");
+        inBox.appendChild(el("div", "lbl", label));
+        const v = el("div", "val", initial);
+        inBox.appendChild(v);
+        const eq = el("div", "eq");
+        for (let i = 0; i < 9; i++) {
+          const bar = el("i");
+          bar.style.height = `${20 + ((i * 37) % 70)}%`;
+          eq.appendChild(bar);
+        }
+        inBox.appendChild(eq);
+        p.appendChild(inBox);
+        left.appendChild(p);
+        return v;
+      };
+      scoreEl = mkStat("ĐIỂM", "cyan", "000000");
+      comboEl = mkStat("COMBO", "pink", "×0");
+      accEl = mkStat("CHÍNH XÁC", "lime", "100.0%");
+
+      /* Giữa: highway + hàng phím */
+      const stage = el("div", "rh-stage");
+      const cbox = el("div", "rh-canvasbox");
+      canvas = document.createElement("canvas");
+      canvas.setAttribute("aria-label", "Highway 4 lane Rhythm Hack");
+      cbox.appendChild(canvas);
+      stage.appendChild(cbox);
+
+      const keysRow = el("div", "rh-keys");
+      const KEY_DEF = [["D", "cyan"], ["F", "violet"], ["J", "pink"], ["K", "lime"]];
+      keyEls = KEY_DEF.map(([label, tone], lane) => {
+        const b = el("button", "rh-key", label);
+        b.type = "button";
+        b.dataset.tone = tone;
+        b.setAttribute("aria-label", `Lane ${label}`);
+        b.addEventListener(
+          "pointerdown",
+          (e) => {
+            e.preventDefault();
+            hitLane(lane);
+          },
+          { signal: ctx.signal }
+        );
+        b.addEventListener("pointerup", () => releaseLane(lane), { signal: ctx.signal });
+        b.addEventListener("pointercancel", () => releaseLane(lane), { signal: ctx.signal });
+        keysRow.appendChild(b);
+        return b;
+      });
+      stage.appendChild(keysRow);
+
+      /* Cột phải: SYSTEM REPAIR + TERMINAL */
+      const right = el("div", "rh-col right");
+      const repair = el("div", "rh-side");
+      repair.appendChild(el("h3", "", "// SYSTEM REPAIR"));
+      const heartBox = el("div", "rh-heartbox");
+      heartCanvas = document.createElement("canvas");
+      heartBox.appendChild(heartCanvas);
+      repair.appendChild(heartBox);
+      const progRow = el("div", "rh-progress-row");
+      progRow.appendChild(el("span", "", "REPAIR PROGRESS"));
+      const prog = el("div", "rh-progress");
+      progressFill = el("i");
+      prog.appendChild(progressFill);
+      progRow.appendChild(prog);
+      progressPct = el("span", "rh-progress-pct", "0%");
+      progRow.appendChild(progressPct);
+      repair.appendChild(progRow);
+      right.appendChild(repair);
+
+      const term = el("div", "rh-side rh-term");
+      term.appendChild(el("h3", "", "// TERMINAL"));
+      termLines = el("div", "lines");
+      termLines.appendChild(el("span", "cursor", "_ Working..."));
+      term.appendChild(termLines);
+      right.appendChild(term);
+
+      layout.append(left, stage, right);
+      frame.playfield.appendChild(layout);
+
+      renderer = createHighwayRenderer(canvas, cbox);
+      const ro = new ResizeObserver(() => renderer.fit());
+      ro.observe(cbox);
+      this._ro = ro;
+
+      // chạm trực tiếp lên highway (4 vùng lane)
+      canvas.addEventListener(
+        "pointerdown",
+        (e) => {
+          e.preventDefault();
+          hitLane(renderer.laneFromClientX(e.clientX));
+        },
+        { signal: ctx.signal }
+      );
+      window.addEventListener(
+        "pointerup",
+        () => {
+          for (let i = 0; i < 4; i++) releaseLane(i);
+        },
+        { signal: ctx.signal }
+      );
+
+      keys = createKeyboard({ signal: ctx.signal });
+      for (const [code, lane] of Object.entries(KEY_LANES)) {
+        keys.on([code], () => hitLane(lane)); // repeat=false mặc định — key repeat không tạo hit
+      }
+      window.addEventListener(
+        "keyup",
+        (e) => {
+          if (KEY_LANES[e.code] !== undefined) releaseLane(KEY_LANES[e.code]);
+        },
+        { signal: ctx.signal }
+      );
+      keys.on(["KeyP"], () => togglePause());
+
+      song = buildSong({ test: TEST });
+      judge = createJudge(song.notes, SONG);
+      paintHeart(heartCanvas, 0);
+
+      loop = createLoop(update);
+      showIntro();
+    },
+
+    start() {
+      if (mode === "intro") startMatch();
+    },
+
+    pause() {
+      pauseGame();
+    },
+
+    resume() {
+      resumeGame();
+    },
+
+    restart() {
+      if (mode === "intro") return;
+      startMatch();
+    },
+
+    resize() {
+      renderer?.fit();
+    },
+
+    destroy() {
+      loop?.stop();
+      keys?.destroy();
+      music?.stop(); // disconnect bus + resume ctx nếu đang suspend
+      this._ro?.disconnect();
+      frame?.destroy();
+      frame = null;
+      renderer = null;
+      judge = null;
+      song = null;
+      if (typeof window !== "undefined") delete window.__RH_STATE__;
+    },
+  };
+}
+
+exports.createGame = createGame;
+};
+__defs["games/rhythm-hack/chart.js"] = function (exports, __req) {
+/**
+ * chart.js — bài "SYSTEM REPAIR" của Rhythm Hack.
+ *
+ * Nhạc chiptune được TỰ TỔNG HỢP bằng WebAudio và chart note được SINH
+ * TỪ CÙNG MỘT PATTERN (riff lead / trống theo từng section) — bảo đảm
+ * note luôn khớp với âm thanh nghe được. Không file audio ngoài.
+ *
+ * Xuất: SONG (config + judgement window theo plan) và buildSong() →
+ * { notes: [{time, lane}], music: [{time, voice, freq, dur, vel}] }.
+ */
+
+const SONG = {
+  id: "system-repair-01",
+  title: "SYSTEM REPAIR",
+  bpm: 124,
+  bars: 32, // ≈ 62 giây
+  offsetMs: 0,
+  windows: { perfect: 0.045, great: 0.09, good: 0.14 }, // ±s — theo plan
+  scores: { perfect: 1000, great: 700, good: 400 },
+  comboCap: 30, // hệ số nhân tối đa 1 + 30×0.02 = 1.6
+};
+
+const midiHz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+/* A minor pentatonic quanh A4; degree 0..7 */
+const PENTA = [0, 3, 5, 7, 10, 12, 15, 17];
+const LEAD_ROOT = 69; // A4
+const BASS_ROOT = 45; // A2
+/* vòng hợp âm: Am — F — C — G (dịch gốc bass) */
+const PROG = [0, -4, 3, -2];
+
+function sectionOf(bar) {
+  if (bar < 4) return "intro";
+  if (bar < 12) return "A";
+  if (bar < 20) return "B";
+  if (bar < 28) return "chorus";
+  return "outro";
+}
+
+/* Riff lead 2 ô nhịp cho mỗi section: [beat, degree] */
+const LEAD_RIFFS = {
+  intro: [[], []],
+  A: [
+    [[0, 4], [1, 2], [2, 3], [3, 2]],
+    [[0, 2], [1.5, 1], [2.5, 0]],
+  ],
+  B: [
+    [[0, 4], [0.5, 4], [1, 3], [2, 2], [2.5, 3], [3, 4]],
+    [[0, 5], [1, 4], [1.5, 3], [2, 2], [3, 1], [3.5, 0]],
+  ],
+  chorus: [
+    [[0, 6], [0.5, 5], [1, 4], [1.5, 5], [2, 6], [2.5, 5], [3, 4], [3.5, 3]],
+    [[0, 4], [0.5, 3], [1, 2], [1.5, 3], [2, 4], [3, 2], [3.5, 4]],
+  ],
+  outro: [
+    [[0, 2], [2, 0]],
+    [[0, 1]],
+  ],
+};
+
+const KICKS = {
+  intro: [0, 2],
+  A: [0, 2],
+  B: [0, 1.5, 2],
+  chorus: [0, 1, 2, 3],
+  outro: [0],
+};
+
+const SNARES = { intro: [3], A: [1, 3], B: [1, 3], chorus: [1, 3], outro: [] };
+
+/**
+ * Sinh toàn bộ sự kiện nhạc + note chart.
+ * test=true → bài rút gọn 8 ô nhịp (~15.5s) cho QA tự động.
+ */
+function buildSong({ test = false } = {}) {
+  const bars = test ? 8 : SONG.bars;
+  const beat = 60 / SONG.bpm;
+  const music = [];
+  const notes = [];
+
+  for (let bar = 0; bar < bars; bar++) {
+    const sec = test ? (bar < 2 ? "intro" : bar < 5 ? "A" : "B") : sectionOf(bar);
+    const barT = bar * 4 * beat;
+    const chord = PROG[bar % 4];
+
+    // trống
+    for (const b of KICKS[sec]) {
+      music.push({ time: barT + b * beat, voice: "kick", dur: 0.12, vel: 1 });
+    }
+    for (const b of SNARES[sec]) {
+      music.push({ time: barT + b * beat, voice: "snare", dur: 0.09, vel: 0.8 });
+    }
+    for (let h = 0; h < 8; h++) {
+      if (sec === "intro" && h % 2 === 1) continue;
+      music.push({
+        time: barT + h * 0.5 * beat,
+        voice: "hat",
+        dur: 0.03,
+        vel: h % 2 === 0 ? 0.42 : 0.22,
+      });
+    }
+
+    // bass 8th theo hợp âm
+    const bassSlots = sec === "intro" ? [0, 2] : sec === "outro" ? [0] : [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5];
+    for (const b of bassSlots) {
+      const oct = b % 1 === 0.5 ? 12 : 0;
+      music.push({
+        time: barT + b * beat,
+        voice: "bass",
+        freq: midiHz(BASS_ROOT + chord + oct),
+        dur: beat * 0.42,
+        vel: b % 1 === 0 ? 0.85 : 0.6,
+      });
+    }
+
+    // lead riff → nhạc + NOTE CHART (lane = degree % 4, khớp cao độ)
+    const riff = LEAD_RIFFS[sec][bar % 2];
+    for (const [b, deg] of riff) {
+      const t = barT + b * beat;
+      music.push({
+        time: t,
+        voice: "lead",
+        freq: midiHz(LEAD_ROOT + chord + PENTA[deg]),
+        dur: beat * 0.5,
+        vel: 0.8,
+      });
+      notes.push({ time: t, lane: deg % 4 });
+    }
+
+    // chorus: thêm note theo snare cho dày nhịp (tiếng snare có thật)
+    if (sec === "chorus") {
+      for (const b of SNARES[sec]) {
+        const t = barT + b * beat;
+        if (!riff.some(([rb]) => Math.abs(rb - b) < 0.26)) {
+          notes.push({ time: t, lane: bar % 2 === 0 ? 1 : 2 });
+        }
+      }
+    }
+    // intro warm-up: 2 note theo kick ở ô nhịp 2-3
+    if (sec === "intro" && bar >= 2) {
+      notes.push({ time: barT, lane: 0 });
+    }
+  }
+
+  notes.sort((a, b) => a.time - b.time);
+  music.sort((a, b) => a.time - b.time);
+  const duration = bars * 4 * beat;
+  return { notes, music, duration, beat, bars };
+}
+
+exports.buildSong = buildSong; exports.SONG = SONG;
+};
+__defs["games/rhythm-hack/audio.js"] = function (exports, __req) {
+/**
+ * audio.js — trình phát nhạc chiptune của Rhythm Hack.
+ *
+ * ĐỒNG HỒ CHUẨN là audioContext.currentTime (theo plan — cấm setTimeout
+ * làm đồng hồ nhịp): mọi sự kiện âm thanh được đặt lịch ở thời điểm
+ * TUYỆT ĐỐI trên trục thời gian của AudioContext; setInterval chỉ làm
+ * nhiệm vụ "nạp thêm hàng đợi" (lookahead scheduler chuẩn WebAudio).
+ *
+ * Pause = ctx.suspend() → currentTime đóng băng → chart không bao giờ
+ * lệch khi resume. Máy không có WebAudio → fallback đồng hồ
+ * performance.now (im lặng nhưng vẫn chơi được).
+ */
+
+const LOOKAHEAD = 0.24; // giây đặt lịch trước
+const TICK_MS = 60;
+
+function createMusic(audioHandle, events) {
+  // audioHandle: { ctx, master } từ audio-manager (null nếu không có WebAudio)
+  const hasAudio = !!audioHandle;
+  const ctx = audioHandle?.ctx || null;
+
+  let bus = null;
+  let noiseBuf = null;
+  let startAt = 0; // mốc ctx.currentTime khi bài bắt đầu (beat 0)
+  let nextIdx = 0;
+  let timer = 0;
+  let running = false;
+
+  // fallback clock (không WebAudio)
+  let fbStart = 0;
+  let fbPausedAt = -1;
+
+  function ensureBus() {
+    if (!hasAudio || bus) return;
+    bus = ctx.createGain();
+    bus.gain.value = 0.5;
+    bus.connect(audioHandle.master);
+    const len = Math.floor(ctx.sampleRate * 0.4);
+    noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  }
+
+  /* ---------------- voice synth (đặt lịch tại thời điểm tuyệt đối) ---------------- */
+
+  function osc(type, freq, t0, dur, vel, slideTo = null) {
+    const o = ctx.createOscillator();
+    const gn = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(Math.max(1, freq), t0);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), t0 + dur);
+    gn.gain.setValueAtTime(vel, t0);
+    gn.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    o.connect(gn);
+    gn.connect(bus);
+    o.start(t0);
+    o.stop(t0 + dur + 0.03);
+  }
+
+  function noiseHit(t0, dur, vel, from, to) {
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = "bandpass";
+    f.frequency.setValueAtTime(from, t0);
+    f.frequency.exponentialRampToValueAtTime(Math.max(60, to), t0 + dur);
+    const gn = ctx.createGain();
+    gn.gain.setValueAtTime(vel, t0);
+    gn.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    src.connect(f);
+    f.connect(gn);
+    gn.connect(bus);
+    src.start(t0);
+    src.stop(t0 + dur + 0.02);
+  }
+
+  function scheduleEvent(e) {
+    const t0 = startAt + e.time;
+    switch (e.voice) {
+      case "kick":
+        osc("sine", 150, t0, e.dur, 0.95 * e.vel, 44);
+        break;
+      case "snare":
+        noiseHit(t0, e.dur, 0.5 * e.vel, 2400, 900);
+        osc("triangle", 210, t0, 0.06, 0.25 * e.vel, 140);
+        break;
+      case "hat":
+        noiseHit(t0, e.dur, 0.32 * e.vel, 8500, 6000);
+        break;
+      case "bass":
+        osc("square", e.freq, t0, e.dur, 0.3 * e.vel);
+        break;
+      case "lead":
+        osc("square", e.freq, t0, e.dur, 0.22 * e.vel);
+        osc("triangle", e.freq * 2.003, t0, e.dur * 0.85, 0.12 * e.vel);
+        break;
+    }
+  }
+
+  function pump() {
+    if (!running) return;
+    const now = ctx.currentTime - startAt;
+    while (nextIdx < events.length && events[nextIdx].time <= now + LOOKAHEAD) {
+      scheduleEvent(events[nextIdx]);
+      nextIdx++;
+    }
+  }
+
+  return {
+    /** true nếu có WebAudio thật (đồng hồ audio); false = fallback im lặng. */
+    get hasAudio() {
+      return hasAudio;
+    },
+
+    /** Bắt đầu bài sau `delay` giây (đếm ngược intro dùng chung đồng hồ). */
+    start(delay = 0) {
+      running = true;
+      nextIdx = 0;
+      if (hasAudio) {
+        ensureBus();
+        if (ctx.state === "suspended") ctx.resume().catch(() => {});
+        startAt = ctx.currentTime + delay;
+        pump();
+        timer = setInterval(pump, TICK_MS); // chỉ nạp hàng đợi — không phải đồng hồ
+      } else {
+        fbStart = performance.now() / 1000 + delay;
+        fbPausedAt = -1;
+      }
+    },
+
+    /** songTime hiện tại (giây, âm khi đang đếm ngược). */
+    now() {
+      if (hasAudio) return ctx.currentTime - startAt;
+      if (fbPausedAt >= 0) return fbPausedAt - fbStart;
+      return performance.now() / 1000 - fbStart;
+    },
+
+    pause() {
+      if (hasAudio) {
+        ctx.suspend().catch(() => {});
+      } else if (fbPausedAt < 0) {
+        fbPausedAt = performance.now() / 1000;
+      }
+    },
+
+    resume() {
+      if (hasAudio) {
+        ctx.resume().catch(() => {});
+      } else if (fbPausedAt >= 0) {
+        fbStart += performance.now() / 1000 - fbPausedAt;
+        fbPausedAt = -1;
+      }
+    },
+
+    /** Dừng hẳn + dọn node (bus disconnect → mọi event đã đặt lịch câm). */
+    stop() {
+      running = false;
+      clearInterval(timer);
+      if (bus) {
+        try {
+          bus.disconnect();
+        } catch {
+          /* bỏ qua */
+        }
+        bus = null;
+      }
+      // KHÔNG close ctx — dùng chung với SFX toàn arcade; bảo đảm resume
+      if (hasAudio && ctx.state === "suspended") ctx.resume().catch(() => {});
+    },
+  };
+}
+
+exports.createMusic = createMusic;
+};
+__defs["games/rhythm-hack/engine.js"] = function (exports, __req) {
+/**
+ * engine.js — bộ chấm điểm Rhythm Hack (thuần logic, test bằng node).
+ *
+ * Judgement window theo plan (đưa vào config SONG): Perfect ±45ms,
+ * Great ±90ms, Good ±140ms, ngoài đó = Miss. Scoring 1000/700/400/0,
+ * combo multiplier có trần, accuracy theo trọng số. Mỗi note chỉ được
+ * chấm MỘT lần; nhấn khi không có note trong cửa sổ → không tính gì
+ * (key repeat không tạo hit sai).
+ */
+
+const ACC_WEIGHT = { perfect: 1, great: 0.7, good: 0.4, miss: 0 };
+
+function createJudge(notes, config) {
+  const state = {
+    score: 0,
+    combo: 0,
+    maxCombo: 0,
+    counts: { perfect: 0, great: 0, good: 0, miss: 0 },
+    judged: 0,
+    total: notes.length,
+    accWeight: 0,
+    done: [], // trạng thái từng note: undefined | judgement
+  };
+
+  const { windows, scores, comboCap } = config;
+
+  function multiplier() {
+    return 1 + Math.min(state.combo, comboCap) * 0.02;
+  }
+
+  function record(judgement) {
+    state.counts[judgement] += 1;
+    state.judged += 1;
+    state.accWeight += ACC_WEIGHT[judgement];
+    if (judgement === "miss") {
+      state.combo = 0;
+    } else {
+      state.score += Math.round(scores[judgement] * multiplier());
+      state.combo += 1;
+      state.maxCombo = Math.max(state.maxCombo, state.combo);
+    }
+  }
+
+  return {
+    state,
+    multiplier,
+
+    /** Accuracy % theo trọng số trên số note ĐÃ chấm. */
+    accuracy() {
+      if (state.judged === 0) return 100;
+      return (state.accWeight / state.judged) * 100;
+    },
+
+    /**
+     * Người chơi nhấn lane tại songTime (đã cộng calibration offset).
+     * Trả về { judgement, delta, index } hoặc null nếu không có note
+     * trong cửa sổ Good (không phạt — chống key repeat / spam).
+     */
+    onKey(lane, t) {
+      let best = -1;
+      let bestAbs = Infinity;
+      for (let i = 0; i < notes.length; i++) {
+        if (state.done[i]) continue;
+        const n = notes[i];
+        if (n.lane !== lane) continue;
+        const d = t - n.time;
+        if (d < -windows.good) break; // notes sort theo time — quá sớm thì dừng
+        const ad = Math.abs(d);
+        if (ad <= windows.good && ad < bestAbs) {
+          bestAbs = ad;
+          best = i;
+        }
+      }
+      if (best < 0) return null;
+      const delta = t - notes[best].time;
+      const ad = Math.abs(delta);
+      const judgement = ad <= windows.perfect ? "perfect" : ad <= windows.great ? "great" : "good";
+      state.done[best] = judgement;
+      record(judgement);
+      return { judgement, delta, index: best };
+    },
+
+    /** Quét các note đã trôi quá cửa sổ Good mà chưa được chấm → Miss. */
+    tick(t) {
+      const missed = [];
+      for (let i = 0; i < notes.length; i++) {
+        if (state.done[i]) continue;
+        const n = notes[i];
+        if (t - n.time > windows.good) {
+          state.done[i] = "miss";
+          record("miss");
+          missed.push(i);
+        } else if (n.time - t > windows.good) {
+          break;
+        }
+      }
+      return missed;
+    },
+
+    isDone(i) {
+      return !!state.done[i];
+    },
+  };
+}
+
+exports.createJudge = createJudge; exports.ACC_WEIGHT = ACC_WEIGHT;
+};
+__defs["games/rhythm-hack/render.js"] = function (exports, __req) {
+/**
+ * render.js — vẽ highway 4 lane phối cảnh của Rhythm Hack theo ảnh
+ * reference: lane hẹp trên rộng dưới, màu cyan/tím/hồng/lime, note là
+ * thanh phát sáng trượt xuống, vạch hit + đế nhận sáng khi nhấn, chữ
+ * judgement PERFECT/GREAT/GOOD/MISS pop giữa màn, hạt sáng khi hit,
+ * nhịp nền pulse theo beat. Kèm painter trái tim pixel (SYSTEM REPAIR).
+ */
+
+const LANE_COLORS = ["#20e3ff", "#9a5cff", "#ff2e96", "#a8ff3e"];
+const APPROACH = 1.6; // giây từ mép trên tới vạch hit
+
+function createHighwayRenderer(canvas, container) {
+  const g = canvas.getContext("2d");
+  let dpr = 1;
+  let W = 0;
+  let H = 0;
+
+  const pops = []; // judgement text
+  const bursts = []; // hạt khi hit
+  const pressT = [0, 0, 0, 0]; // thời điểm nhấn lane
+  const missT = [0, 0, 0, 0];
+
+  function fit() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = container.clientWidth;
+    H = container.clientHeight;
+    canvas.width = Math.max(1, Math.round(W * dpr));
+    canvas.height = Math.max(1, Math.round(H * dpr));
+  }
+
+  const topY = () => H * 0.05;
+  const hitY = () => H * 0.8;
+  const topW = () => W * 0.22;
+  const botW = () => W * 0.92;
+
+  /** Tọa độ x biên lane i (0..4) tại độ sâu k (0 trên → 1 vạch hit). */
+  function edgeX(i, k) {
+    const w = topW() + (botW() - topW()) * k;
+    return W / 2 - w / 2 + (w / 4) * i;
+  }
+
+  const depth = (k) => k * k * 0.62 + k * 0.38; // phối cảnh: nhanh dần về gần
+
+  function laneCenterX(lane, k) {
+    return (edgeX(lane, k) + edgeX(lane + 1, k)) / 2;
+  }
+
+  function yAt(k) {
+    return topY() + (hitY() - topY()) * k;
+  }
+
+  /* ---------------- API hiệu ứng ---------------- */
+
+  function pop(text, color) {
+    pops.push({ text, color, t0: performance.now() / 1000 });
+    if (pops.length > 3) pops.shift();
+  }
+
+  function burst(lane, color, n = 10) {
+    const x = laneCenterX(lane, 1);
+    const y = hitY();
+    for (let i = 0; i < n; i++) {
+      if (bursts.length > 90) break;
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.8;
+      const sp = 90 + Math.random() * 220;
+      bursts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.5, color });
+    }
+  }
+
+  function press(lane) {
+    pressT[lane] = performance.now() / 1000;
+  }
+
+  function miss(lane) {
+    missT[lane] = performance.now() / 1000;
+  }
+
+  /* ---------------- khung hình ---------------- */
+
+  function draw(songTime, notes, judge, beat, dt) {
+    if (W === 0) fit();
+    const now = performance.now() / 1000;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // nền + pulse theo beat
+    const bg = g.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#070b20");
+    bg.addColorStop(1, "#0a0f2a");
+    g.fillStyle = bg;
+    g.fillRect(0, 0, W, H);
+    if (songTime > 0) {
+      const beatK = 1 - ((songTime / beat) % 1);
+      g.fillStyle = `rgba(32,120,255,${0.045 * beatK})`;
+      g.fillRect(0, 0, W, H);
+    }
+
+    // mặt highway
+    g.beginPath();
+    g.moveTo(edgeX(0, 0), topY());
+    g.lineTo(edgeX(4, 0), topY());
+    g.lineTo(edgeX(4, 1), hitY());
+    g.lineTo(edgeX(0, 1), hitY());
+    g.closePath();
+    g.fillStyle = "rgba(6, 9, 24, 0.85)";
+    g.fill();
+
+    // mỗi lane nhuộm màu riêng thường trực (như ảnh) + bừng sáng khi nhấn
+    for (let i = 0; i < 4; i++) {
+      const pk = Math.max(0, 1 - (now - pressT[i]) / 0.22);
+      const grad = g.createLinearGradient(0, topY(), 0, hitY());
+      const base = 0.13 + pk * 0.2;
+      grad.addColorStop(0, `${LANE_COLORS[i]}00`);
+      grad.addColorStop(0.55, `${LANE_COLORS[i]}${Math.round(base * 130).toString(16).padStart(2, "0")}`);
+      grad.addColorStop(1, `${LANE_COLORS[i]}${Math.round(base * 255).toString(16).padStart(2, "0")}`);
+      g.beginPath();
+      g.moveTo(edgeX(i, 0), topY());
+      g.lineTo(edgeX(i + 1, 0), topY());
+      g.lineTo(edgeX(i + 1, 1), hitY());
+      g.lineTo(edgeX(i, 1), hitY());
+      g.closePath();
+      g.fillStyle = grad;
+      g.fill();
+    }
+
+    // vạch chia lane (hội tụ)
+    for (let i = 0; i <= 4; i++) {
+      const glow = i === 0 || i === 4;
+      g.strokeStyle = glow ? "rgba(120, 170, 255, 0.5)" : "rgba(120, 150, 230, 0.22)";
+      g.lineWidth = glow ? 2.4 : 1.4;
+      g.beginPath();
+      g.moveTo(edgeX(i, 0), topY());
+      g.lineTo(edgeX(i, 1), hitY());
+      g.stroke();
+    }
+
+    // vạch ngang mờ chạy xuống (cảm giác tốc độ)
+    if (songTime > -3) {
+      for (let r = 0; r < 6; r++) {
+        const phase = ((songTime * 0.6 + r / 6) % 1 + 1) % 1;
+        const k = depth(phase);
+        g.strokeStyle = `rgba(100, 130, 210, ${0.1 * phase})`;
+        g.lineWidth = 1;
+        g.beginPath();
+        g.moveTo(edgeX(0, k), yAt(k));
+        g.lineTo(edgeX(4, k), yAt(k));
+        g.stroke();
+      }
+    }
+
+    // vạch HIT
+    g.strokeStyle = "rgba(240, 246, 255, 0.85)";
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(edgeX(0, 1) - 8, hitY());
+    g.lineTo(edgeX(4, 1) + 8, hitY());
+    g.stroke();
+
+    // đế nhận (receptor)
+    for (let i = 0; i < 4; i++) {
+      const x = laneCenterX(i, 1);
+      const pk = Math.max(0, 1 - (now - pressT[i]) / 0.25);
+      const mk = Math.max(0, 1 - (now - missT[i]) / 0.3);
+      const c = LANE_COLORS[i];
+      g.save();
+      g.strokeStyle = c;
+      g.globalAlpha = 0.5 + pk * 0.5;
+      g.lineWidth = 2.6 + pk * 2;
+      g.beginPath();
+      g.ellipse(x, hitY(), 30 + pk * 7, 10 + pk * 3, 0, 0, Math.PI * 2);
+      g.stroke();
+      if (pk > 0) {
+        g.globalAlpha = pk * 0.5;
+        g.fillStyle = c;
+        g.beginPath();
+        g.ellipse(x, hitY(), 22, 7, 0, 0, Math.PI * 2);
+        g.fill();
+      }
+      if (mk > 0) {
+        g.globalAlpha = mk * 0.6;
+        g.strokeStyle = "#ff3b4f";
+        g.beginPath();
+        g.ellipse(x, hitY(), 34 + (1 - mk) * 14, 12, 0, 0, Math.PI * 2);
+        g.stroke();
+      }
+      g.restore();
+    }
+
+    // notes (chỉ vẽ vùng nhìn thấy)
+    for (let i = 0; i < notes.length; i++) {
+      const n = notes[i];
+      const tRel = n.time - songTime;
+      if (tRel > APPROACH) break;
+      if (tRel < -0.12 || judge.isDone(i)) continue;
+      const k = depth(1 - tRel / APPROACH);
+      const y = yAt(k);
+      const laneW = edgeX(n.lane + 1, k) - edgeX(n.lane, k);
+      const x = laneCenterX(n.lane, k);
+      const w = laneW * 0.72;
+      const h = 7 + k * 13;
+      const c = LANE_COLORS[n.lane];
+      g.save();
+      g.shadowColor = c;
+      g.shadowBlur = 6 + k * 10;
+      g.fillStyle = c;
+      g.beginPath();
+      g.roundRect(x - w / 2, y - h / 2, w, h, h / 2);
+      g.fill();
+      g.shadowBlur = 0;
+      g.fillStyle = "rgba(255,255,255,0.55)";
+      g.beginPath();
+      g.roundRect(x - w / 2 + 3, y - h / 2 + 2, w - 6, Math.max(2, h * 0.28), 3);
+      g.fill();
+      g.restore();
+    }
+
+    // hạt hit
+    for (let i = bursts.length - 1; i >= 0; i--) {
+      const p = bursts[i];
+      p.life -= dt;
+      if (p.life <= 0) {
+        bursts.splice(i, 1);
+        continue;
+      }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 320 * dt;
+      g.globalAlpha = Math.min(1, p.life * 2.4);
+      g.fillStyle = p.color;
+      g.fillRect(p.x - 2, p.y - 2, 4, 4);
+      g.globalAlpha = 1;
+    }
+
+    // judgement pop (giữa màn như ảnh: ═ PERFECT ═)
+    for (let i = pops.length - 1; i >= 0; i--) {
+      const p = pops[i];
+      const k = (now - p.t0) / 0.55;
+      if (k > 1) {
+        pops.splice(i, 1);
+        continue;
+      }
+      const scale = k < 0.18 ? 0.7 + (k / 0.18) * 0.34 : 1.04 - (k - 0.18) * 0.06;
+      g.save();
+      g.translate(W / 2, H * 0.42);
+      g.scale(scale, scale);
+      g.globalAlpha = k > 0.72 ? 1 - (k - 0.72) / 0.28 : 1;
+      g.font = `800 ${Math.round(Math.min(52, W * 0.062))}px 'JetBrains Mono', monospace`;
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.shadowColor = p.color;
+      g.shadowBlur = 20;
+      g.fillStyle = p.color;
+      g.fillText(p.text, 0, 0);
+      g.shadowBlur = 0;
+      const tw = g.measureText(p.text).width;
+      g.fillRect(-tw / 2 - 44, -2, 30, 4);
+      g.fillRect(tw / 2 + 14, -2, 30, 4);
+      g.restore();
+    }
+
+    // đếm ngược trước khi nhạc bắt đầu
+    if (songTime < 0) {
+      const n = Math.ceil(-songTime / beat);
+      g.save();
+      g.font = `800 ${Math.round(H * 0.14)}px 'JetBrains Mono', monospace`;
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillStyle = "rgba(240,246,255,0.9)";
+      g.shadowColor = "#20e3ff";
+      g.shadowBlur = 26;
+      g.fillText(String(Math.max(1, n)), W / 2, H * 0.42);
+      g.restore();
+    }
+  }
+
+  /** Vùng chạm: quy đổi clientX → lane (theo bề rộng đáy highway). */
+  function laneFromClientX(clientX) {
+    const r = canvas.getBoundingClientRect();
+    const x = clientX - r.left;
+    for (let i = 0; i < 4; i++) {
+      if (x >= edgeX(i, 1) && x < edgeX(i + 1, 1)) return i;
+    }
+    return x < W / 2 ? 0 : 3;
+  }
+
+  return { fit, draw, pop, burst, press, miss, laneFromClientX };
+}
+
+/* ---------------- Trái tim pixel (panel SYSTEM REPAIR như ảnh) ---------------- */
+
+const HEART = [
+  ".XX...XX.",
+  "XXXX.XXXX",
+  "XXXXXXXXX",
+  "XXXXXXXXX",
+  ".XXXXXXX.",
+  "..XXXXX..",
+  "...XXX...",
+  "....X....",
+];
+
+function paintHeart(canvas, progress) {
+  const rows = HEART.length;
+  const cols = HEART[0].length;
+  const cell = 12;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = cols * cell * dpr;
+  canvas.height = rows * cell * dpr;
+  const g = canvas.getContext("2d");
+  g.scale(dpr, dpr);
+  const cells = [];
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      if (HEART[y][x] === "X") cells.push([x, y]);
+    }
+  }
+  // thắp sáng từ dưới lên theo progress
+  cells.sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+  const lit = Math.round(cells.length * Math.max(0, Math.min(1, progress)));
+  cells.forEach(([x, y], i) => {
+    const on = i < lit;
+    g.fillStyle = on ? "#2fa8ff" : "rgba(47, 123, 255, 0.16)";
+    g.fillRect(x * cell + 1, y * cell + 1, cell - 2, cell - 2);
+    if (on) {
+      g.fillStyle = "rgba(180, 230, 255, 0.65)";
+      g.fillRect(x * cell + 2, y * cell + 2, 3, 3);
+    }
+  });
+}
+
+exports.createHighwayRenderer = createHighwayRenderer; exports.paintHeart = paintHeart; exports.LANE_COLORS = LANE_COLORS;
+};
+__defs["games/rhythm-hack/styles.js"] = function (exports, __req) {
+/**
+ * styles.js — CSS riêng Rhythm Hack: panel ĐIỂM/COMBO/CHÍNH XÁC bên
+ * trái (khung cắt góc như ảnh), panel SYSTEM REPAIR (tim pixel + thanh
+ * tiến trình) và TERMINAL bên phải, hàng phím D F J K dạng bát giác màu
+ * theo lane — đồng thời là 4 vùng chạm cho mobile/tablet.
+ */
+
+const RH_CSS = /* css */ `
+.rh-layout {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.rh-col {
+  flex: none;
+  width: 176px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.rh-col.right { width: 216px; }
+
+.rh-stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rh-canvasbox { position: relative; flex: 1; min-height: 0; }
+
+.rh-canvasbox canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* ---------- panel chỉ số trái (cắt góc như ảnh) ---------- */
+.rh-panel {
+  position: relative;
+  padding: 1px;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--tone, var(--cyan)) 62%, transparent), color-mix(in srgb, var(--tone, var(--cyan)) 14%, transparent));
+}
+
+.rh-panel[data-tone="cyan"]  { --tone: var(--cyan); }
+.rh-panel[data-tone="pink"]  { --tone: var(--pink); }
+.rh-panel[data-tone="lime"]  { --tone: var(--lime); }
+
+.rh-panel > .in {
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  background: rgba(7, 11, 28, 0.94);
+  padding: 12px 14px;
+  text-align: center;
+}
+
+.rh-panel .lbl {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.rh-panel .val {
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1.05;
+  color: var(--tone);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--tone) 55%, transparent);
+}
+
+.rh-panel .eq {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+  margin-top: 7px;
+  height: 10px;
+  align-items: flex-end;
+}
+
+.rh-panel .eq i {
+  width: 5px;
+  background: color-mix(in srgb, var(--tone) 65%, transparent);
+  height: 30%;
+}
+
+/* ---------- panel phải: SYSTEM REPAIR + TERMINAL ---------- */
+.rh-side {
+  border: 1px solid color-mix(in srgb, var(--cyan) 30%, transparent);
+  border-radius: 8px;
+  background: rgba(7, 11, 28, 0.9);
+  padding: 11px 12px;
+}
+
+.rh-side h3 {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: var(--cyan);
+  margin-bottom: 8px;
+}
+
+.rh-heartbox {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0 10px;
+}
+
+.rh-heartbox canvas { width: 108px; height: 96px; image-rendering: pixelated; }
+
+.rh-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-1);
+}
+
+.rh-progress {
+  flex: 1;
+  height: 8px;
+  border: 1px solid color-mix(in srgb, var(--cyan) 40%, transparent);
+  background: rgba(10, 16, 38, 0.9);
+  overflow: hidden;
+}
+
+.rh-progress > i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: repeating-linear-gradient(90deg, var(--cyan) 0 6px, color-mix(in srgb, var(--cyan) 45%, transparent) 6px 8px);
+}
+
+.rh-progress-pct { color: var(--cyan); font-size: 0.66rem; font-weight: 800; }
+
+.rh-term {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rh-term .lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 5px;
+  font-size: 0.6rem;
+  line-height: 1.4;
+  color: var(--text-1);
+  overflow: hidden;
+}
+
+.rh-term .lines span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rh-term .lines .ok::after { content: " OK"; color: var(--lime); font-weight: 800; }
+.rh-term .lines .fail { color: var(--red); }
+.rh-term .lines .info { color: var(--cyan); }
+.rh-term .cursor { color: var(--text-0); animation: rhBlink 1s steps(1) infinite; }
+
+@keyframes rhBlink { 50% { opacity: 0; } }
+
+/* ---------- hàng phím D F J K ---------- */
+.rh-keys {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  padding: 10px 0 4px;
+}
+
+.rh-key {
+  width: 64px;
+  height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 34%, 100% 100%, 0 100%, 0 34%);
+  border: none;
+  outline: 2px solid var(--tone);
+  outline-offset: -2px;
+  background: linear-gradient(180deg, rgba(14, 20, 46, 0.95), rgba(7, 10, 26, 0.95));
+  color: var(--tone);
+  font-family: inherit;
+  font-size: 1.3rem;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
+  transition: transform 0.06s ease, box-shadow 0.06s ease;
+}
+
+.rh-key[data-tone="cyan"]  { --tone: var(--cyan); }
+.rh-key[data-tone="violet"]{ --tone: var(--violet); }
+.rh-key[data-tone="pink"]  { --tone: var(--pink); }
+.rh-key[data-tone="lime"]  { --tone: var(--lime); }
+
+.rh-key.held,
+.rh-key:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5), 0 0 22px color-mix(in srgb, var(--tone) 55%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone) 24%, rgba(14, 20, 46, 0.95)), rgba(7, 10, 26, 0.95));
+}
+
+@media (max-width: 920px) {
+  .rh-col { display: none; }
+  .rh-key { width: 56px; height: 50px; }
+}
+`;
+
+exports.RH_CSS = RH_CSS;
+};
 __defs["ui/overlays.js"] = function (exports, __req) {
 /**
  * overlays.js — các panel overlay dùng chung cho game 2D:
@@ -21639,6 +25212,259 @@ function defenseArt(ctx) {
   ctx.fillText("CORE 86%", 272, 34);
 }
 
+/* ---------- Rogue Arena: đấu trường neon + robot + enemy hình học ---------- */
+function rogueArt(ctx) {
+  const rand = seededRand(909);
+  const bg = ctx.createRadialGradient(W / 2, H / 2, 20, W / 2, H / 2, 220);
+  bg.addColorStop(0, "#0d1330");
+  bg.addColorStop(1, "#060a1c");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // vòng tròn sàn + tường
+  ctx.strokeStyle = "rgba(100,140,255,.14)";
+  ctx.lineWidth = 1.6;
+  for (const r of [28, 52, 76]) {
+    ctx.beginPath();
+    ctx.arc(W / 2, H / 2, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = "rgba(110,130,210,.4)";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(8, 8, W - 16, H - 16);
+  // dải neon góc
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "rgba(255,46,150,1)";
+  ctx.beginPath();
+  ctx.moveTo(52, 12);
+  ctx.lineTo(12, 12);
+  ctx.lineTo(12, 52);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(32,227,255,1)";
+  ctx.beginPath();
+  ctx.moveTo(W - 52, H - 12);
+  ctx.lineTo(W - 12, H - 12);
+  ctx.lineTo(W - 12, H - 52);
+  ctx.stroke();
+
+  // tia điện tỏa từ robot
+  ctx.strokeStyle = "rgba(32,227,255,.8)";
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i + 0.4;
+    ctx.beginPath();
+    ctx.moveTo(W / 2 + Math.cos(a) * 22, H / 2 + Math.sin(a) * 22);
+    ctx.lineTo(W / 2 + Math.cos(a) * (44 + rand() * 22), H / 2 + Math.sin(a) * (40 + rand() * 20));
+    ctx.stroke();
+  }
+
+  // robot giữa
+  ctx.save();
+  ctx.translate(W / 2, H / 2);
+  ctx.strokeStyle = "rgba(32,227,255,.4)";
+  ctx.beginPath();
+  ctx.arc(0, 5, 17, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "#e8edff";
+  ctx.beginPath();
+  ctx.roundRect(-10, -11, 20, 20, 5);
+  ctx.fill();
+  ctx.fillStyle = "#0a1224";
+  ctx.beginPath();
+  ctx.roundRect(-6, -7, 12, 7, 3);
+  ctx.fill();
+  ctx.save();
+  ctx.shadowColor = "#20e3ff";
+  ctx.shadowBlur = 7;
+  ctx.fillStyle = "#20e3ff";
+  ctx.fillRect(-4, -5.4, 8, 3);
+  ctx.restore();
+  ctx.restore();
+
+  // enemy hình học
+  const tri = (x, y, r, color, dark) => {
+    ctx.fillStyle = dark;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y - r);
+    ctx.lineTo(x + r, y + r * 0.75);
+    ctx.lineTo(x - r, y + r * 0.75);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "rgba(10,10,20,.8)";
+    ctx.fillRect(x - r * 0.8, y - r - 7, r * 1.6, 3);
+    ctx.fillStyle = "#ff3b4f";
+    ctx.fillRect(x - r * 0.8, y - r - 7, r * 1.1, 3);
+  };
+  tri(64, 66, 13, "#ff2e96", "#3d1030");
+  tri(250, 148, 12, "#ff2e96", "#3d1030");
+  tri(226, 52, 11, "#ff3b4f", "#3c0a12");
+  // shooter cube
+  ctx.fillStyle = "#38080c";
+  ctx.strokeStyle = "#ff3b4f";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(272, 82, 26, 26, 4);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = "#ff8091";
+  ctx.beginPath();
+  ctx.arc(285, 95, 6, 0, Math.PI * 2);
+  ctx.stroke();
+  // tank cube tím
+  ctx.fillStyle = "#241040";
+  ctx.strokeStyle = "#9a5cff";
+  ctx.beginPath();
+  ctx.roundRect(52, 128, 30, 30, 5);
+  ctx.fill();
+  ctx.stroke();
+
+  // gem XP
+  const gem = (x, y) => {
+    ctx.fillStyle = "#20e3ff";
+    ctx.beginPath();
+    ctx.moveTo(x, y - 6);
+    ctx.lineTo(x + 4.5, y);
+    ctx.lineTo(x, y + 6);
+    ctx.lineTo(x - 4.5, y);
+    ctx.closePath();
+    ctx.fill();
+  };
+  gem(130, 140);
+  gem(196, 60);
+  gem(160, 158);
+  // hex XP lime
+  ctx.strokeStyle = "#a8ff3e";
+  ctx.fillStyle = "rgba(30,46,8,.92)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i - Math.PI / 6;
+    const x = 118 + Math.cos(a) * 11;
+    const y = 84 + Math.sin(a) * 11;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#a8ff3e";
+  ctx.font = "800 8px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("XP", 118, 87);
+  // chữ nổi
+  ctx.fillStyle = "#20e3ff";
+  ctx.font = "800 11px monospace";
+  ctx.fillText("+40 XP", 108, 118);
+}
+
+/* ---------- Rhythm Hack: highway 4 lane phối cảnh ---------- */
+function rhythmArt(ctx) {
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#070b20");
+  bg.addColorStop(1, "#0a0f2a");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const laneColors = ["#20e3ff", "#9a5cff", "#ff2e96", "#a8ff3e"];
+  const topY = 16;
+  const hitY = 158;
+  const topW = 74;
+  const botW = 286;
+  const edgeX = (i, k) => {
+    const w = topW + (botW - topW) * k;
+    return W / 2 - w / 2 + (w / 4) * i;
+  };
+
+  // mặt highway
+  ctx.fillStyle = "rgba(6,9,24,.9)";
+  ctx.beginPath();
+  ctx.moveTo(edgeX(0, 0), topY);
+  ctx.lineTo(edgeX(4, 0), topY);
+  ctx.lineTo(edgeX(4, 1), hitY);
+  ctx.lineTo(edgeX(0, 1), hitY);
+  ctx.closePath();
+  ctx.fill();
+
+  // vạch chia lane
+  for (let i = 0; i <= 4; i++) {
+    ctx.strokeStyle = i === 0 || i === 4 ? "rgba(120,170,255,.55)" : "rgba(120,150,230,.25)";
+    ctx.lineWidth = i === 0 || i === 4 ? 2.4 : 1.4;
+    ctx.beginPath();
+    ctx.moveTo(edgeX(i, 0), topY);
+    ctx.lineTo(edgeX(i, 1), hitY);
+    ctx.stroke();
+  }
+
+  // notes trên các lane
+  const note = (lane, k) => {
+    const y = topY + (hitY - topY) * (k * k * 0.62 + k * 0.38);
+    const w = (edgeX(lane + 1, k) - edgeX(lane, k)) * 0.72;
+    const x = (edgeX(lane, k) + edgeX(lane + 1, k)) / 2;
+    const h = 5 + k * 9;
+    ctx.save();
+    ctx.shadowColor = laneColors[lane];
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = laneColors[lane];
+    ctx.beginPath();
+    ctx.roundRect(x - w / 2, y - h / 2, w, h, h / 2);
+    ctx.fill();
+    ctx.restore();
+  };
+  note(0, 0.3);
+  note(1, 0.55);
+  note(2, 0.75);
+  note(3, 0.42);
+  note(1, 0.16);
+
+  // vạch hit + đế nhận
+  ctx.strokeStyle = "rgba(240,246,255,.85)";
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(edgeX(0, 1) - 6, hitY);
+  ctx.lineTo(edgeX(4, 1) + 6, hitY);
+  ctx.stroke();
+  for (let i = 0; i < 4; i++) {
+    const x = (edgeX(i, 1) + edgeX(i + 1, 1)) / 2;
+    ctx.strokeStyle = laneColors[i];
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.ellipse(x, hitY, 20, 6.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // chữ PERFECT giữa
+  ctx.save();
+  ctx.font = "800 22px monospace";
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#20e3ff";
+  ctx.shadowColor = "#20e3ff";
+  ctx.shadowBlur = 14;
+  ctx.fillText("PERFECT", W / 2, 92);
+  ctx.fillRect(W / 2 - 86, 89, 18, 3);
+  ctx.fillRect(W / 2 + 68, 89, 18, 3);
+  ctx.restore();
+
+  // phím D F J K
+  const keys = ["D", "F", "J", "K"];
+  for (let i = 0; i < 4; i++) {
+    const x = (edgeX(i, 1) + edgeX(i + 1, 1)) / 2;
+    ctx.fillStyle = "rgba(10,14,32,.95)";
+    ctx.strokeStyle = laneColors[i];
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(x - 17, 168, 34, 26, 5);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = laneColors[i];
+    ctx.font = "800 15px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(keys[i], x, 187);
+  }
+}
+
 const PAINTERS = {
   runner: runnerArt,
   "bug-hunter": bugArt,
@@ -21648,6 +25474,8 @@ const PAINTERS = {
   "portal-puzzle": portalArt,
   "neon-drift": driftArt,
   "cyber-defense": defenseArt,
+  "rogue-arena": rogueArt,
+  "rhythm-hack": rhythmArt,
   "void-runner": voidRunnerArt,
 };
 

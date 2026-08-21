@@ -630,12 +630,32 @@ def test_rhythm(c):
     console_clean(c, "rhythm open/close")
 
 
+# ==================== REGRESSION 5 GAME CŨ (smoke) ====================
+
+def test_old_games(c):
+    print("\n== Regression 5 game cũ (smoke) ==")
+    go_home(c, fresh_storage=True)
+    total = c.js(sr("sr.querySelectorAll('.game-card').length"))
+    check("trang chọn game ≥ 10 card", isinstance(total, int) and total >= 10, f"= {total}")
+    for title in ["Endless Runner", "Bug Hunter", "Stack Tower", "Snake"]:
+        ok = open_game(c, title)
+        time.sleep(1.2)
+        stage = c.js(sr("!sr.querySelector('[data-ref=stage]')?.hidden"))
+        surface_has_canvas = c.js(sr("sr.querySelectorAll('[data-ref=surface] canvas').length")) >= 1
+        check(f"{title}: mở được (stage + canvas)", bool(ok) and bool(stage) and bool(surface_has_canvas))
+        key(c, "Escape")
+        time.sleep(0.5)
+        check(f"{title}: Esc đóng sạch", c.js(sr("sr.querySelector('[data-ref=surface]').childElementCount === 0")))
+    console_clean(c, "old games smoke")
+
+
 SECTIONS = {
     "portal": test_portal,
     "drift": test_drift,
     "defense": test_defense,
     "rogue": test_rogue,
     "rhythm": test_rhythm,
+    "old": test_old_games,
 }
 
 

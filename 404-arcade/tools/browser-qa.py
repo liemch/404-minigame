@@ -15,6 +15,7 @@ Kiểm tra: trang chọn game (lazy-load), 404 Strike trọn vòng đời
 import base64
 import json
 import os
+import re
 import socket
 import struct
 import sys
@@ -24,6 +25,13 @@ import urllib.request
 BASE = os.environ.get("ARCADE_QA_BASE", "http://127.0.0.1:8404/404-arcade/")
 SHOT_DIR = os.environ.get("ARCADE_QA_SHOTS", "/tmp/arcade-browser-qa")
 QA_PORT = int(os.environ.get("ARCADE_QA_PORT", "9222"))
+
+
+def registry_count():
+    """Đọc SỐ GAME động từ game-registry.js (mảng GAMES lớn dần theo expansion)."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "core", "game-registry.js")
+    with open(path, encoding="utf-8") as f:
+        return len(re.findall(r'^\s*id: "', f.read(), re.M))
 
 
 class WS:
@@ -195,8 +203,9 @@ def main():
     print("== Home ==")
     c.cmd("Page.navigate", {"url": BASE})
     time.sleep(1.6)
+    expected = registry_count()
     n_cards = c.js(sr("sr.querySelectorAll('.game-card').length"))
-    check("card game >= 5", isinstance(n_cards, int) and n_cards >= 5, f"{n_cards} card")
+    check(f"đủ {expected} card game (đọc động từ registry)", n_cards == expected, f"{n_cards} card")
     check(
         "lazy-load: chưa tải module game nào",
         c.js("performance.getEntriesByType('resource').filter(r=>r.name.includes('/games/')).length") == 0,
@@ -242,7 +251,7 @@ def main():
     c.cmd("Page.navigate", {"url": BASE + "examples/vanilla/"})
     time.sleep(1.6)
     n_iife = c.js(sr("sr.querySelectorAll('.game-card').length"))
-    check("IIFE render card >= 5", isinstance(n_iife, int) and n_iife >= 5, f"{n_iife} card")
+    check(f"IIFE render đủ {expected} card", n_iife == expected, f"{n_iife} card")
     console_clean(c, "iife")
 
     print("\n========== KẾT QUẢ ==========")

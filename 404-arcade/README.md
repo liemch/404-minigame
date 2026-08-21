@@ -9,9 +9,14 @@ Trang 404 dạng arcade đóng gói thành **một Web Component độc lập**:
 | Stack Tower | 2D Canvas | Click / Space / chạm |
 | Snake | 2D Canvas | Mũi tên / WASD / vuốt / d-pad |
 | **404 Strike** | **3D FPS (WebGL)** | WASD + chuột, Pointer Lock, desktop-first |
+| **Portal Puzzle 404** | 2D puzzle 15 màn | Mũi tên/WASD · U hoàn tác · R chơi lại · H gợi ý (3 lượt/màn) · vuốt/chạm ô kề |
 | **Void Runner 404** | **3D Parkour (WebGL)** | WASD + chuột, Space nhảy, Shift sprint, Ctrl trượt, wall-run, desktop-first |
+| **Neon Drift 404** | 2D đua xe top-down | ↑↓←→/WASD · Space drift · Shift nitro · mobile: nút ◀ ▶ + NITRO, tự ga |
+| **Cyber Defense** | 2D tower defense 8 wave | Click chọn tháp → click pad để xây · 1–5 chọn nhanh · nâng cấp 3 cấp / bán 70% |
+| **Rogue Arena** | 2D survival 3 phút | WASD di chuyển (vũ khí TỰ NHẮM) · 1/2/3 chọn nâng cấp · joystick mobile |
+| **Rhythm Hack** | 2D rhythm 4 lane | D F J K theo nhịp · chạm 4 vùng lane · pause có chỉnh độ trễ ±150ms |
 
-Điểm cao + cài đặt lưu bằng `localStorage` (có namespace). CSS cô lập trong shadow DOM. Không backend, không CDN, không đăng nhập.
+Điểm cao + cài đặt lưu bằng `localStorage` (có namespace). CSS cô lập trong shadow DOM. Không backend, không CDN, không đăng nhập. Nhạc nền Rhythm Hack + toàn bộ SFX **tổng hợp trực tiếp bằng WebAudio** — không file audio ngoài.
 
 ---
 
@@ -62,12 +67,14 @@ error_page 404 /404/index.html;   # Nginx
   home-url="/"
   home-label="Về trang chủ"
   default-game=""
-  enabled-games="runner,bug-hunter,stack-tower,snake,strike"
+  enabled-games="runner,bug-hunter,stack-tower,snake,strike,portal-puzzle,void-runner,neon-drift,cyber-defense,rogue-arena,rhythm-hack"
   sound="off"
   locale="vi"
   storage-prefix="arcade404"
 ></arcade-404>
 ```
+
+**Bật/tắt game:** bỏ trống `enabled-games` để hiện TẤT CẢ game trong registry; hoặc liệt kê id (phân tách bằng dấu phẩy) để chỉ bật một phần, ví dụ `enabled-games="snake,portal-puzzle,rhythm-hack"`. Id hợp lệ: `runner`, `bug-hunter`, `stack-tower`, `snake`, `strike`, `portal-puzzle`, `void-runner`, `neon-drift`, `cyber-defense`, `rogue-arena`, `rhythm-hack`.
 
 ### Properties / Methods
 
@@ -134,17 +141,45 @@ src/
     │   ├── player.js weapon.js bots.js fx.js pickups.js
     │   ├── hud.js screens.js styles.js       # HUD + start/pause/kết thúc trận
     │   └── index.js        # vòng đời + wave + điểm + pointer lock
-    └── void-runner/        # Void Runner 404 (parkour 3D góc nhìn thứ nhất)
-        ├── course.js       # dữ liệu 8 zone theo blueprint (1 unit = 1 m):
-        │                   # xuất phát → nhảy → wall-run → trượt → platform
-        │                   # động → laser → leap cuối → đích (chữ U)
-        ├── world.js        # dựng scene + collider + laser/pad/shard/gate/
-        │                   # portal + landing marker + skyline cyber
-        ├── player.js       # capsule controller: coyote time, jump buffer,
-        │                   # slide, wall-run, moving platform displacement
-        ├── gloves.js fx.js # viewmodel găng neon + particle/speed streaks
-        ├── hud.js screens.js styles.js config.js  # HUD + start/pause/results
-        └── index.js        # vòng đời + timer/energy/combo + pointer lock
+    ├── void-runner/        # Void Runner 404 (parkour 3D góc nhìn thứ nhất)
+    │   ├── course.js       # dữ liệu 8 zone theo blueprint (1 unit = 1 m):
+    │   │                   # xuất phát → nhảy → wall-run → trượt → platform
+    │   │                   # động → laser → leap cuối → đích (chữ U)
+    │   ├── world.js        # dựng scene + collider + laser/pad/shard/gate/
+    │   │                   # portal + landing marker + skyline cyber
+    │   ├── player.js       # capsule controller: coyote time, jump buffer,
+    │   │                   # slide, wall-run, moving platform displacement
+    │   ├── gloves.js fx.js # viewmodel găng neon + particle/speed streaks
+    │   ├── hud.js screens.js styles.js config.js  # HUD + start/pause/results
+    │   └── index.js        # vòng đời + timer/energy/combo + pointer lock
+    ├── _shared/            # KHUNG DÙNG CHUNG cho 5 game expansion 6–10:
+    │   │                   # top bar (tên game + chỉ số + TẠM DỪNG/ÂM THANH/
+    │   │                   # ĐỔI GAME/TRANG CHỦ), intro/pause/results, toast
+    │   └── frame.js frame-styles.js
+    ├── portal-puzzle/      # Portal Puzzle 404 — puzzle lưới data-driven
+    │   ├── engine.js       # logic thuần (test bằng node): đẩy thùng, công tắc
+    │   │                   # giữ/bật-tắt, portal 2 chiều, laser, giới hạn bước
+    │   ├── levels.js       # 15 màn ASCII + lời giải BFS (par/hint sinh từ solver)
+    │   └── render.js styles.js index.js  # board canvas + sidebar + Undo/Hint
+    ├── neon-drift/         # Neon Drift 404 — đua xe drift top-down
+    │   ├── track.js        # polyline khép kín Catmull-Rom + 8 checkpoint + decor
+    │   ├── physics.js      # fixed timestep 1/120s: drift/nitro/va chạm/xe cản
+    │   └── render.js styles.js index.js  # camera + trail + minimap + nút mobile
+    ├── cyber-defense/      # Cyber Defense — tower defense 8 wave
+    │   ├── data.js         # 2 tuyến đường, 14 pad, 5 tháp (2 khóa wave), 8 wave
+    │   ├── engine.js       # sim thuần (test node): targeting, economy, slow…
+    │   └── render.js styles.js index.js  # PCB board + build bar + panel tháp
+    ├── rogue-arena/        # Rogue Arena — survival 3 phút
+    │   ├── data.js         # 8 nâng cấp {id,name,description,maxLevel,weight,apply}
+    │   ├── engine.js       # OBJECT POOL + SPATIAL HASH + auto-aim hysteresis
+    │   └── render.js styles.js index.js  # đấu trường + level-up panel + joystick
+    └── rhythm-hack/        # Rhythm Hack — rhythm 4 lane D/F/J/K
+        ├── chart.js        # bài "SYSTEM REPAIR" 124 BPM: nhạc + note SINH TỪ
+        │                   # CÙNG pattern (nhạc-note luôn khớp)
+        ├── audio.js        # chiptune synth + lookahead scheduler; ĐỒNG HỒ CHUẨN
+        │                   # là audioContext.currentTime (pause = suspend)
+        ├── engine.js       # judgement ±45/±90/±140ms, combo cap, accuracy
+        └── render.js styles.js index.js  # highway phối cảnh + panels + calib
 ```
 
 **Interface bắt buộc của mỗi game** (game-controller gọi):
@@ -177,13 +212,31 @@ npm run build            # Vite ES + IIFE (cần mạng để npm install lần 
 > Máy không có Node? Dùng runtime của Cursor/VS Code:
 > `ELECTRON_RUN_AS_NODE=1 /usr/share/cursor/cursor tools/bundle.mjs`
 
+**Test gói expansion (game 6–10):**
+
+```bash
+# Unit test logic thuần (38 test: 15 lời giải Portal, kinh tế/8 wave Cyber Defense,
+# hysteresis/pool/trọn trận Rogue Arena, judgement/chart Rhythm Hack)
+ELECTRON_RUN_AS_NODE=1 /usr/share/cursor/cursor --test tools/expansion5.test.mjs
+
+# Integration test trên Chrome headless (server 8404 + CDP port 9223)
+python3 tools/expansion5-qa.py all        # hoặc: portal|drift|defense|rogue|rhythm|old
+
+# Regression tổng (trang chọn game đọc SỐ CARD ĐỘNG từ registry + 404 Strike + IIFE)
+ARCADE_QA_PORT=9223 python3 tools/browser-qa.py
+
+# Solver BFS in lời giải tối ưu 15 màn Portal Puzzle (dùng khi thiết kế màn mới)
+ELECTRON_RUN_AS_NODE=1 /usr/share/cursor/cursor tools/portal-solver.mjs
+```
+
 ## 6. Ghi chú kỹ thuật quan trọng
 
 - **Renderer 3D là WebGL thuần dùng chung** (`games/strike/engine.js`, API mô phỏng Three.js: node/mesh/camera/fog/camera-roll/raycast; geometry: box, plane, tri, gem, cyl, ring). Lý do: môi trường phát triển offline không thể cài `three` từ npm. 404 Strike và Void Runner 404 cùng import engine này (Void Runner chỉ tải engine khi được chọn — vẫn lazy). Toàn bộ hình khối low-poly + texture canvas là nguyên bản, không dùng tài sản bên thứ ba. Muốn chuyển sang Three.js: thay `engine.js`, giữ nguyên API các module còn lại; `vite.config.js` đã sẵn sàng cho code-splitting.
 - **Void Runner 404**: movement controller theo plan (coyote time + jump buffer, slide không đứng dậy dưới trần, wall-run chỉ trên tường đánh dấu, moving platform truyền displacement, jump pad boost); 8 checkpoint kích hoạt theo thứ tự, respawn + penalty theo độ khó; kết quả chính là thời gian (best time lưu prefs) + điểm tổng hợp lưu qua hệ thống điểm chung. Settings (âm lượng, độ nhạy chuột, FOV 75–105, chất lượng, rung, giảm chuyển động) persist bằng storage.
 - Không autoplay audio trước tương tác thật (`isTrusted` + `userActivation`); SFX tổng hợp WebAudio, không file ngoài.
 - Tự pause khi tab ẩn; Pointer Lock được giải phóng khi thoát 404 Strike; đổi game nhiều lần không rò rỉ (canvas/listener/GL đều được dispose — đã kiểm chứng bằng integration test trên Chrome thật).
-- Mobile: 4 game 2D responsive từ 360px (Snake có d-pad); 404 Strike hiển thị "Tối ưu cho máy tính". WebGL không khả dụng → màn hình fallback, 4 game 2D vẫn chạy.
+- Mobile: các game 2D responsive từ 360px (Snake có d-pad; Neon Drift có nút ◀ ▶ + NITRO và tự ga; Rogue Arena có joystick ảo; Portal Puzzle vuốt/chạm ô kề; Rhythm Hack chạm 4 vùng lane; Cyber Defense thao tác hoàn toàn bằng chạm). 404 Strike / Void Runner hiển thị "Tối ưu cho máy tính". WebGL không khả dụng → màn hình fallback, các game 2D vẫn chạy.
+- Gói expansion 6–10: cả 5 game dùng khung chrome chung `games/_shared/frame.js` (fullBleed — tự vẽ top bar/intro/pause/results theo ảnh reference); Rhythm Hack lấy AudioContext qua `audio.getContext()` và pause bằng `suspend()` nên chart không bao giờ lệch nhịp; Rogue Arena dùng object pool + spatial hash (không O(n²)); tiến trình 15 màn Portal Puzzle lưu `storage.setPref`.
 - Tôn trọng `prefers-reduced-motion`; nút tối thiểu 44×44px; focus-visible rõ.
 
 ## 7. Hạn chế hiện tại
