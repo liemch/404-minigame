@@ -406,7 +406,7 @@ export function createGame() {
         if (!ball.trail) ball.trail = [];
         if (!ball.stuck) {
           ball.trail.push({ x: ball.x, y: ball.y });
-          if (ball.trail.length > 15) ball.trail.shift();
+          if (ball.trail.length > 28) ball.trail.shift();
         } else {
           ball.trail.length = 0;
         }

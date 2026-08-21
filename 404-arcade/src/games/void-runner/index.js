@@ -132,6 +132,20 @@ export function createGame() {
 
   /* ================= Pointer lock ================= */
 
+  /**
+   * Canvas nằm trong Shadow DOM của <arcade-404>. Theo spec Pointer Lock 2.0,
+   * document.pointerLockElement bị retarget về shadow HOST (<arcade-404>)
+   * chứ không phải canvas — so sánh trực tiếp với canvas luôn sai và game
+   * sẽ tự pause ngay sau khi khóa chuột thành công. Phải đọc thêm
+   * pointerLockElement của ShadowRoot chứa canvas.
+   */
+  function isLockedToCanvas() {
+    if (!canvas) return false;
+    if (document.pointerLockElement === canvas) return true; // không shadow DOM / môi trường mock
+    const root = canvas.getRootNode();
+    return root instanceof ShadowRoot && root.pointerLockElement === canvas;
+  }
+
   function requestLock() {
     if (locked || !canvas || destroyed) return;
     const onRejected = () => {
@@ -187,6 +201,7 @@ export function createGame() {
     world.resetRun();
     world.setLaserScale(VR_DIFFICULTY[settings.difficulty].laserScale);
     world.setMarker(null);
+    world.setBackdrop(false); // hoàng hôn chỉ dành cho start screen
     for (const tn of world.course.tunnels) tn.passed = false;
     player.reset(world.course.spawn);
     engine.setFog(30, 106);
@@ -301,17 +316,16 @@ export function createGame() {
     world.update(dt, { playing, camPos: cam.pos });
 
     if (mode === "idle") {
-      // Camera bay chậm quanh course — nền sống cho start screen
-      idleAngle += dt * 0.055;
-      const ov = world.course.overview;
-      const r = 58;
-      cam.pos[0] = ov.x + Math.sin(idleAngle) * r;
-      cam.pos[1] = 26 + Math.sin(idleAngle * 0.6) * 5;
-      cam.pos[2] = ov.z + Math.cos(idleAngle) * r;
-      cam.yaw = Math.atan2(cam.pos[0] - ov.x, cam.pos[2] - ov.z);
-      cam.pitch = -0.42;
+      // Nền sống cho start screen: đứng trên nóc nhìn dọc course về phía
+      // hoàng hôn (đúng bố cục ảnh reference start), thấy găng tay + gate.
+      idleAngle += dt;
+      cam.pos[0] = 5 + Math.sin(idleAngle * 0.2) * 0.8;
+      cam.pos[1] = 8.6 + Math.sin(idleAngle * 0.34) * 0.25;
+      cam.pos[2] = 21;
+      cam.yaw = 0.1 + Math.sin(idleAngle * 0.13) * 0.04;
+      cam.pitch = -0.15 + Math.sin(idleAngle * 0.27) * 0.015;
       cam.roll = 0;
-      cam.fov = 72;
+      cam.fov = 78;
     } else if (mode === "run" && !paused) {
       if (!dying) {
         runTime += dt;
@@ -497,7 +511,7 @@ export function createGame() {
     lookDx = 0;
     lookDy = 0;
 
-    engine.render(world.root, mode === "run" ? gloves.viewmodel : null);
+    engine.render(world.root, mode === "run" || mode === "idle" ? gloves.viewmodel : null);
   }
 
   /* ================= Interface vòng đời ================= */
@@ -549,7 +563,8 @@ export function createGame() {
       wrap.insertBefore(canvas, wrap.firstChild);
 
       try {
-        engine = createEngine(canvas, { fogNear: 34, fogFar: 112, fogColor: VR_COLORS.fog });
+        // far lớn (opt-in) để vẽ backdrop hoàng hôn rất xa ở start screen
+        engine = createEngine(canvas, { fogNear: 34, fogFar: 112, fogColor: VR_COLORS.fog, far: 400 });
       } catch {
         engine = null;
       }
@@ -614,7 +629,7 @@ export function createGame() {
       document.addEventListener(
         "pointerlockchange",
         () => {
-          locked = document.pointerLockElement === canvas;
+          locked = isLockedToCanvas();
           if (!locked && mode === "run" && !paused) pauseRun();
         },
         sig
@@ -700,6 +715,7 @@ export function createGame() {
       /* ----- Idle: cảnh 3D sống + start screen ----- */
       mode = "idle";
       engine.setFog(40, 118);
+      world.setBackdrop(true);
       screens.showStart();
 
       lastT = performance.now();

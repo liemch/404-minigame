@@ -110,32 +110,47 @@ export function buildTrack() {
     arrows.push({ x: pts[i][0], y: pts[i][1], angle: Math.atan2(tangents[i][1], tangents[i][0]) });
   }
 
-  /* Decor thành phố: khối nhà neon ngoài hành lang đường đua */
+  /* Decor thành phố: khối nhà neon ngoài hành lang đường đua.
+     Vùng sinh nhà rộng hơn bbox đường đua để camera nhìn đâu cũng có phố. */
   const decor = [];
   const drand = seededRand(777);
   const minX = 40;
   const maxX = 2300;
   const minY = 20;
   const maxY = 1450;
+  const PAD_OUT = 420;
+  const dx0 = minX - PAD_OUT;
+  const dy0 = minY - PAD_OUT;
+  const dx1 = maxX + PAD_OUT;
+  const dy1 = maxY + PAD_OUT;
   let attempts = 0;
-  while (decor.length < 46 && attempts < 400) {
+  while (decor.length < 150 && attempts < 1600) {
     attempts++;
-    const bw = 70 + drand() * 130;
-    const bh = 70 + drand() * 130;
-    const x = minX + drand() * (maxX - minX - bw);
-    const y = minY + drand() * (maxY - minY - bh);
+    const bw = 70 + drand() * 150;
+    const bh = 70 + drand() * 150;
+    const x = dx0 + drand() * (dx1 - dx0 - bw);
+    const y = dy0 + drand() * (dy1 - dy0 - bh);
     const cx = x + bw / 2;
     const cy = y + bh / 2;
     let clear = true;
     for (let i = 0; i < count; i += 4) {
       const dx = cx - pts[i][0];
       const dy = cy - pts[i][1];
-      if (dx * dx + dy * dy < (HALF_W + 95 + Math.max(bw, bh) / 2) ** 2) {
+      if (dx * dx + dy * dy < (HALF_W + 78 + Math.max(bw, bh) / 2) ** 2) {
         clear = false;
         break;
       }
     }
     if (!clear) continue;
+    // không cho nhà chồng lên nhau quá nhiều
+    let overlap = false;
+    for (const o of decor) {
+      if (x < o.x + o.w + 14 && x + bw + 14 > o.x && y < o.y + o.h + 14 && y + bh + 14 > o.y) {
+        overlap = true;
+        break;
+      }
+    }
+    if (overlap) continue;
     const hues = ["#ff2ee6", "#20e3ff", "#9a5cff", "#3b7bff"];
     decor.push({
       x, y, w: bw, h: bh,
@@ -144,6 +159,7 @@ export function buildTrack() {
       vertical: drand() > 0.5,
     });
   }
+  const decorBounds = { x0: dx0, y0: dy0, x1: dx1, y1: dy1 };
 
   return {
     pts,
@@ -157,6 +173,7 @@ export function buildTrack() {
     paths: { road, edgeL, edgeR },
     arrows,
     decor,
+    decorBounds,
     startSi: 0,
     bbox: { minX, minY, maxX, maxY },
   };

@@ -14,7 +14,7 @@ import { createExpansionFrame } from "../_shared/frame.js";
 import { createKeyboard } from "../../core/input-manager.js";
 import { createLoop } from "../../core/loop.js";
 import { el, svgIcon, formatScore, formatTime } from "../../core/utils.js";
-import { createSim, stepSim, drainEvents, damagePlayer, WORLD } from "./engine.js";
+import { createSim, stepSim, drainEvents, damagePlayer, spawnEnemy, spawnAsteroid, WORLD } from "./engine.js";
 import { BOSS_DEF } from "./waves.js";
 import { createAstroRenderer } from "./render.js";
 import { AP_CSS } from "./styles.js";
@@ -566,6 +566,17 @@ export function createGame() {
           setShield: (v) => {
             if (!sim) return false;
             sim.player.shield = v;
+            return true;
+          },
+          // dàn cảnh QA: sinh địch / asteroid tại chỗ (chỉ TEST mode)
+          stage: (list) => {
+            if (!sim) return false;
+            for (const s of list) spawnEnemy(sim, s.type, s.x);
+            return true;
+          },
+          rocks: (n) => {
+            if (!sim) return false;
+            for (let i = 0; i < n; i++) spawnAsteroid(sim, null, 30 + Math.random() * (WORLD.h - 160));
             return true;
           },
         };

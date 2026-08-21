@@ -81,9 +81,9 @@ export function createGame() {
     rainG.fillStyle = "rgba(5,8,20,1)";
     rainG.fillRect(0, 0, rect.width, dangerY);
     rainCols.length = 0;
-    const colW = 26;
+    const colW = 21;
     for (let x = colW / 2; x < rect.width; x += colW) {
-      rainCols.push({ x, y: Math.random() * dangerY, speed: 40 + Math.random() * 90 });
+      rainCols.push({ x, y: Math.random() * dangerY, speed: 55 + Math.random() * 130 });
     }
   }
 
@@ -103,6 +103,8 @@ export function createGame() {
       node.appendChild(el("span", "tag", "</>"));
       node.appendChild(el("span", "done", ""));
       node.appendChild(el("span", "rest", ""));
+      // 4 ngoặc góc hiện khi là mục tiêu đang gõ (như ảnh)
+      for (const c of ["tl", "tr", "bl", "br"]) node.appendChild(el("i", `ck ${c}`));
       fieldEl.appendChild(node);
       wordEls.set(w.id, node);
     }
@@ -150,21 +152,29 @@ export function createGame() {
   function stepRain(dt) {
     if (!rainG) return;
     const rect = frame.playfield.getBoundingClientRect();
-    rainG.fillStyle = "rgba(5, 8, 20, 0.16)";
+    rainG.fillStyle = "rgba(5, 8, 20, 0.15)";
     rainG.fillRect(0, 0, rect.width, dangerY);
-    rainG.font = "700 13px monospace";
+    rainG.font = "700 14px monospace";
     rainG.textAlign = "center";
     for (let i = 0; i < rainCols.length; i++) {
       const col = rainCols[i];
       col.y += col.speed * dt;
-      if (col.y > dangerY + 30) {
-        col.y = -20;
-        col.speed = 40 + Math.random() * 90;
+      if (col.y > dangerY + 50) {
+        col.y = -40 - Math.random() * 140;
+        col.speed = 55 + Math.random() * 130;
       }
       const color = RAIN_COLORS[i % RAIN_COLORS.length];
+      const glyph = (k) => RAIN_GLYPHS[(((i * 7 + k) % RAIN_GLYPHS.length) + RAIN_GLYPHS.length) % RAIN_GLYPHS.length];
+      const step = Math.floor(col.y / 15);
+      // đầu vệt màu đậm + đuôi mờ dần (vệt matrix như ảnh, trắng chỉ thi thoảng)
+      rainG.fillStyle = i % 6 === 0 ? "#dff6ff" : `${color}ee`;
+      rainG.fillText(glyph(step), col.x, col.y);
+      rainG.fillStyle = `${color}88`;
+      rainG.fillText(glyph(step - 1), col.x, col.y - 15);
       rainG.fillStyle = `${color}44`;
-      const ch = RAIN_GLYPHS[(i * 7 + Math.floor(col.y / 14)) % RAIN_GLYPHS.length];
-      rainG.fillText(ch, col.x, col.y);
+      rainG.fillText(glyph(step - 2), col.x, col.y - 30);
+      rainG.fillStyle = `${color}1e`;
+      rainG.fillText(glyph(step - 3), col.x, col.y - 45);
     }
   }
 
@@ -417,6 +427,17 @@ export function createGame() {
 
       flashEl = el("div", "tr-flash");
       frame.playfield.appendChild(flashEl);
+
+      /* trang trí hai bên như ảnh: cột code trái + "404" glitch phải */
+      const decoL = el("div", "tr-deco left");
+      for (const s of ["0x1F4A::OK", "SYS.CHECK ▒", "NODE_404", "0b110101", "TX >> RX", "GLITCH:0.4", "MEM 87%", "PING 12ms", "#A4F ░░", "RUN_"]) {
+        decoL.appendChild(el("div", "ln", s));
+      }
+      const decoR = el("div", "tr-deco right");
+      decoR.appendChild(el("div", "big", "404"));
+      for (const s of ["ERR ▒▒", "SIGNAL LOST", "REBOOT ░"]) decoR.appendChild(el("div", "ln", s));
+      frame.playfield.appendChild(decoL);
+      frame.playfield.appendChild(decoR);
 
       bottomEl = el("div", "tr-bottom");
       const kbBox = el("div");

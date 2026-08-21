@@ -11,6 +11,15 @@ export const TR_CSS = /* css */ `
   background: rgba(7, 11, 30, 0.9);
 }
 
+.tr-mode .exp-stats {
+  border: 1px solid rgba(150, 170, 230, 0.22);
+  border-radius: 10px;
+  background: rgba(7, 11, 28, 0.66);
+  flex: 0 1 auto;
+  margin: 0 auto;
+  padding: 0 6px;
+}
+
 .tr-rain {
   position: absolute;
   inset: 0;
@@ -58,6 +67,23 @@ export const TR_CSS = /* css */ `
   box-shadow: 0 0 26px color-mix(in srgb, #c8f542 45%, transparent);
   z-index: 5;
 }
+
+/* ngoặc góc quanh mục tiêu đang gõ (như ảnh) */
+.tr-word .ck {
+  display: none;
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2.4px solid #c8f542;
+  filter: drop-shadow(0 0 6px rgba(200, 245, 66, 0.8));
+}
+
+.tr-word.active .ck { display: block; }
+
+.tr-word .ck.tl { left: -8px;  top: -8px;    border-right: 0; border-bottom: 0; }
+.tr-word .ck.tr { right: -8px; top: -8px;    border-left: 0;  border-bottom: 0; }
+.tr-word .ck.bl { left: -8px;  bottom: -8px; border-right: 0; border-top: 0; }
+.tr-word .ck.br { right: -8px; bottom: -8px; border-left: 0;  border-top: 0; }
 
 .tr-word.active::before {
   content: "";
@@ -253,6 +279,46 @@ export const TR_CSS = /* css */ `
   border-radius: 4px;
   background: linear-gradient(90deg, #1d49c8, #7a3fd4, #ff2ee6, #ff9d2e, #ffd23f);
 }
+
+/* trang trí hai bên */
+
+.tr-deco {
+  position: absolute;
+  top: 46px;
+  width: 118px;
+  z-index: 1;
+  pointer-events: none;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.9;
+}
+
+.tr-deco.left {
+  left: 10px;
+  color: rgba(90, 210, 255, 0.34);
+  border-left: 1px solid rgba(32, 227, 255, 0.18);
+  padding-left: 10px;
+}
+
+.tr-deco.right {
+  right: 10px;
+  text-align: right;
+  color: rgba(255, 90, 200, 0.34);
+  border-right: 1px solid rgba(255, 46, 230, 0.18);
+  padding-right: 10px;
+}
+
+.tr-deco .big {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: rgba(255, 46, 150, 0.4);
+  text-shadow: 0 0 18px rgba(255, 46, 150, 0.45);
+  margin-bottom: 4px;
+}
+
+@media (max-width: 1100px) { .tr-deco { display: none; } }
 
 /* nhãn tối ưu desktop */
 

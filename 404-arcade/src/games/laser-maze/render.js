@@ -7,8 +7,7 @@
 
 import { BEAM_COLORS, REFLECT } from "./engine.js";
 
-const TILE_BG = "#151a29";
-const TILE_LINE = "rgba(96, 120, 175, 0.16)";
+const TILE_LINE = "rgba(140, 158, 205, 0.28)";
 
 export function createMazeRenderer(canvas, box) {
   const g = canvas.getContext("2d");
@@ -44,40 +43,61 @@ export function createMazeRenderer(canvas, box) {
 
   /* ---------- thành phần ---------- */
 
-  function tileBase(x, y, fill = "rgba(10, 14, 28, 0.92)", stroke = "rgba(120,140,190,0.3)") {
+  function tileBase(x, y, fill = "rgba(14, 18, 34, 0.95)", stroke = "rgba(140,160,210,0.4)") {
     const px = ox + x * t + 2;
     const py = oy + y * t + 2;
+    // bóng đổ nhẹ cho ô linh kiện nổi khối
+    g.fillStyle = "rgba(3,5,14,0.55)";
+    g.beginPath();
+    g.roundRect(px + 1.5, py + 2.5, t - 4, t - 4, 6);
+    g.fill();
     g.fillStyle = fill;
     g.strokeStyle = stroke;
-    g.lineWidth = 1.4;
+    g.lineWidth = 1.6;
     g.beginPath();
-    g.roundRect(px, py, t - 4, t - 4, 5);
+    g.roundRect(px, py, t - 4, t - 4, 6);
     g.fill();
+    g.stroke();
+    // highlight mép trên
+    g.strokeStyle = "rgba(255,255,255,0.09)";
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(px + 5, py + 2);
+    g.lineTo(px + t - 9, py + 2);
     g.stroke();
   }
 
   function drawSource(x, y, dir, time) {
-    tileBase(x, y, "#210b12", "rgba(255,80,100,0.55)");
+    tileBase(x, y, "#251016", "rgba(255,90,110,0.6)");
     const X = cx(x);
     const Y = cy(y);
     const pulse = 0.75 + 0.25 * Math.sin(time * 5);
-    g.strokeStyle = `rgba(255,59,79,${0.85 * pulse})`;
-    g.lineWidth = 2;
+    g.strokeStyle = `rgba(255,59,79,${0.9 * pulse})`;
+    g.lineWidth = 2.6;
     g.beginPath();
-    g.arc(X, Y, t * 0.26, 0, Math.PI * 2);
+    g.arc(X, Y, t * 0.29, 0, Math.PI * 2);
+    g.stroke();
+    g.strokeStyle = "rgba(255,120,135,0.5)";
+    g.lineWidth = 1.4;
+    g.beginPath();
+    g.arc(X, Y, t * 0.2, 0, Math.PI * 2);
     g.stroke();
     g.save();
     g.shadowColor = "#ff3b4f";
-    g.shadowBlur = 12;
-    g.fillStyle = "#ff5a68";
+    g.shadowBlur = 16;
+    g.fillStyle = "#ff6a76";
     g.beginPath();
-    g.arc(X, Y, t * 0.12, 0, Math.PI * 2);
+    g.arc(X, Y, t * 0.13, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = "#ffe1e5";
+    g.beginPath();
+    g.arc(X, Y, t * 0.055, 0, Math.PI * 2);
     g.fill();
     g.restore();
     // họng phát theo hướng
     const d = { U: [0, -1], R: [1, 0], D: [0, 1], L: [-1, 0] }[dir];
-    g.fillStyle = "rgba(255,90,104,0.9)";
-    g.fillRect(X + d[0] * t * 0.3 - 3, Y + d[1] * t * 0.3 - 3, 6, 6);
+    g.fillStyle = "rgba(255,90,104,0.95)";
+    g.fillRect(X + d[0] * t * 0.33 - 3.4, Y + d[1] * t * 0.33 - 3.4, 6.8, 6.8);
   }
 
   function drawReceiver(x, y, need, litOk, time) {
@@ -86,25 +106,25 @@ export function createMazeRenderer(canvas, box) {
     tileBase(x, y, "rgba(8,12,24,0.94)", litOk ? "rgba(77,247,127,0.6)" : `${col}55`);
     const X = cx(x);
     const Y = cy(y);
-    const pulse = litOk ? 0.85 + 0.15 * Math.sin(time * 7) : 0.65;
+    const pulse = litOk ? 0.9 + 0.1 * Math.sin(time * 7) : 0.7;
     g.save();
     if (litOk) {
       g.shadowColor = col;
-      g.shadowBlur = 14;
+      g.shadowBlur = 18;
     }
     g.strokeStyle = col;
     g.globalAlpha = pulse;
-    g.lineWidth = 3;
+    g.lineWidth = 3.6;
     g.beginPath();
-    g.arc(X, Y, t * 0.28, 0, Math.PI * 2);
+    g.arc(X, Y, t * 0.31, 0, Math.PI * 2);
     g.stroke();
-    g.lineWidth = 2;
+    g.lineWidth = 2.2;
     g.beginPath();
-    g.arc(X, Y, t * 0.17, 0, Math.PI * 2);
+    g.arc(X, Y, t * 0.19, 0, Math.PI * 2);
     g.stroke();
     g.fillStyle = col;
     g.beginPath();
-    g.arc(X, Y, t * 0.07, 0, Math.PI * 2);
+    g.arc(X, Y, t * 0.085, 0, Math.PI * 2);
     g.fill();
     g.restore();
     g.globalAlpha = 1;
@@ -127,10 +147,10 @@ export function createMazeRenderer(canvas, box) {
   }
 
   function drawMirror(x, y, o, rotatable, hintGlow, time) {
-    tileBase(x, y, "#10141f", "rgba(150,175,220,0.35)");
+    tileBase(x, y, "#141926", "rgba(160,185,230,0.42)");
     const X = cx(x);
     const Y = cy(y);
-    const r = t * 0.3;
+    const r = t * 0.33;
     const a = o === "/" ? -Math.PI / 4 : Math.PI / 4;
     g.save();
     g.translate(X, Y);
@@ -138,14 +158,17 @@ export function createMazeRenderer(canvas, box) {
     if (hintGlow) {
       g.shadowColor = "#a8ff3e";
       g.shadowBlur = 12 + 5 * Math.sin(time * 6);
+    } else {
+      g.shadowColor = "rgba(190,225,255,0.55)";
+      g.shadowBlur = 7;
     }
-    const grad = g.createLinearGradient(0, -4, 0, 4);
-    grad.addColorStop(0, "#e8f4ff");
-    grad.addColorStop(0.5, "#9fc3e8");
+    const grad = g.createLinearGradient(0, -4.6, 0, 4.6);
+    grad.addColorStop(0, "#f2f9ff");
+    grad.addColorStop(0.5, "#a9cdf2");
     grad.addColorStop(1, "#5d7fa8");
     g.fillStyle = grad;
     g.beginPath();
-    g.roundRect(-r, -3.4, r * 2, 6.8, 3.4);
+    g.roundRect(-r, -4.2, r * 2, 8.4, 4.2);
     g.fill();
     g.restore();
     // vệt shine
@@ -211,43 +234,55 @@ export function createMazeRenderer(canvas, box) {
 
   function drawFilter(x, y, color) {
     const col = BEAM_COLORS[color];
-    tileBase(x, y, "rgba(8,12,24,0.94)", `${col}44`);
+    tileBase(x, y, "rgba(10,14,28,0.95)", `${col}55`);
     const X = cx(x);
     const Y = cy(y);
-    const r = t * 0.24;
+    const r = t * 0.26;
     g.save();
     g.shadowColor = col;
-    g.shadowBlur = 10;
+    g.shadowBlur = 14;
     g.strokeStyle = col;
-    g.lineWidth = 3.4;
+    g.lineWidth = 4;
     g.beginPath();
-    g.roundRect(X - r, Y - r, r * 2, r * 2, 3);
+    g.roundRect(X - r, Y - r, r * 2, r * 2, 4);
     g.stroke();
     g.restore();
-    g.strokeStyle = `${col}66`;
-    g.lineWidth = 1.4;
+    g.strokeStyle = `${col}77`;
+    g.lineWidth = 1.6;
     g.beginPath();
     g.roundRect(X - r * 0.55, Y - r * 0.55, r * 1.1, r * 1.1, 2);
     g.stroke();
+    g.fillStyle = `${col}22`;
+    g.beginPath();
+    g.roundRect(X - r, Y - r, r * 2, r * 2, 4);
+    g.fill();
   }
 
   function drawBlocker(x, y) {
-    tileBase(x, y, "#191d29", "rgba(105,115,140,0.5)");
+    tileBase(x, y, "#1d2230", "rgba(115,125,150,0.55)");
     const X = cx(x);
     const Y = cy(y);
-    const r = t * 0.24;
-    g.strokeStyle = "rgba(130,140,165,0.7)";
-    g.lineWidth = 3;
+    const r = t * 0.27;
+    // tấm kim loại lõm giữa
+    g.fillStyle = "rgba(46,52,70,0.9)";
+    g.beginPath();
+    g.roundRect(X - r - 3, Y - r - 3, r * 2 + 6, r * 2 + 6, 4);
+    g.fill();
+    g.strokeStyle = "rgba(140,150,178,0.8)";
+    g.lineWidth = 3.6;
     g.beginPath();
     g.moveTo(X - r, Y - r);
     g.lineTo(X + r, Y + r);
     g.moveTo(X + r, Y - r);
     g.lineTo(X - r, Y + r);
     g.stroke();
-    g.fillStyle = "rgba(160,170,195,0.75)";
+    g.strokeStyle = "rgba(24,28,42,0.9)";
+    g.lineWidth = 1.2;
+    g.stroke();
+    g.fillStyle = "rgba(175,185,210,0.85)";
     for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
       g.beginPath();
-      g.arc(X + sx * r, Y + sy * r, 2, 0, Math.PI * 2);
+      g.arc(X + sx * r, Y + sy * r, 2.3, 0, Math.PI * 2);
       g.fill();
     }
   }
@@ -280,17 +315,26 @@ export function createMazeRenderer(canvas, box) {
       g.stroke();
     }
 
-    // lưới ô
+    // lưới ô: khối slate nổi như ảnh (đỉnh sáng, đáy tối)
     for (let y = 0; y < level.h; y++) {
       for (let x = 0; x < level.w; x++) {
-        const px = ox + x * t + 1.5;
-        const py = oy + y * t + 1.5;
-        g.fillStyle = TILE_BG;
+        const px = ox + x * t + 2;
+        const py = oy + y * t + 2;
+        const tg = g.createLinearGradient(0, py, 0, py + t - 4);
+        tg.addColorStop(0, "#2b3247");
+        tg.addColorStop(1, "#1c2233");
+        g.fillStyle = tg;
         g.beginPath();
-        g.roundRect(px, py, t - 3, t - 3, 4);
+        g.roundRect(px, py, t - 4, t - 4, 5);
         g.fill();
         g.strokeStyle = TILE_LINE;
         g.lineWidth = 1;
+        g.stroke();
+        // highlight mép trên nhẹ
+        g.strokeStyle = "rgba(255,255,255,0.06)";
+        g.beginPath();
+        g.moveTo(px + 4, py + 1.4);
+        g.lineTo(px + t - 8, py + 1.4);
         g.stroke();
       }
     }
@@ -319,17 +363,23 @@ export function createMazeRenderer(canvas, box) {
       }
       g.save();
       g.globalAlpha = pulse;
-      g.shadowColor = col;
-      g.shadowBlur = 10;
+      // quầng ngoài mềm
       g.strokeStyle = col;
-      g.lineWidth = 3;
+      g.globalAlpha = pulse * 0.22;
+      g.lineWidth = 9;
       g.beginPath();
       g.moveTo(cx(s.x1), cy(s.y1));
       g.lineTo(x2, y2);
       g.stroke();
+      // lõi đậm phát sáng
+      g.globalAlpha = pulse;
+      g.shadowColor = col;
+      g.shadowBlur = 12;
+      g.lineWidth = 4;
+      g.stroke();
       g.shadowBlur = 0;
-      g.strokeStyle = "rgba(255,255,255,0.75)";
-      g.lineWidth = 1.1;
+      g.strokeStyle = "rgba(255,255,255,0.85)";
+      g.lineWidth = 1.4;
       g.stroke();
       g.restore();
     }

@@ -144,21 +144,77 @@ function billboardTexture(engine) {
 }
 
 function windowsTexture(engine, seed) {
-  const [cv, g] = canvas2d(128, 256);
+  const [cv, g] = canvas2d(256, 512);
   const rand = seededRand(seed);
-  g.clearRect(0, 0, 128, 256);
-  for (let y = 6; y < 250; y += 12) {
-    for (let x = 6; x < 122; x += 10) {
+  g.clearRect(0, 0, 256, 512);
+  for (let y = 6; y < 506; y += 13) {
+    for (let x = 6, col = 0; x < 250; x += 11, col++) {
       const v = rand();
-      if (v > 0.52) {
+      if (v > 0.44) {
         g.fillStyle =
-          v > 0.92 ? "rgba(228,44,255,0.95)" :
-          v > 0.8 ? "rgba(64,232,255,0.92)" :
-          v > 0.68 ? "rgba(200,220,255,0.75)" : "rgba(150,130,255,0.55)";
+          v > 0.94 ? "rgba(232,66,255,0.98)" :
+          v > 0.84 ? "rgba(80,236,255,0.95)" :
+          v > 0.66 ? "rgba(214,228,255,0.85)" : "rgba(158,138,255,0.62)";
         g.fillRect(x, y, 5.5, 8);
+      }
+      // Vài cột cửa sổ sáng liền dải (như tòa nhà thật)
+      if (col % 6 === 3 && v > 0.3) {
+        g.fillStyle = "rgba(120,150,255,0.3)";
+        g.fillRect(x, y, 5.5, 10);
       }
     }
   }
+  return engine.makeTexture(cv);
+}
+
+/** Backdrop hoàng hôn (chỉ hiện ở start screen — theo ảnh reference). */
+function sunsetTexture(engine) {
+  const [cv, g] = canvas2d(1024, 512);
+  const grad = g.createLinearGradient(0, 0, 0, 512);
+  grad.addColorStop(0, "#150c33");
+  grad.addColorStop(0.42, "#341550");
+  grad.addColorStop(0.62, "#742a58");
+  grad.addColorStop(0.76, "#c84a5e");
+  grad.addColorStop(0.85, "#ff8a5c");
+  grad.addColorStop(1, "#2a1140");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 1024, 512);
+  // Mặt trời lặn
+  const sun = g.createRadialGradient(512, 400, 10, 512, 400, 190);
+  sun.addColorStop(0, "rgba(255,214,150,0.95)");
+  sun.addColorStop(0.35, "rgba(255,150,100,0.55)");
+  sun.addColorStop(1, "rgba(255,138,92,0)");
+  g.fillStyle = sun;
+  g.fillRect(0, 0, 1024, 512);
+  // Dải mây tối kéo ngang
+  g.fillStyle = "rgba(24,10,44,0.55)";
+  for (const [cy, ch] of [[330, 12], [356, 9], [382, 14], [300, 8]]) {
+    g.fillRect(0, cy, 1024, ch);
+  }
+  // Silhouette thành phố ở chân trời
+  const rand = seededRand(88);
+  g.fillStyle = "#140a28";
+  for (let x = 0; x < 1024; x += 14) {
+    const h = 30 + rand() * 90;
+    g.fillRect(x, 448 - h, 13, h + 64);
+    if (rand() > 0.7) {
+      g.fillStyle = rand() > 0.5 ? "rgba(80,236,255,0.8)" : "rgba(232,66,255,0.8)";
+      g.fillRect(x + 3, 448 - h - 3, 7, 3);
+      g.fillStyle = "#140a28";
+    }
+  }
+  return engine.makeTexture(cv);
+}
+
+/** Quầng sáng tím khổng lồ dưới vực (biển ánh sáng thành phố). */
+function abyssGlowTexture(engine) {
+  const [cv, g] = canvas2d(256, 256);
+  const grad = g.createRadialGradient(128, 128, 10, 128, 128, 126);
+  grad.addColorStop(0, "rgba(150,92,255,0.55)");
+  grad.addColorStop(0.45, "rgba(112,52,214,0.3)");
+  grad.addColorStop(1, "rgba(90,40,180,0)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 256, 256);
   return engine.makeTexture(cv);
 }
 
@@ -179,6 +235,49 @@ function chevronPadTexture(engine) {
     g.closePath();
     g.fill();
   }
+  return engine.makeTexture(cv);
+}
+
+function laneTexture(engine) {
+  // Làn chevron giữa track: khung neon + nền cyan mờ + mũi tên sáng
+  // (đúng kiểu tấm panel phát sáng trong ảnh gameplay reference).
+  const [cv, g] = canvas2d(160, 384);
+  g.clearRect(0, 0, 160, 384);
+  // Nền panel cyan mờ
+  g.fillStyle = "rgba(34,150,200,0.3)";
+  g.fillRect(8, 8, 144, 368);
+  // Lưới mờ bên trong
+  g.strokeStyle = "rgba(120,235,255,0.16)";
+  g.lineWidth = 1;
+  for (let y = 8; y <= 376; y += 24) {
+    g.beginPath(); g.moveTo(8, y); g.lineTo(152, y); g.stroke();
+  }
+  // Khung neon
+  g.save();
+  g.strokeStyle = "rgba(90,235,255,0.95)";
+  g.lineWidth = 5;
+  g.shadowColor = "#22e4ff";
+  g.shadowBlur = 12;
+  g.strokeRect(8, 8, 144, 368);
+  g.restore();
+  // 3 chevron lớn
+  g.save();
+  g.shadowColor = "#22e4ff";
+  g.shadowBlur = 14;
+  g.fillStyle = "rgba(150,242,255,0.95)";
+  for (let i = 0; i < 3; i++) {
+    const y = 330 - i * 108;
+    g.beginPath();
+    g.moveTo(26, y);
+    g.lineTo(80, y - 62);
+    g.lineTo(134, y);
+    g.lineTo(134, y - 30);
+    g.lineTo(80, y - 92);
+    g.lineTo(26, y - 30);
+    g.closePath();
+    g.fill();
+  }
+  g.restore();
   return engine.makeTexture(cv);
 }
 
@@ -243,8 +342,11 @@ export function createWorld(engine) {
   const texWin1 = windowsTexture(engine, 11);
   const texWin2 = windowsTexture(engine, 77);
   const texChevron = chevronPadTexture(engine);
+  const texLane = laneTexture(engine);
   const texMarker = markerTexture(engine);
   const texPortalGlow = portalGlowTexture(engine);
+  const texSunset = sunsetTexture(engine);
+  const texAbyss = abyssGlowTexture(engine);
 
   const anim = {
     shards: [],      // {node, gem, base, taken}
@@ -287,7 +389,7 @@ export function createWorld(engine) {
       scale: [p.w * 0.5, 0.7, p.d * 0.5],
       color: hex("#0a0e20"),
     }));
-    // Viền neon 4 mép trên
+    // Viền neon 4 mép trên + quầng glow additive (như ảnh gameplay)
     const ec = hex(EDGE_COLOR[p.kind] || C.cyan);
     const t = 0.1;
     const yTop = p.y - 0.02;
@@ -295,6 +397,19 @@ export function createWorld(engine) {
     addChild(g, meshNode("box", { pos: [0, yTop, p.d / 2 - t / 2], scale: [p.w, 0.07, t], color: ec, emissive: 0.95 }));
     addChild(g, meshNode("box", { pos: [-p.w / 2 + t / 2, yTop, 0], scale: [t, 0.07, p.d], color: ec, emissive: 0.95 }));
     addChild(g, meshNode("box", { pos: [p.w / 2 - t / 2, yTop, 0], scale: [t, 0.07, p.d], color: ec, emissive: 0.95 }));
+    for (const [gx, gz, gw, gd] of [
+      [0, -p.d / 2, p.w + 0.5, 0.7], [0, p.d / 2, p.w + 0.5, 0.7],
+      [-p.w / 2, 0, 0.7, p.d + 0.5], [p.w / 2, 0, 0.7, p.d + 0.5],
+    ]) {
+      addChild(g, meshNode("box", {
+        pos: [gx, yTop + 0.03, gz],
+        scale: [gw, 0.02, gd],
+        color: ec,
+        emissive: 1,
+        opacity: 0.14,
+        additive: true,
+      }));
+    }
 
     colliders.push({
       min: [p.x - p.w / 2, p.y - 3, p.z - p.d / 2],
@@ -417,9 +532,9 @@ export function createWorld(engine) {
     part("box", { pos: [-2.1, 0.12, 0], scale: [0.75, 0.24, 0.75], color: hex(C.slabDark) });
     part("box", { pos: [2.1, 0.12, 0], scale: [0.75, 0.24, 0.75], color: hex(C.slabDark) });
     // Diamond trên đỉnh
-    const diamond = part("gem", { pos: [0, 4.05, 0], scale: [0.42, 0.62, 0.42], color: lime, emissive: 1 });
-    // Bảng CHECKPOINT
-    part("plane", { pos: [0, 3.05, 0.02], scale: [2.3, 0.46, 1], color: [1, 1, 1], tex: texCheckpoint, emissive: 1 });
+    const diamond = part("gem", { pos: [0, 4.15, 0], scale: [0.5, 0.72, 0.5], color: lime, emissive: 1 });
+    // Bảng CHECKPOINT (to, rõ như ảnh gameplay)
+    part("plane", { pos: [0, 3.06, 0.02], scale: [3.0, 0.6, 1], color: [1, 1, 1], tex: texCheckpoint, emissive: 1 });
     // Màng sáng mờ bên trong
     const veil = part("plane", {
       pos: [0, 1.55, 0],
@@ -627,20 +742,19 @@ export function createWorld(engine) {
     cullables.push({ node: g, x: ad.x, z: ad.z, r: 1.5 });
   }
 
-  /** Chevron cyan mờ nằm trên mặt track (chỉ hướng chạy — ảnh gameplay). */
+  /** Làn chevron cyan sáng nằm giữa track (panel phát sáng như ảnh). */
   function buildFloorArrow(fa) {
     const g = group(fa.x, 0, fa.z, fa.yaw);
     addChild(g, meshNode("plane", {
       pos: [0, fa.y + 0.04, 0],
       rot: [-Math.PI / 2, 0, 0],
-      scale: [1.6, 3.4, 1],
+      scale: [1.9, 4.5, 1],
       color: [1, 1, 1],
-      tex: texChevron,
+      tex: texLane,
       emissive: 1,
-      opacity: 0.55,
-      additive: true,
+      opacity: 0.95,
     }));
-    cullables.push({ node: g, x: fa.x, z: fa.z, r: 2 });
+    cullables.push({ node: g, x: fa.x, z: fa.z, r: 2.6 });
   }
 
   /* ------------------- Moving platforms ------------------- */
@@ -672,42 +786,42 @@ export function createWorld(engine) {
     const rand = seededRand(40404);
     const spots = [];
     // Vành đai quanh 3 khúc course (hành lang chữ U: x -101..4, z -131..5)
-    for (let i = 0; i < 64; i++) {
+    for (let i = 0; i < 130; i++) {
       const t = rand();
       let x;
       let z;
       if (t < 0.34) { // dọc khúc A
-        x = (rand() > 0.5 ? 1 : -1) * (7.5 + rand() * 24);
-        z = 8 - rand() * 145;
+        x = (rand() > 0.5 ? 1 : -1) * (7.5 + rand() * 34);
+        z = 12 - rand() * 155;
       } else if (t < 0.62) { // dọc khúc B (phía nam/bắc)
-        x = -4 - rand() * 100;
-        z = -126.5 + (rand() > 0.5 ? 1 : -1) * (7.5 + rand() * 24);
+        x = 2 - rand() * 112;
+        z = -126.5 + (rand() > 0.5 ? 1 : -1) * (7.5 + rand() * 32);
       } else { // dọc khúc C + vùng giữa chữ U
-        x = -95 + (rand() > 0.5 ? 1 : -1) * (7.5 + rand() * 22);
-        z = -35 - rand() * 90;
+        x = -95 + (rand() > 0.5 ? 1 : -1) * (7.5 + rand() * 30);
+        z = -30 - rand() * 95;
       }
       spots.push([x, z, rand]);
     }
     let billboards = 0;
     let towers = 0;
     for (const [x, z] of spots) {
-      const w = 5 + rand() * 8;
-      const d = 5 + rand() * 8;
+      const w = 5 + rand() * 9;
+      const d = 5 + rand() * 9;
       // Vài tòa "tower" cao vượt mặt track (xa hành lang) như ảnh gameplay
       const distCorridor = Math.min(
         Math.abs(x) < 6 ? 99 : Math.abs(x),
         Math.abs(z + 126.5) < 6 ? 99 : Math.abs(z + 126.5),
         Math.abs(x + 95) < 6 ? 99 : Math.abs(x + 95)
       );
-      const tall = towers < 8 && distCorridor > 13 && rand() > 0.62;
+      const tall = towers < 16 && distCorridor > 13 && rand() > 0.55;
       if (tall) towers += 1;
-      const top = tall ? 2 + rand() * 7 : -2.5 - rand() * 9;
-      const h = tall ? 26 + rand() * 14 : 14 + rand() * 18;
+      const top = tall ? 2 + rand() * 9 : -2.5 - rand() * 11;
+      const h = tall ? 30 + rand() * 18 : 16 + rand() * 22;
       const g = group(x, 0, z);
       addChild(g, meshNode("box", {
         pos: [0, top - h / 2, 0],
         scale: [w, h, d],
-        color: hex(rand() > 0.5 ? "#0c1126" : "#101531"),
+        color: hex(rand() > 0.5 ? "#0e1330" : "#131a3b"),
       }));
       // Tấm cửa sổ phát sáng 2 mặt hướng course
       const tex = rand() > 0.5 ? texWin1 : texWin2;
@@ -717,7 +831,7 @@ export function createWorld(engine) {
         color: [1, 1, 1],
         tex,
         emissive: 1,
-        opacity: 0.9,
+        opacity: 0.95,
       }));
       addChild(g, meshNode("plane", {
         pos: [w / 2 + 0.02, top - h / 2, 0],
@@ -726,15 +840,19 @@ export function createWorld(engine) {
         color: [1, 1, 1],
         tex,
         emissive: 1,
-        opacity: 0.9,
+        opacity: 0.95,
       }));
-      // Viền neon nóc ngẫu nhiên
-      if (rand() > 0.4) {
+      // Viền neon nóc + sọc neon dọc cạnh tòa
+      if (rand() > 0.35) {
         const nc = rand() > 0.5 ? C.cyan : C.magenta;
-        addChild(g, meshNode("box", { pos: [0, top + 0.04, 0], scale: [w + 0.1, 0.09, 0.12], color: hex(nc), emissive: 1 }));
+        addChild(g, meshNode("box", { pos: [0, top + 0.04, 0], scale: [w + 0.1, 0.1, 0.14], color: hex(nc), emissive: 1 }));
+      }
+      if (rand() > 0.55) {
+        const nc = rand() > 0.5 ? C.violet : C.cyan;
+        addChild(g, meshNode("box", { pos: [w / 2 + 0.04, top - h / 2, d / 2 + 0.04], scale: [0.12, h * 0.9, 0.12], color: hex(nc), emissive: 0.9 }));
       }
       // Billboard 404 ARCADE trên vài tòa (như ảnh gameplay)
-      if (billboards < 3 && rand() > 0.7) {
+      if (billboards < 5 && rand() > 0.66) {
         addChild(g, meshNode("plane", {
           pos: [w / 2 + 0.06, top + 2.6, 0],
           rot: [0, Math.PI / 2, 0],
@@ -748,8 +866,24 @@ export function createWorld(engine) {
       }
       cullables.push({ node: g, x, z, r: Math.max(w, d) / 2 });
     }
+
+    // Billboard 404 ARCADE cố định bên trái zone A (như ảnh gameplay)
+    {
+      const g = group(11.5, 0, -38, 0);
+      addChild(g, meshNode("box", { pos: [0, 0.5, 0], scale: [0.5, 9, 0.5], color: hex("#131a3b") }));
+      addChild(g, meshNode("plane", {
+        pos: [0, 6.4, 0],
+        rot: [0, -Math.PI / 2.6, 0],
+        scale: [6.4, 5, 1],
+        color: [1, 1, 1],
+        tex: texBillboard,
+        emissive: 1,
+      }));
+      cullables.push({ node: g, x: 11.5, z: -38, r: 4 });
+    }
+
     // Crystal tím lơ lửng (ảnh gameplay có shard tím nổi trên đế)
-    for (const [cx, cz] of [[8.5, -46], [-30, -118], [-104.5, -100], [-86, -50]]) {
+    for (const [cx, cz] of [[8.5, -46], [-30, -118], [-104.5, -100], [-86, -50], [10, -14]]) {
       const g = group(cx, 0, cz);
       addChild(g, meshNode("box", { pos: [0, -1.5, 0], scale: [1.6, 0.5, 1.6], color: hex(C.slabDark) }));
       const crystal = meshNode("gem", {
@@ -762,6 +896,67 @@ export function createWorld(engine) {
       anim.shards.push({ node: g, gem: crystal, glow: null, ring: null, data: null, taken: false, decor: true, t: Math.random() * 6 });
       cullables.push({ node: g, x: cx, z: cz, r: 2 });
     }
+
+    // Quầng sáng tím "biển đèn" dưới vực (3 khúc chữ U)
+    for (const [ux, uz, ur] of [[0, -60, 120], [-48, -126, 120], [-95, -80, 120], [0, 0, 90]]) {
+      const glow = meshNode("plane", {
+        pos: [ux, -26, uz],
+        rot: [-Math.PI / 2, 0, 0],
+        scale: [ur * 2, ur * 2, 1],
+        color: [1, 1, 1],
+        tex: texAbyss,
+        emissive: 1,
+        opacity: 0.85,
+        additive: true,
+        nofog: true,
+      });
+      addChild(root, glow);
+    }
+
+    // Cột sáng dữ liệu bay lên từ vực (điểm nhấn dọc như ảnh)
+    for (let i = 0; i < 22; i++) {
+      const t = rand();
+      let x;
+      let z;
+      if (t < 0.4) { x = (rand() > 0.5 ? 1 : -1) * (10 + rand() * 26); z = 6 - rand() * 140; }
+      else if (t < 0.7) { x = -6 - rand() * 92; z = -126.5 + (rand() > 0.5 ? 1 : -1) * (10 + rand() * 26); }
+      else { x = -95 + (rand() > 0.5 ? 1 : -1) * (10 + rand() * 24); z = -34 - rand() * 84; }
+      const hh = 10 + rand() * 22;
+      const nc = rand() > 0.6 ? C.magenta : rand() > 0.3 ? C.violet : C.cyan;
+      const beam = meshNode("box", {
+        pos: [x, -20 + hh / 2, z],
+        scale: [0.14, hh, 0.14],
+        color: hex(nc),
+        emissive: 1,
+        opacity: 0.35,
+        additive: true,
+      });
+      addChild(root, beam);
+      cullables.push({ node: beam, x, z, r: 1 });
+    }
+  }
+
+  /* ------------------- Backdrop hoàng hôn (chỉ idle) ------------------- */
+
+  let backdropNodes = [];
+  function buildBackdrop() {
+    // Tấm trời lớn đặt rất xa phía -Z (hướng nhìn của camera idle)
+    const sky = meshNode("plane", {
+      pos: [-20, 26, -230],
+      scale: [560, 190, 1],
+      color: [1, 1, 1],
+      tex: texSunset,
+      emissive: 1,
+      nofog: true,
+    });
+    sky.visible = false;
+    addChild(root, sky);
+    backdropNodes = [sky];
+  }
+  buildBackdrop();
+
+  function setBackdrop(on) {
+    for (const b of backdropNodes) b.visible = on;
   }
 
   /* ------------------- Landing marker ------------------- */
@@ -1154,6 +1349,7 @@ export function createWorld(engine) {
     checkPortal,
     setPortalActive,
     setMarker,
+    setBackdrop,
     setLaserScale(s) { laserScale = s; },
     shardTotal: course.shards.length,
   };

@@ -20,6 +20,31 @@ export function createHighwayRenderer(canvas, container) {
   const pressT = [0, 0, 0, 0]; // thời điểm nhấn lane
   const missT = [0, 0, 0, 0];
 
+  // vân mạch trang trí 2 bên nền (tọa độ tỉ lệ 0..1, seeded)
+  const decor = (() => {
+    let seed = 20777;
+    const rnd = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    const lines = [];
+    for (let i = 0; i < 30; i++) {
+      const side = i % 2 === 0 ? 0 : 1;
+      let x = side === 0 ? rnd() * 0.15 : 0.85 + rnd() * 0.15;
+      let y = rnd();
+      const pts = [[x, y]];
+      const segs = 2 + Math.floor(rnd() * 3);
+      for (let k = 0; k < segs; k++) {
+        const len = 0.025 + rnd() * 0.07;
+        if (rnd() > 0.5) x += rnd() > 0.5 ? len : -len;
+        else y += rnd() > 0.5 ? len : -len;
+        pts.push([x, y]);
+      }
+      lines.push(pts);
+    }
+    return lines;
+  })();
+
   function fit() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     W = container.clientWidth;
@@ -28,10 +53,10 @@ export function createHighwayRenderer(canvas, container) {
     canvas.height = Math.max(1, Math.round(H * dpr));
   }
 
-  const topY = () => H * 0.05;
-  const hitY = () => H * 0.8;
-  const topW = () => W * 0.22;
-  const botW = () => W * 0.92;
+  const topY = () => H * 0.04;
+  const hitY = () => H * 0.78;
+  const topW = () => W * 0.17;
+  const botW = () => W * 0.98;
 
   /** Tọa độ x biên lane i (0..4) tại độ sâu k (0 trên → 1 vạch hit). */
   function edgeX(i, k) {
@@ -52,8 +77,9 @@ export function createHighwayRenderer(canvas, container) {
   /* ---------------- API hiệu ứng ---------------- */
 
   function pop(text, color) {
+    // chỉ giữ 1 judgement — tránh chữ chồng nhau khi 2 note sát nhau
+    pops.length = 0;
     pops.push({ text, color, t0: performance.now() / 1000 });
-    if (pops.length > 3) pops.shift();
   }
 
   function burst(lane, color, n = 10) {
@@ -94,24 +120,42 @@ export function createHighwayRenderer(canvas, container) {
       g.fillRect(0, 0, W, H);
     }
 
-    // mặt highway
+    // vân mạch mờ 2 bên nền (như ảnh)
+    g.strokeStyle = "rgba(60,120,220,0.13)";
+    g.fillStyle = "rgba(60,120,220,0.2)";
+    g.lineWidth = 1.2;
+    for (const pts of decor) {
+      g.beginPath();
+      g.moveTo(pts[0][0] * W, pts[0][1] * H);
+      for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0] * W, pts[i][1] * H);
+      g.stroke();
+      const last = pts[pts.length - 1];
+      g.beginPath();
+      g.arc(last[0] * W, last[1] * H, 2, 0, Math.PI * 2);
+      g.fill();
+    }
+
+    // hệ số kéo dài lane xuống hết đáy canvas (qua vạch hit như ảnh)
+    const kBot = (H - topY()) / (hitY() - topY());
+
+    // mặt highway (kéo dài tới đáy)
     g.beginPath();
     g.moveTo(edgeX(0, 0), topY());
     g.lineTo(edgeX(4, 0), topY());
-    g.lineTo(edgeX(4, 1), hitY());
-    g.lineTo(edgeX(0, 1), hitY());
+    g.lineTo(edgeX(4, kBot), H);
+    g.lineTo(edgeX(0, kBot), H);
     g.closePath();
-    g.fillStyle = "rgba(6, 9, 24, 0.85)";
+    g.fillStyle = "rgba(5, 8, 22, 0.9)";
     g.fill();
 
     // mỗi lane nhuộm màu riêng thường trực (như ảnh) + bừng sáng khi nhấn
     for (let i = 0; i < 4; i++) {
       const pk = Math.max(0, 1 - (now - pressT[i]) / 0.22);
       const grad = g.createLinearGradient(0, topY(), 0, hitY());
-      const base = 0.13 + pk * 0.2;
-      grad.addColorStop(0, `${LANE_COLORS[i]}00`);
-      grad.addColorStop(0.55, `${LANE_COLORS[i]}${Math.round(base * 130).toString(16).padStart(2, "0")}`);
-      grad.addColorStop(1, `${LANE_COLORS[i]}${Math.round(base * 255).toString(16).padStart(2, "0")}`);
+      const base = 0.32 + pk * 0.22;
+      grad.addColorStop(0, `${LANE_COLORS[i]}05`);
+      grad.addColorStop(0.55, `${LANE_COLORS[i]}${Math.round(base * 120).toString(16).padStart(2, "0")}`);
+      grad.addColorStop(1, `${LANE_COLORS[i]}${Math.round(Math.min(255, base * 235)).toString(16).padStart(2, "0")}`);
       g.beginPath();
       g.moveTo(edgeX(i, 0), topY());
       g.lineTo(edgeX(i + 1, 0), topY());
@@ -120,17 +164,33 @@ export function createHighwayRenderer(canvas, container) {
       g.closePath();
       g.fillStyle = grad;
       g.fill();
+      // phần lane dưới vạch hit — nhạt dần về đáy
+      const grad2 = g.createLinearGradient(0, hitY(), 0, H);
+      grad2.addColorStop(0, `${LANE_COLORS[i]}${Math.round(Math.min(255, base * 200)).toString(16).padStart(2, "0")}`);
+      grad2.addColorStop(1, `${LANE_COLORS[i]}0a`);
+      g.beginPath();
+      g.moveTo(edgeX(i, 1), hitY());
+      g.lineTo(edgeX(i + 1, 1), hitY());
+      g.lineTo(edgeX(i + 1, kBot), H);
+      g.lineTo(edgeX(i, kBot), H);
+      g.closePath();
+      g.fillStyle = grad2;
+      g.fill();
     }
 
-    // vạch chia lane (hội tụ)
+    // vạch chia lane (hội tụ, phát sáng như ảnh)
     for (let i = 0; i <= 4; i++) {
-      const glow = i === 0 || i === 4;
-      g.strokeStyle = glow ? "rgba(120, 170, 255, 0.5)" : "rgba(120, 150, 230, 0.22)";
-      g.lineWidth = glow ? 2.4 : 1.4;
+      const outer = i === 0 || i === 4;
+      g.save();
+      g.shadowColor = outer ? "#9ecbff" : LANE_COLORS[Math.min(3, Math.max(0, i - (i === 4 ? 1 : 0)))];
+      g.shadowBlur = outer ? 12 : 8;
+      g.strokeStyle = outer ? "rgba(200, 228, 255, 0.85)" : "rgba(215, 235, 255, 0.5)";
+      g.lineWidth = outer ? 2.8 : 1.8;
       g.beginPath();
       g.moveTo(edgeX(i, 0), topY());
-      g.lineTo(edgeX(i, 1), hitY());
+      g.lineTo(edgeX(i, kBot), H);
       g.stroke();
+      g.restore();
     }
 
     // vạch ngang mờ chạy xuống (cảm giác tốc độ)
@@ -147,37 +207,87 @@ export function createHighwayRenderer(canvas, container) {
       }
     }
 
-    // vạch HIT
-    g.strokeStyle = "rgba(240, 246, 255, 0.85)";
-    g.lineWidth = 3;
+    // vạch HIT phát sáng
+    g.save();
+    g.shadowColor = "#eaf4ff";
+    g.shadowBlur = 10;
+    g.strokeStyle = "rgba(244, 249, 255, 0.95)";
+    g.lineWidth = 3.4;
     g.beginPath();
-    g.moveTo(edgeX(0, 1) - 8, hitY());
-    g.lineTo(edgeX(4, 1) + 8, hitY());
+    g.moveTo(edgeX(0, 1) - 10, hitY());
+    g.lineTo(edgeX(4, 1) + 10, hitY());
     g.stroke();
+    g.restore();
 
-    // đế nhận (receptor)
+    // đế nhận (receptor): cột sáng + vòng + hạt pixel như ảnh
     for (let i = 0; i < 4; i++) {
       const x = laneCenterX(i, 1);
       const pk = Math.max(0, 1 - (now - pressT[i]) / 0.25);
       const mk = Math.max(0, 1 - (now - missT[i]) / 0.3);
       const c = LANE_COLORS[i];
+      const laneW = edgeX(i + 1, 1) - edgeX(i, 1);
       g.save();
-      g.strokeStyle = c;
-      g.globalAlpha = 0.5 + pk * 0.5;
-      g.lineWidth = 2.6 + pk * 2;
+      // cột sáng dựng lên từ receptor
+      const beamH = H * 0.15 * (1 + pk * 0.6);
+      const beamW = laneW * (0.24 + pk * 0.16);
+      const beam = g.createLinearGradient(0, hitY() - beamH, 0, hitY());
+      beam.addColorStop(0, `${c}00`);
+      beam.addColorStop(1, `${c}${Math.round((0.1 + pk * 0.32) * 255).toString(16).padStart(2, "0")}`);
+      g.fillStyle = beam;
       g.beginPath();
-      g.ellipse(x, hitY(), 30 + pk * 7, 10 + pk * 3, 0, 0, Math.PI * 2);
+      g.moveTo(x - beamW * 0.4, hitY() - beamH);
+      g.lineTo(x + beamW * 0.4, hitY() - beamH);
+      g.lineTo(x + beamW, hitY());
+      g.lineTo(x - beamW, hitY());
+      g.closePath();
+      g.fill();
+      // hạt pixel lấp lánh quanh chân receptor
+      for (let d = 0; d < 8; d++) {
+        const seed = Math.sin(i * 37.7 + d * 91.3 + Math.floor(now * 5) * 13.7) * 0.5 + 0.5;
+        const seed2 = Math.sin(i * 53.1 + d * 47.9 + Math.floor(now * 5) * 7.3) * 0.5 + 0.5;
+        const dx = (seed - 0.5) * laneW * 0.75;
+        const dy = -seed2 * 52 - 4;
+        g.globalAlpha = (0.25 + seed2 * 0.5) * (0.55 + pk * 0.45);
+        g.fillStyle = c;
+        const sz = 2 + seed * 2.4;
+        g.fillRect(x + dx - sz / 2, hitY() + dy, sz, sz);
+      }
+      g.globalAlpha = 1;
+      // quầng sáng chân
+      const glowR = 26 + pk * 12;
+      const gl = g.createRadialGradient(x, hitY(), 2, x, hitY(), glowR * 1.7);
+      gl.addColorStop(0, `${c}${Math.round((0.4 + pk * 0.45) * 255).toString(16).padStart(2, "0")}`);
+      gl.addColorStop(1, `${c}00`);
+      g.fillStyle = gl;
+      g.beginPath();
+      g.ellipse(x, hitY(), glowR * 1.7, glowR * 0.62, 0, 0, Math.PI * 2);
+      g.fill();
+      // vòng receptor kép
+      g.shadowColor = c;
+      g.shadowBlur = 12 + pk * 10;
+      g.strokeStyle = c;
+      g.globalAlpha = 0.75 + pk * 0.25;
+      g.lineWidth = 3 + pk * 2;
+      g.beginPath();
+      g.ellipse(x, hitY(), 30 + pk * 7, 10.5 + pk * 3, 0, 0, Math.PI * 2);
+      g.stroke();
+      g.shadowBlur = 0;
+      g.strokeStyle = "rgba(255,255,255,0.7)";
+      g.lineWidth = 1.2;
+      g.beginPath();
+      g.ellipse(x, hitY(), 21, 7, 0, 0, Math.PI * 2);
       g.stroke();
       if (pk > 0) {
-        g.globalAlpha = pk * 0.5;
+        g.globalAlpha = pk * 0.55;
         g.fillStyle = c;
         g.beginPath();
-        g.ellipse(x, hitY(), 22, 7, 0, 0, Math.PI * 2);
+        g.ellipse(x, hitY(), 22, 7.4, 0, 0, Math.PI * 2);
         g.fill();
       }
       if (mk > 0) {
         g.globalAlpha = mk * 0.6;
         g.strokeStyle = "#ff3b4f";
+        g.lineWidth = 2.6;
         g.beginPath();
         g.ellipse(x, hitY(), 34 + (1 - mk) * 14, 12, 0, 0, Math.PI * 2);
         g.stroke();
@@ -195,20 +305,26 @@ export function createHighwayRenderer(canvas, container) {
       const y = yAt(k);
       const laneW = edgeX(n.lane + 1, k) - edgeX(n.lane, k);
       const x = laneCenterX(n.lane, k);
-      const w = laneW * 0.72;
-      const h = 7 + k * 13;
+      const w = laneW * 0.74;
+      const h = 9 + k * 15;
       const c = LANE_COLORS[n.lane];
       g.save();
+      // quầng dưới note
+      g.fillStyle = `${c}2e`;
+      g.beginPath();
+      g.roundRect(x - w / 2 - 5, y - h / 2 - 4, w + 10, h + 8, (h + 8) / 2);
+      g.fill();
       g.shadowColor = c;
-      g.shadowBlur = 6 + k * 10;
+      g.shadowBlur = 10 + k * 14;
       g.fillStyle = c;
       g.beginPath();
       g.roundRect(x - w / 2, y - h / 2, w, h, h / 2);
       g.fill();
       g.shadowBlur = 0;
-      g.fillStyle = "rgba(255,255,255,0.55)";
+      // dải sáng trắng giữa note
+      g.fillStyle = "rgba(255,255,255,0.75)";
       g.beginPath();
-      g.roundRect(x - w / 2 + 3, y - h / 2 + 2, w - 6, Math.max(2, h * 0.28), 3);
+      g.roundRect(x - w / 2 + 4, y - h * 0.22, w - 8, Math.max(2, h * 0.36), 3);
       g.fill();
       g.restore();
     }
@@ -243,17 +359,26 @@ export function createHighwayRenderer(canvas, container) {
       g.translate(W / 2, H * 0.42);
       g.scale(scale, scale);
       g.globalAlpha = k > 0.72 ? 1 - (k - 0.72) / 0.28 : 1;
-      g.font = `800 ${Math.round(Math.min(52, W * 0.062))}px 'JetBrains Mono', monospace`;
+      g.font = `800 italic ${Math.round(Math.min(64, W * 0.075))}px 'JetBrains Mono', monospace`;
       g.textAlign = "center";
       g.textBaseline = "middle";
       g.shadowColor = p.color;
-      g.shadowBlur = 20;
+      g.shadowBlur = 28;
       g.fillStyle = p.color;
       g.fillText(p.text, 0, 0);
+      g.fillText(p.text, 0, 0); // tô 2 lần cho đậm glow
       g.shadowBlur = 0;
+      // viền sáng chữ
+      g.strokeStyle = "rgba(255,255,255,0.5)";
+      g.lineWidth = 1;
+      g.strokeText(p.text, 0, 0);
+      // thanh ═ đôi hai bên (như ảnh)
       const tw = g.measureText(p.text).width;
-      g.fillRect(-tw / 2 - 44, -2, 30, 4);
-      g.fillRect(tw / 2 + 14, -2, 30, 4);
+      for (const side of [-1, 1]) {
+        const bx = side * (tw / 2 + 30);
+        g.fillRect(bx - 18, -7, 36, 4);
+        g.fillRect(bx - 12, 2, 24, 4);
+      }
       g.restore();
     }
 

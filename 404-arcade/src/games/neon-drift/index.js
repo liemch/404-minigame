@@ -302,7 +302,7 @@ export function createGame() {
     // vệt drift / nitro
     if ((mode === "race" || mode === "countdown") && (car.drifting || car.nitroActive) && car.speed > 120) {
       trailT += dt;
-      if (trailT > 0.016) {
+      if (trailT > 0.012) {
         trailT = 0;
         const back = 15;
         const bx = car.x - Math.cos(car.heading) * back;
@@ -316,10 +316,10 @@ export function createGame() {
           trails.push({ x0: last.x1b, y0: last.y1b, x1: bx - px, y1: by - py, life: 1, nitro: nitroCol, fresh: true, b: true });
         }
         trails.push({ x0: bx + px, y0: by + py, x1: bx + px, y1: by + py, x1b: bx - px, y1b: by - py, life: 1, nitro: nitroCol, fresh: true });
-        if (trails.length > 300) trails.splice(0, trails.length - 300);
+        if (trails.length > 360) trails.splice(0, trails.length - 360);
       }
     }
-    for (const tr of trails) tr.life -= dt * 0.75;
+    for (const tr of trails) tr.life -= dt * 0.6;
     for (const s of sparks) s.life -= dt * 1.8;
     while (sparks.length && sparks[0].life <= 0) sparks.shift();
     while (trails.length && trails[0].life <= 0) trails.shift();

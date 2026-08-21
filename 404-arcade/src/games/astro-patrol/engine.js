@@ -124,7 +124,7 @@ function beginFight(sim) {
   }
 }
 
-function spawnEnemy(sim, type, fx) {
+export function spawnEnemy(sim, type, fx) {
   const st = ENEMY_STATS[type];
   sim.enemies.push({
     id: sim.nextId++,
@@ -144,7 +144,7 @@ function spawnEnemy(sim, type, fx) {
   });
 }
 
-function spawnAsteroid(sim, x = null, y = -40) {
+export function spawnAsteroid(sim, x = null, y = -40) {
   if (sim.asteroids.length >= 10) return;
   const r = 20 + sim.rand() * 26;
   sim.asteroids.push({
